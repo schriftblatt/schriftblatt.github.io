@@ -114,6 +114,8 @@ input[type=email],input[type=password]{border:1px solid var(--line);background:v
 .btn.danger{color:var(--bad);border-color:var(--bad)}
 .btn.danger.voll{background:var(--bad);color:#fff}
 .btn.breit{width:100%}
+.knopf-ico{width:44px;padding:0}
+.knopf-ico .ico{width:20px;height:20px}
 .btn[disabled]{opacity:.55;cursor:default}
 .modus{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
 .modus button{flex:1 1 0;min-width:0;border:0;background:transparent;border-radius:8px;padding:8px 4px;font-size:13px;font-weight:600;color:var(--ink-3);cursor:pointer;min-height:40px;white-space:nowrap}
@@ -366,7 +368,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
         <textarea id="textFeld" spellcheck="false" aria-label="Text" placeholder="Text hier einfügen oder tippen"></textarea>
         <div class="reihe zwischen">
           <span class="hint mono" id="textZahl"></span>
-          <button class="btn ghost" id="leerenBtn">Leeren</button>
+          <span class="reihe"><button class="btn ghost" id="originalBtn" hidden>Original zurück</button><button class="btn ghost" id="leerenBtn">Leeren</button></span>
         </div>
       </div>
       <div class="block gruppe">
@@ -411,8 +413,11 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 
   <section class="vorschau" aria-label="Vorschau">
     <div class="vorschau-leiste">
-      <button class="btn" id="wuerfelBtn" title="Gleiche Einstellungen, neu geschrieben">
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/></svg>Neu würfeln
+      <button class="btn knopf-ico" id="wuerfelBtn" title="Neu würfeln: gleiche Einstellungen, neu geschrieben" aria-label="Neu würfeln">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/></svg>
+      </button>
+      <button class="btn knopf-ico" id="umschreibenBtn" title="Text umschreiben: gleicher Inhalt, andere Worte" aria-label="Text umschreiben">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9"/><path d="M4 11h6"/><path d="M4 16h5"/><path d="M20 12a5 5 0 0 1-8.6 3.5"/><path d="M13 12a5 5 0 0 1 8.6-3.5"/><path d="M21.6 5v3.5h-3.5"/><path d="M11.4 19v-3.5h3.5"/></svg>
       </button>
       <span class="spacer"></span>
       <span class="info mono" id="seitenInfo"></span>
@@ -604,14 +609,24 @@ const HS = (function () {
   }
 
   // ---------- Eigene Schrift ----------
-  // own = { gap, g:{zeichen:{w,h,top,x,url,img}}, w:{wort:{...}} }
-  // x ist die x-Höhe des Fotos, aus dem das Zeichen stammt. So passen Zeichen aus verschiedenen Fotos zusammen.
+  // own = { gap, space, g:{zeichen:{w,h,top,x,url,img}}, w:{wort:{...}}, g2, w2 }
+  // x ist die x-Höhe, mit der das Zeichen gezeichnet wird. So passen Zeichen aus verschiedenen Fotos zusammen.
+  // g2 und w2 sind die zweite Abschrift: zwei Fassungen pro Zeichen wechseln sich ab.
   let own = null;
+  // Fester Zufall aus Zahlen, damit Messen und Zeichnen dieselbe Fassung wählen
+  const hsh = (a, b, c) => { let x = (a * 374761393 + b * 668265263 + c * 2246822519) >>> 0; x = Math.imul(x ^ (x >>> 13), 1274126177) >>> 0; return (x ^ (x >>> 16)) >>> 0; };
+  const fassung = (a, b, h) => (b && (h & 1)) ? b : a;
   const QUOTE_MAP = { "„": '"', "“": '"', "”": '"', "‚": "'", "‘": "'", "’": "'", "–": "-", "—": "-", "»": '"', "«": '"', "ẞ": "ß" };
-  function glyphFor(ch) {
+  function glyphFor(ch, h) {
     if (!own) return null;
-    const c = QUOTE_MAP[ch] || ch;
-    return own.g[c] || own.g[c.toLowerCase()] || own.g[c.toUpperCase()] || null;
+    const c = QUOTE_MAP[ch] || ch, g2 = own.g2 || {};
+    for (const k of [c, c.toLowerCase(), c.toUpperCase()]) if (own.g[k] || g2[k]) return fassung(own.g[k], g2[k], h) || own.g[k] || g2[k];
+    return null;
+  }
+  function wortFuer(t, h) {
+    if (!own) return null;
+    const a = own.w[t], b = (own.w2 || {})[t];
+    return (a || b) ? (fassung(a, b, h) || a || b) : null;
   }
   function tinted(gl, color) {
     gl.tint = gl.tint || {};
@@ -625,25 +640,25 @@ const HS = (function () {
   }
   async function ownSetzen(raw) {
     if (!raw || !raw.g) { own = null; return false; }
-    const g = {}, w = {};
+    const g = {}, w = {}, g2 = {}, w2 = {};
     const lade = (quelle, ziel) => Promise.all(Object.keys(quelle || {}).map(k => {
       const m = Object.assign({}, quelle[k]); if (!m.x) m.x = raw.xh || 32;
       return bildLaden(m).then(r => { if (r) ziel[k] = r; });
     }));
-    await lade(raw.g, g); await lade(raw.w, w);
-    own = { gap: raw.gap == null ? 0.16 : raw.gap, space: raw.space || null, g, w };
+    await Promise.all([lade(raw.g, g), lade(raw.w, w), lade(raw.g2, g2), lade(raw.w2, w2)]);
+    own = { gap: raw.gap == null ? 0.16 : raw.gap, space: raw.space || null, g, w, g2, w2 };
     return hatOwn();
   }
   function ownExport() {
     if (!own) return null;
     const strip = o => { const r = {}; Object.keys(o).forEach(k => { const m = o[k]; r[k] = { w: m.w, h: m.h, top: m.top, x: m.x, url: m.url }; }); return r; };
-    return { app: "handschrift", v: 2, gap: own.gap, space: own.space || null, g: strip(own.g), w: strip(own.w) };
+    return { app: "handschrift", v: 3, gap: own.gap, space: own.space || null, g: strip(own.g), w: strip(own.w), g2: strip(own.g2 || {}), w2: strip(own.w2 || {}) };
   }
   function hatOwn() { return !!own && Object.keys(own.g).length > 0; }
   function ownLeeren() { own = null; }
   function ownInfo() {
-    if (!own) return { zeichen: 0, woerter: 0, g: {}, w: {} };
-    return { zeichen: Object.keys(own.g).length, woerter: Object.keys(own.w).length, g: own.g, w: own.w };
+    if (!own) return { zeichen: 0, woerter: 0, zweite: 0, g: {}, w: {} };
+    return { zeichen: Object.keys(own.g).length, woerter: Object.keys(own.w).length, zweite: Object.keys(own.g2 || {}).length, g: own.g, w: own.w };
   }
 
   // ---------- Blatt beschreiben ----------
@@ -681,24 +696,34 @@ const HS = (function () {
     if (useOwn) {
       const gapPx = (own.gap == null ? 0.16 : own.gap) * xh;
       // Ein Wort besteht aus Stücken: eigene Zeichen, ganze eigene Wörter oder Ersatzschrift
-      const pieces = t => {
-        const out = [], p = splitTok(t);
-        const chars = str => {
-          for (const ch of str) {
-            const gl = glyphFor(ch);
+      // Ein Wort besteht aus Stücken: ganzes eigenes Wort, Buchstabenpaar (ch, sch, ei ...), Einzelzeichen oder Ersatzschrift.
+      // id ist die laufende Nummer des Worts im Text, damit dasselbe Wort an anderer Stelle andere Fassungen bekommt.
+      const pieces = (t, id) => {
+        const out = [], p = splitTok(t), sd = o.seed || 1;
+        const chars = (str, off) => {
+          const zs = [...str];
+          for (let i = 0; i < zs.length;) {
+            let paar = null;
+            for (const n of [3, 2]) {
+              const st = zs.slice(i, i + n).join("");
+              if (zs.length - i >= n && PAARE.has(st)) { paar = wortFuer(st, hsh(id, off + i, sd + 7)); if (paar) { out.push({ m: paar, s: xh / paar.x, adv: paar.w * xh / paar.x + gapPx, wort: true }); i += n; break; } }
+            }
+            if (paar) continue;
+            const gl = glyphFor(zs[i], hsh(id, off + i, sd));
             if (gl) { const s = xh / gl.x; out.push({ m: gl, s, adv: gl.w * s + gapPx }); }
-            else { mctx.font = fbStr; out.push({ ch, adv: mctx.measureText(ch).width + gapPx * 0.5 }); }
+            else { mctx.font = fbStr; out.push({ ch: zs[i], adv: mctx.measureText(zs[i]).width + gapPx * 0.5 }); }
+            i++;
           }
         };
-        const wi = p.core && own.w[p.core];
-        if (wi) { chars(p.lead); const s = xh / wi.x; out.push({ m: wi, s, adv: wi.w * s + gapPx, wort: true }); chars(p.trail); }
-        else chars(t);
+        const wi = p.core && wortFuer(p.core, hsh(id, 99, sd));
+        if (wi) { chars(p.lead, 0); const s = xh / wi.x; out.push({ m: wi, s, adv: wi.w * s + gapPx, wort: true }); chars(p.trail, 50); }
+        else chars(t, 0);
         return out;
       };
-      measure = t => { let w = 0; for (const q of pieces(t)) w += q.adv; return Math.max(xh * 0.3, w - gapPx); };
-      drawWord = (g, t, kk) => {
+      measure = (t, id) => { let w = 0; for (const q of pieces(t, id)) w += q.adv; return Math.max(xh * 0.3, w - gapPx); };
+      drawWord = (g, t, kk, id) => {
         let cx = 0; const a0 = g.globalAlpha;
-        for (const q of pieces(t)) {
+        for (const q of pieces(t, id)) {
           if (q.ch) { g.font = fbStr; g.fillText(q.ch, cx, 0); cx += q.adv; continue; }
           const m = q.m, j = kk * (q.wort ? 0.45 : 1);
           const sx = q.s * (1 + r.j() * 0.10 * j), sy = q.s * (1 + r.j() * 0.14 * j);
@@ -707,7 +732,8 @@ const HS = (function () {
           if (!digital) g.globalAlpha = a0 * (1 - r() * 0.16 * j);
           g.drawImage(tinted(m, ink.c), 0, m.top * sy, m.w * sx, m.h * sy);
           g.restore();
-          cx += q.adv + m.w * (sx - q.s) + r.j() * 0.12 * xh * j;
+          // Abstand zum nächsten Buchstaben schwankt immer etwas, mit Unordentlich mehr
+          cx += q.adv + m.w * (sx - q.s) + r.j() * (0.07 + 0.12 * j) * xh + (r() - 0.5) * 0.5 * Math.abs(gapPx);
         }
         return Math.max(0, cx - gapPx);
       };
@@ -742,14 +768,14 @@ const HS = (function () {
       return { words: [], off, max: fullW - off - cut };
     };
     const paras = o.paras || String(o.text || "").replace(/\r/g, "").split("\n").map(p => p.split(/[ \t]+/).filter(Boolean).map(t => ({ t })));
-    const lines = [];
+    const lines = []; let wid = 0;
     paras.forEach(words => {
       if (!words.length) { lines.push({ words: [], off: 0 }); return; }
       let cur = neueZeile(!!o.indent), w = 0;
       words.forEach(it => {
-        const ww = measure(it.t), add = cur.words.length ? spaceW + ww : ww;
+        const id = wid++, ww = measure(it.t, id), add = cur.words.length ? spaceW + ww : ww;
         if (cur.words.length && w + add > cur.max) { lines.push(cur); cur = neueZeile(false); w = 0; }
-        cur.words.push({ t: it.t, w: ww }); w += cur.words.length > 1 ? spaceW + ww : ww;
+        cur.words.push({ t: it.t, w: ww, id }); w += cur.words.length > 1 ? spaceW + ww : ww;
       });
       lines.push(cur);
     });
@@ -790,9 +816,9 @@ const HS = (function () {
           const sc = 1 + r.j() * 0.07 * kk, sxw = 1 + r.j() * 0.06 * kk;
           lg.globalAlpha = ink.a[0] + r() * (ink.a[1] - ink.a[0]);
           lg.save(); lg.translate(x, wy); lg.rotate(r.j() * 0.012 * (kk + d)); lg.transform(1, 0, -sh, 1, 0, 0); lg.scale(sc * sxw, sc);
-          const bw = drawWord(lg, wd.t, kk);
+          const bw = drawWord(lg, wd.t, kk, wd.id);
           lg.restore();
-          x += (bw || wd.w) * sc * sxw + spaceW * (0.8 + r() * 0.5 * (0.4 + kk));
+          x += (bw || wd.w) * sc * sxw + spaceW * (0.75 + r() * (0.35 + 0.5 * kk));
         });
       }
       if (!digital) {
@@ -961,11 +987,14 @@ const HS = (function () {
     { art: "z", z: "N O P Q R S T U V W X Y Z" },
     { art: "z", z: "ä ö ü ß Ä Ö Ü . , ! ?" },
     { art: "z", z: "0 1 2 3 4 5 6 7 8 9 - : ( )" },
+    { art: "w", z: "ch sch ck ei ie au er en st" },
     { art: "w", z: "und die der das ist" },
     { art: "w", z: "nicht ein eine mit sich" },
     { art: "w", z: "auf auch zu den von" }
   ];
   ZEILEN.forEach(Z => { Z.teile = Z.z.split(" "); Z.label = Z.art === "z" ? `${Z.teile[0]} bis ${Z.teile[Z.teile.length - 1]}` : Z.teile.join(", "); });
+  // Häufige Buchstabenpaare, die beim Zusammensetzen von Wörtern als Ganzes eingesetzt werden
+  const PAARE = new Set("ch sch ck ei ie au er en st".split(" "));
   // Zeichen, die auf der Grundlinie sitzen (alles ohne Unterlänge)
   const SIT = new Set([..."abcdefhiklmnorstuvwxzäöüßABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ0123456789.!?:&%€@"]);
   const XLET = [..."acemnorsuvwxz"];
@@ -1143,9 +1172,9 @@ const HS = (function () {
       const lu = z.grs.slice(1).map((x, i) => (x.minx - z.grs[i].maxx) / hZ(z));
       return (lu.length >= 4 && lu.filter(v => v < 0.25).length >= 0.35 * lu.length) || median(z.grs.map(breite)) > 1.8 * mwAll;
     };
-    // Wortzeilen: von unten her, höchstens 3
+    // Wortzeilen (Buchstabenpaare und Wörter): von unten her, höchstens 4
     let nW = 0;
-    for (let i = rows.length - 1; i >= 0 && nW < 3 && rows.length - nW > 1 && wortig(rows[i]); i--) nW++;
+    for (let i = rows.length - 1; i >= 0 && nW < 4 && rows.length - nW > 1 && wortig(rows[i]); i--) nW++;
     const zz = rows.slice(0, rows.length - nW), wz = rows.slice(rows.length - nW);
     // Sehr breite Stücke in Zeichenzeilen sind Durchgestrichenes oder Kleckse
     const mwC = median(zz.flatMap(z => z.grs.map(breite))) || mwAll;
@@ -1224,7 +1253,8 @@ const HS = (function () {
     });
     // Wortzeilen: dichte Buchstaben zu Wörtern verbinden, bis es so viele Wörter sind wie verlangt
     if (wz.length) {
-      const Wd = ZEILEN.filter(Z => Z.art === "w").flatMap(Z => Z.teile).slice(0, wz.length * 5);
+      // Fehlt die Reihe mit den Buchstabenpaaren (ältere Blätter), sind es nur die Wortreihen
+      const wReihen = ZEILEN.filter(Z => Z.art === "w"), Wd = wReihen.slice(Math.max(0, wReihen.length - wz.length)).flatMap(Z => Z.teile);
       anpassen(wz, Wd.length, true);
       let p = 0;
       wz.forEach(z => { z.vorschlag = z.grs.map(() => p < Wd.length ? Wd[p++] : "#").join(" "); });
@@ -1245,7 +1275,7 @@ const HS = (function () {
     };
 
     // 9. Übernehmen, sobald der Nutzer die Zeilen bestätigt oder korrigiert hat
-    _uebernehmen = (texte, ersetzen) => {
+    _uebernehmen = (texte, modus) => {
       const neuG = {}, neuW = {}, abstaende = []; let probleme = 0;
       rows.forEach((z, zi) => {
         const tok = String(texte[zi] || "").trim().split(/\s+/).filter(Boolean);
@@ -1293,35 +1323,54 @@ const HS = (function () {
       // x-Höhe und Buchstabenabstand ableiten
       let xh = median(XLET.filter(c => neuG[c]).map(c => neuG[c].h));
       if (!xh) { const kl = Object.keys(neuG).filter(c => /[a-zäöü]/.test(c)).map(c => neuG[c].h); xh = kl.length ? median(kl) * 0.7 : (median(Object.values(neuW).map(w => w.h)) || 40) * 0.6; }
-      // Wortzeilen sind oft kleiner geschrieben als das Alphabet: Größenfaktor je Zeile aus Wort- und Buchstabenhöhe
-      const fz = {};
-      Object.keys(neuW).forEach(wort => {
-        const zs = [...wort].filter(c => neuG[c]); if (zs.length < 2) return;
-        const zi = neuW[wort].zeile; (fz[zi] = fz[zi] || []).push(neuW[wort].h / Math.max(...zs.map(c => neuG[c].h)));
+      // Größe je Buchstabengruppe angleichen: Wer das m winzig und das l riesig schreibt, bekommt trotzdem ein ruhiges Schriftbild
+      const GRUPPEN = ["acemnorsuvwxz", "bdfhkltß", "gpqy", "ij", "äöü", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "ÄÖÜ", "0123456789"];
+      GRUPPEN.forEach(str => {
+        const ms = [...str].filter(c => neuG[c]); if (ms.length < 3) return;
+        const T = median(ms.map(c => neuG[c].h));
+        ms.forEach(c => { neuG[c].norm = Math.max(0.65, Math.min(1.5, Math.pow(T / neuG[c].h, 0.8))); });
       });
-      const fGlobal = median([].concat(...Object.values(fz))) || 1;
-      const fZeile = zi => Math.max(0.5, Math.min(1.6, median(fz[zi] || []) || fGlobal));
+      const nrm = c => (neuG[c] && neuG[c].norm) || 1;
+      // Größe jedes eingelesenen Worts: so groß, wie seine Buchstaben aus dem Alphabet zusammen wären
+      const fw = {};
+      Object.keys(neuW).forEach(wort => {
+        const zs = [...wort].filter(c => neuG[c]); if (zs.length < Math.min(2, [...wort].length)) return;
+        let oben = 0, unten = 0;
+        zs.forEach(c => { const m = neuG[c], f = nrm(c); oben = Math.max(oben, -m.top * f); unten = Math.max(unten, (m.top + m.h) * f); });
+        if (oben + unten > 0) fw[wort] = Math.max(0.4, Math.min(2, neuW[wort].h / (oben + unten)));
+      });
+      const fz = {};
+      Object.keys(fw).forEach(wort => { const zi = neuW[wort].zeile; (fz[zi] = fz[zi] || []).push(fw[wort]); });
+      const fGlobal = median(Object.values(fw)) || 1;
+      const fZeile = zi => median(fz[zi] || []) || fGlobal;
+      const fWort = wort => fw[wort] || fZeile(neuW[wort].zeile);
       // Buchstabenabstand innerhalb von Wörtern und Abstand zwischen Wörtern, beides in x-Höhen
       const gapsW = [];
       Object.keys(neuW).forEach(wort => {
         const zs = [...wort]; if (zs.length < 2 || !zs.every(c => neuG[c])) return;
-        gapsW.push((neuW[wort].w / fZeile(neuW[wort].zeile) - zs.reduce((s, c) => s + neuG[c].w, 0)) / (zs.length - 1) / xh);
+        gapsW.push((neuW[wort].w / fWort(wort) - zs.reduce((s2, c) => s2 + neuG[c].w * nrm(c), 0)) / (zs.length - 1) / xh);
       });
       const spaces = abstaende.map(a => a.px / (xh * fZeile(a.zi)));
-      const fertig = (m, x) => { m.x = x; m.url = m.img.toDataURL("image/png"); delete m.zeile; return m; };
-      Object.values(neuG).forEach(m => fertig(m, xh));
-      Object.values(neuW).forEach(m => fertig(m, xh * fZeile(m.zeile)));
-      if (!own || ersetzen) own = { gap: 0.16, g: {}, w: {} };
-      Object.assign(own.g, neuG); Object.assign(own.w, neuW);
-      if (gapsW.length) own.gap = Math.max(-0.35, Math.min(0.6, median(gapsW)));
-      if (spaces.length) own.space = Math.max(0.6, Math.min(3, median(spaces)));
+      const fertig = (m, x) => { m.x = x; m.url = m.img.toDataURL("image/png"); delete m.zeile; delete m.norm; return m; };
+      Object.keys(neuG).forEach(c => fertig(neuG[c], xh / nrm(c)));
+      Object.keys(neuW).forEach(wort => fertig(neuW[wort], xh * fWort(wort)));
+      const neuGap = gapsW.length ? Math.max(-0.35, Math.min(0.6, median(gapsW))) : null;
+      const neuSpace = spaces.length ? Math.max(0.6, Math.min(3, median(spaces))) : null;
+      if (modus === "2" && own && Object.keys(own.g).length) {
+        // Zweite Abschrift: jede Fassung kommt dazu, Abstände werden gemittelt
+        own.g2 = Object.assign(own.g2 || {}, neuG); own.w2 = Object.assign(own.w2 || {}, neuW);
+        if (neuGap != null) own.gap = own.gap == null ? neuGap : (own.gap + neuGap) / 2;
+        if (neuSpace != null) own.space = own.space ? (own.space + neuSpace) / 2 : neuSpace;
+      } else {
+        own = { gap: neuGap == null ? 0.16 : neuGap, space: neuSpace, g: neuG, w: neuW, g2: {}, w2: {} };
+      }
       return { zeichen: Object.keys(neuG).length, woerter: Object.keys(neuW).length, probleme };
     };
 
     return { zeilen: rows.map(z => Object.assign(streifen(z), { anzahl: z.grs.length, vorschlag: z.vorschlag || "" })) };
   }
   let _uebernehmen = null;
-  const blattUebernehmen = (texte, ersetzen) => _uebernehmen ? _uebernehmen(texte, ersetzen) : { zeichen: 0, woerter: 0, probleme: 0 };
+  const blattUebernehmen = (texte, modus) => _uebernehmen ? _uebernehmen(texte, modus) : { zeichen: 0, woerter: 0, probleme: 0 };
 
   return { FONTS, ZEILEN, render, pdfVon, blobLaden, loadPhoto, autoAusschnitt,
     blattAuslesen, blattUebernehmen, ownSetzen, ownExport, ownLeeren, ownInfo, hatOwn, splitTok, rng };
@@ -1396,11 +1445,95 @@ const FEHLER = (function () {
   return { plan };
 })();
 
+/* ================= Umschreiben ohne KI =================
+   Zwei Stufen: Satzanfänge umstellen ("Am Abend haben wir ..." wird "Wir haben am Abend ...")
+   und Wendungen tauschen. Jedes Antippen erzeugt aus dem Original eine neue Fassung. */
+const UMSCHREIBEN = (function () {
+  // [Wendung klein, Ersatz, nur mitten im Satz]
+  const W = [
+    ["zuerst", ["als Erstes", "zunächst", "erst einmal"]], ["zunächst", ["zuerst", "als Erstes"]],
+    ["danach", ["anschließend", "im Anschluss", "später"]], ["anschließend", ["danach", "im Anschluss"]],
+    ["dann", ["danach", "anschließend"]], ["später", ["danach"]],
+    ["jedoch", ["aber", "allerdings"], true], ["allerdings", ["jedoch", "aber"], true], ["aber", ["jedoch", "allerdings"], true],
+    ["auch", ["ebenfalls"], true], ["sehr", ["ziemlich", "wirklich", "echt"]], ["ziemlich", ["recht", "ganz schön"]],
+    ["viele", ["zahlreiche", "eine Menge"]], ["vielen", ["zahlreichen"]],
+    ["wichtig", ["bedeutend", "entscheidend"]], ["wichtige", ["bedeutende", "entscheidende"]], ["wichtigen", ["bedeutenden", "entscheidenden"]],
+    ["deshalb", ["daher", "darum", "aus diesem Grund"]], ["daher", ["deshalb", "darum"]], ["darum", ["deshalb", "daher"]],
+    ["weil", ["da"]], ["obwohl", ["obgleich", "auch wenn"]],
+    ["außerdem", ["zudem", "darüber hinaus", "zusätzlich"]], ["zudem", ["außerdem", "darüber hinaus"]], ["zusätzlich", ["außerdem", "zudem"]],
+    ["schnell", ["rasch", "zügig"]], ["bekommen", ["erhalten"]], ["bekommt", ["erhält"]], ["bekam", ["erhielt"]],
+    ["glaube", ["denke"]], ["glauben", ["denken"]], ["glaubt", ["denkt"]],
+    ["zusammen", ["gemeinsam"]], ["gemeinsam", ["zusammen"]],
+    ["lange geschlafen", ["ausgeschlafen", "lange ausgeschlafen"]],
+    ["einen film geschaut", ["einen Film gesehen", "einen Film angeschaut"]],
+    ["nicht so gut", ["nicht besonders gut", "nicht so toll", "eher mittelmäßig"]],
+    ["ein bisschen", ["etwas", "ein wenig"]], ["ein wenig", ["ein bisschen", "etwas"]],
+    ["zum beispiel", ["beispielsweise", "etwa"]], ["beispielsweise", ["zum Beispiel"]],
+    ["insgesamt", ["alles in allem", "im Großen und Ganzen"]],
+    ["vor allem", ["besonders", "hauptsächlich"]], ["besonders", ["vor allem", "insbesondere"]],
+    ["eigentlich", ["im Grunde"]], ["wirklich", ["tatsächlich"]], ["tatsächlich", ["wirklich"]],
+    ["sofort", ["gleich", "direkt"]], ["oft", ["häufig"]], ["häufig", ["oft"]],
+    ["ungefähr", ["etwa", "circa"]], ["natürlich", ["selbstverständlich"]],
+    ["vielleicht", ["möglicherweise", "eventuell"]], ["trotzdem", ["dennoch", "trotz allem"]], ["dennoch", ["trotzdem"]],
+    ["nervös", ["aufgeregt"]], ["ganz normal", ["völlig normal", "ganz gewöhnlich"]],
+    ["gut vorbereitet", ["gut gerüstet", "ausreichend vorbereitet"]],
+    ["gesagt haben", ["behauptet haben", "erzählt haben"]],
+    ["möchte", ["will"]], ["möchten", ["wollen"]], ["deutlich", ["klar"]],
+    ["schließlich", ["am Ende", "letztendlich"]], ["am ende", ["schließlich", "zum Schluss"]], ["zum schluss", ["am Ende", "schließlich"]],
+    ["fast", ["beinahe"]], ["beinahe", ["fast"]],
+    ["erklärt", ["beschreibt"]], ["beschreibt", ["schildert"]],
+    ["benutzt", ["verwendet", "nutzt"]], ["benutzen", ["verwenden", "nutzen"]], ["verwendet", ["benutzt", "nutzt"]],
+    ["wirkt", ["erscheint"]], ["modern", ["zeitgemäß"]], ["moderne", ["zeitgemäße"]],
+    ["einfach formuliert", ["leicht verständlich formuliert", "verständlich geschrieben"]],
+    ["auffällig", ["markant"]], ["auffälliger", ["markanter"]]
+  ];
+  const BUCHST = "A-Za-zÄÖÜäöüß";
+  const W2 = W.slice().sort((a, b) => b[0].length - a[0].length);
+  const KARTE = new Map(W2.map(e => [e[0], e]));
+  const muster = new RegExp(`(^|[^${BUCHST}])(${W2.map(e => e[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?=[^${BUCHST}]|$)`, "gi");
+  // Satzanfänge mit Zeit- oder Ortsangabe, danach Verb und Fürwort: Fürwort nach vorn
+  const VORN = new Set(["am", "im", "an", "in", "nach", "vor", "gestern", "heute", "morgen", "danach", "dann", "zuerst", "anschließend", "später", "abends", "morgens", "mittags", "nachmittags", "seit", "bei", "während", "um"]);
+  const PRON = new Set(["ich", "wir", "er", "sie", "es", "man", "du", "ihr"]);
+  const gross = w => w.charAt(0).toUpperCase() + w.slice(1), klein = w => w.charAt(0).toLowerCase() + w.slice(1);
+  function umstellen(satz) {
+    const vor = satz.match(/^\s*/)[0], nach = satz.match(/\s*$/)[0], t = satz.trim().split(/\s+/);
+    if (t.length < 4 || !VORN.has(t[0].toLowerCase())) return satz;
+    for (let i = 2; i <= Math.min(6, t.length - 2); i++) {
+      const pr = t[i];
+      if (!PRON.has(pr) || !/^[a-zäöüß]+$/.test(t[i - 1])) continue;
+      if (/[,;:]/.test(t.slice(0, i).join(" "))) return satz;
+      const vorne = t.slice(0, i - 1); vorne[0] = klein(vorne[0]);
+      return vor + [gross(pr), t[i - 1], ...vorne, ...t.slice(i + 1)].join(" ") + nach;
+    }
+    return satz;
+  }
+  function text(original, seed) {
+    const r = HS.rng(((seed || 1) ^ 0x2545f491) >>> 0);
+    return String(original || "").split("\n").map(absatz => {
+      // 1. Sätze umstellen
+      const saetze = absatz.match(/[^.!?]+[.!?]*\s*/g) || [absatz];
+      let a = saetze.map(st => r() < 0.65 ? umstellen(st) : st).join("");
+      // 2. Wendungen tauschen
+      a = a.replace(muster, (m, pre, wort, off, ganz) => {
+        const e = KARTE.get(wort.toLowerCase()); if (!e || r() > 0.7) return m;
+        const davor = ganz.slice(0, off + pre.length).trim();
+        // "aber", "jedoch" am Satz- oder Teilsatzanfang nicht tauschen, sonst stimmt die Wortstellung nicht
+        if (e[2] && (!davor || /[.!?:,;]$/.test(davor))) return m;
+        let neu = e[1][(r() * e[1].length) | 0];
+        if (wort.charAt(0) !== wort.charAt(0).toLowerCase()) neu = gross(neu);
+        return pre + neu;
+      });
+      return a;
+    }).join("\n");
+  }
+  return { text };
+})();
+
 /* ================= Oberfläche ================= */
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", gag: false, datum: "", zeit: "", theme: "hell" };
+  messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", gag: false, urtext: "", datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
@@ -1559,7 +1692,8 @@ function statusZeigen() {
   const woerter = Object.keys(info.w).map(w => `<div class="wort"><img src="${info.w[w].url}" alt="${esc(w)}"></div>`).join("");
   box.innerHTML = ohne + `<div class="block">
     <div class="status-kopf">${ICO.ok}<span>Deine Schrift ist eingelesen</span></div>
-    <div class="hint mono">${info.zeichen} Zeichen, ${info.woerter} Wörter</div>
+    <div class="hint mono">${info.zeichen} Zeichen, ${info.woerter} Wörter, ${info.zweite ? "2 Abschriften" : "1 Abschrift"}</div>
+    ${info.zweite ? "" : '<div class="hinweis warn"><b>Zweite Abschrift fehlt</b>Schreib das Blatt noch einmal ab und lade es als 2. Abschrift hoch. Dann wechseln sich zwei Fassungen jedes Buchstabens ab, und kein „e“ sieht aus wie das andere.<div class="reihe" style="margin-top:8px"><button class="btn" data-nochmal>2. Abschrift hochladen</button></div></div>'}
     <div class="glyphen">${zellen}</div>
     ${woerter ? `<div class="woerter">${woerter}</div>` : ""}
     <p class="hint">Gestrichelte Kästchen fehlen noch, dort schreibt eine Ersatzschrift. Ein neues Foto ergänzt nur, was erkannt wird.</p>
@@ -1631,7 +1765,7 @@ function pruefenZeigen(res) {
       <canvas data-bild="${i}" width="${z.w}" height="${z.h}"></canvas>
       <div class="reihe"><input type="text" data-zeile="${i}" data-n="${z.anzahl}" value="${esc(z.vorschlag)}" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Zeile ${i + 1}"><span class="anz" data-anz="${i}"></span></div>
     </div>`).join("")}
-    <label class="check"><input type="checkbox" id="ersetzenCheck" checked><span><b>Alte Schrift ersetzen</b>Aus, wenn du nur einzelne fehlende Zeichen ergänzen willst.</span></label>
+    <div class="field"><span class="lbl">Welche Abschrift ist das?</span><div class="modus" id="abschriftModus"><button type="button" data-v="1">1. Abschrift</button><button type="button" data-v="2">2. Abschrift</button></div><p class="hint" id="abschriftHinweis"></p></div>
     <p class="err" id="pruefFehler"></p>
     <div class="reihe"><button class="btn primary" id="uebernehmenBtn">Schrift übernehmen</button><button class="btn" data-nochmal>Neues Foto</button></div></div>`;
   // Zeilenbild mit Kästen und dem Zeichen darüber, wird bei jeder Änderung neu beschriftet
@@ -1660,12 +1794,20 @@ function pruefenZeigen(res) {
     zeichnen(+inp.dataset.zeile);
   };
   box.querySelectorAll("[data-zeile]").forEach(inp => { zaehlen(inp); inp.addEventListener("input", () => zaehlen(inp)); });
+  // Vorauswahl: Gibt es schon eine Schrift ohne zweite Fassung, ist das hier vermutlich die zweite
+  let abschrift = HS.hatOwn() && !HS.ownInfo().zweite ? "2" : "1";
+  const abschriftStand = () => {
+    $("abschriftModus").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === abschrift)));
+    $("abschriftHinweis").textContent = abschrift === "1" ? "Ersetzt deine gespeicherte Schrift komplett." : "Jedes Zeichen bekommt eine zweite Fassung dazu. Beide wechseln sich im Text ab.";
+  };
+  $("abschriftModus").onclick = e => { const b = e.target.closest("button"); if (b) { abschrift = b.dataset.v; abschriftStand(); } };
+  abschriftStand();
   $("uebernehmenBtn").onclick = () => {
     const texte = [...box.querySelectorAll("[data-zeile]")].map(i => i.value);
-    const r = HS.blattUebernehmen(texte, $("ersetzenCheck").checked);
+    const r = HS.blattUebernehmen(texte, abschrift);
     if (!r.zeichen && !r.woerter) { $("pruefFehler").textContent = "Es wurde nichts übernommen. Prüf, ob die Texte zu den Zeilen passen."; return; }
     schriftSichern(); schriftHoch(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0);
-    box.innerHTML = `<div class="hinweis ${r.probleme ? "warn" : "ok"}"><b>${r.zeichen} Zeichen und ${r.woerter} Wörter übernommen</b>${r.probleme ? `${r.probleme} ${r.probleme === 1 ? "Zeile passte" : "Zeilen passten"} nicht zur Anzahl der Kästen und ${r.probleme === 1 ? "wurde" : "wurden"} übersprungen. ` : ""}Fehlende Zeichen kannst du mit einem neuen Foto ergänzen.</div>
+    box.innerHTML = `<div class="hinweis ${r.probleme ? "warn" : "ok"}"><b>${abschrift === "2" ? "2. Abschrift: " : ""}${r.zeichen} Zeichen und ${r.woerter} Wörter übernommen</b>${r.probleme ? `${r.probleme} ${r.probleme === 1 ? "Zeile passte" : "Zeilen passten"} nicht zur Anzahl der Kästen und ${r.probleme === 1 ? "wurde" : "wurden"} übersprungen. ` : ""}Fehlende Zeichen kannst du mit einem neuen Foto ergänzen.</div>
       <div class="reihe"><button class="btn primary" data-geh="blatt">Weiter zum Blatt</button><button class="btn" data-nochmal>Neues Foto</button></div>`;
     toast("Schrift eingelesen");
     $("schriftStatus").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2021,7 +2163,7 @@ async function start() {
   $("auslesenBtn").onclick = auslesen;
   $("abbrechenBtn").onclick = () => { $("ausschnitt").hidden = true; crop = null; };
   griffeAktivieren();
-  $("textFeld").addEventListener("input", e => { S.text = e.target.value; textZahl(); $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(300); });
+  $("textFeld").addEventListener("input", e => { S.text = e.target.value; S.urtext = ""; $("originalBtn").hidden = true; textZahl(); $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(300); });
   $("leerenBtn").onclick = () => { S.text = ""; $("textFeld").value = ""; textZahl(); speichern(); neuZeichnen(0); $("textFeld").focus(); };
   $("titelFeld").addEventListener("input", e => { S.titel = e.target.value; $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(200); });
   $("nameFeld").addEventListener("input", e => { S.dateiname = e.target.value; speichern(); });
@@ -2031,6 +2173,18 @@ async function start() {
   $("randCheck").onchange = e => { S.margin = e.target.checked; speichern(); neuZeichnen(); };
   $("einzugCheck").onchange = e => { S.indent = e.target.checked; speichern(); neuZeichnen(); };
   $("wuerfelBtn").onclick = () => { S.seed = (Math.random() * 1e9) | 0; speichern(); neuZeichnen(0); };
+  // Umschreiben: immer vom Original aus, damit der Text nicht immer weiter abdriftet
+  const textSetzen = t => { S.text = t; $("textFeld").value = t; textZahl(); $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(0); };
+  $("umschreibenBtn").onclick = () => {
+    if (!S.urtext) S.urtext = S.text;
+    let neu = S.text;
+    for (let v = 0; v < 6 && neu === S.text; v++) neu = UMSCHREIBEN.text(S.urtext, (Math.random() * 1e9) | 0);
+    if (neu === S.text) { toast("Für diesen Text kenne ich noch keine anderen Formulierungen."); return; }
+    textSetzen(neu); $("originalBtn").hidden = false;
+    toast("Umgeschrieben. Nochmal tippen für eine andere Fassung.");
+  };
+  $("originalBtn").onclick = () => { if (!S.urtext) return; const t = S.urtext; S.urtext = ""; $("originalBtn").hidden = true; textSetzen(t); toast("Original wiederhergestellt"); };
+  $("originalBtn").hidden = !S.urtext;
   $("pdfBtn").onclick = async () => { const f = await pdfDatei(); HS.blobLaden(f, f.name); };
   $("teilenBtn").onclick = teilen;
   $("importInput").addEventListener("change", async e => {
