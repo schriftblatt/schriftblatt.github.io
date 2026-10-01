@@ -327,7 +327,6 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <div class="gag" id="gag" hidden>
         <b>Geheimer Beta-Knopf<small>Nur für Tester. Wirklich nicht klicken.</small></b>
         <button class="btn" id="gagBtn">Nicht klicken</button>
-        <button class="x" id="gagZu" aria-label="Ausblenden"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="block gruppe">
         <div class="sec-label">Text</div>
@@ -1768,11 +1767,10 @@ async function start() {
   });
   $("einstBtn").onclick = einstellungen;
   $("kontoBtn").onclick = kontoFenster;
-  // Beta-Gag: verschwindet nach dem Klick oder Ausblenden, gilt pro Konto
+  // Beta-Gag: bleibt stehen, bis einmal geklickt wurde, gilt pro Konto
   const GAG_URL = "https://www.flickr.com/photos/ronnyackerman667/6065510171";
   const gagWeg = () => { S.gag = true; $("gag").hidden = true; speichern(); };
   $("gagBtn").onclick = () => { window.open(GAG_URL, "_blank", "noopener"); gagWeg(); };
-  $("gagZu").onclick = gagWeg;
   // Foto: antippen öffnet Fotos oder Dateien, oder ein Bild auf die Fläche ziehen
   const ab = $("ablage");
   ab.onclick = () => $("fotoInput").click();
