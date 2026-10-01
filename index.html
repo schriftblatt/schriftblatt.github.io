@@ -63,6 +63,12 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .sec-label{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:600}
 .block{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .hint{font-size:12.5px;color:var(--ink-3);line-height:1.45}
+.err{font-size:13px;color:var(--bad);font-weight:600}
+.err:empty{display:none}
+.konto-knopf{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:0 14px 0 11px;height:44px;font-weight:600;font-size:13.5px;color:var(--ink);cursor:pointer;max-width:180px}
+.konto-knopf span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.konto-knopf.an{border-color:var(--accent);color:var(--accent-ink)}
+input[type=email],input[type=password]{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:10px 11px;width:100%;min-height:44px}
 .reihe{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .zwischen{justify-content:space-between}
 
@@ -232,6 +238,9 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Handschrift
     </button>
     <div class="spacer"></div>
+    <button class="konto-knopf" id="kontoBtn" hidden>
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span id="kontoText">Anmelden</span>
+    </button>
     <button class="rund" id="einstBtn" aria-label="Einstellungen">
       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
@@ -377,6 +386,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 <div id="fenster"></div>
 <input type="file" accept=".json,application/json" id="importInput" hidden>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
 "use strict";
@@ -1237,7 +1247,7 @@ const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined",
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
-function speichern() { const o = {}; Object.keys(STD).forEach(k => o[k] = S[k]); LS.set(ST_KEY, JSON.stringify(o)); }
+function speichern() { const o = {}; Object.keys(STD).forEach(k => o[k] = S[k]); LS.set(ST_KEY, JSON.stringify(o)); einstHoch(); }
 const effFont = () => (S.font === "own" ? HS.hatOwn() : HS.FONTS.some(f => f.id === S.font)) ? S.font : "caveat";
 
 const fmtZahl = v => String(v).replace(".", ",");
@@ -1386,6 +1396,7 @@ function statusZeigen() {
     <div class="glyphen">${zellen}</div>
     ${woerter ? `<div class="woerter">${woerter}</div>` : ""}
     <p class="hint">Gestrichelte Kästchen fehlen noch, dort schreibt eine Ersatzschrift. Ein neues Foto ergänzt nur, was erkannt wird.</p>
+    ${sb && !ich ? '<div class="hinweis warn"><b>Nur auf diesem Gerät gespeichert</b>Melde dich an, dann ist deine Schrift auf jedem Gerät da und geht nicht verloren.<div class="reihe" style="margin-top:8px"><button class="btn" data-konto>Anmelden oder registrieren</button></div></div>' : ""}
     <button class="btn primary breit" data-geh="blatt">Weiter zum Blatt</button>
   </div>`;
 }
@@ -1440,7 +1451,7 @@ function auslesen() {
     btn.disabled = false; btn.textContent = "Buchstaben ausschneiden";
     ergebnisZeigen(res);
     if (!res.fehler && HS.hatOwn()) {
-      schriftSichern(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0);
+      schriftSichern(); schriftHoch(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0);
       toast(res.zeichen ? "Schrift eingelesen" : "Nichts Neues erkannt");
     }
   }, 40);
@@ -1507,7 +1518,7 @@ function einstellungen() {
     const z = b.querySelector("#loeschZone");
     z.innerHTML = '<span class="hint" style="flex-basis:100%">Wirklich löschen? Das geht nicht rückgängig.</span><button class="btn danger voll" id="jaLoeschen">Ja, löschen</button><button class="btn ghost" id="neinLoeschen">Abbrechen</button>';
     z.querySelector("#neinLoeschen").onclick = () => { fensterZu(); einstellungen(); };
-    z.querySelector("#jaLoeschen").onclick = () => { HS.ownLeeren(); LS.del(OWN_KEY); fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift gelöscht"); };
+    z.querySelector("#jaLoeschen").onclick = () => { HS.ownLeeren(); LS.del(OWN_KEY); schriftHoch(); fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift gelöscht"); };
   };
 }
 function seiteGross(c) {
@@ -1523,6 +1534,112 @@ function textZahl() {
   $("textZahl").textContent = w + " Wörter";
 }
 const zwei = n => (n < 10 ? "0" : "") + n;
+
+/* ---------- Konto (Supabase) ----------
+   Supabase ist Datenbank plus Anmeldung. Pro Konto eine Zeile in "schriften": Schrift und Einstellungen.
+   Jeder sieht nur seine eigene Zeile (Regeln in sql/01-schriften.sql). Ohne Konto läuft alles nur im Browser. */
+const SB_URL = "https://wqosvkyfbawgxokchivc.supabase.co", SB_KEY = "sb_publishable_paHbA9F91W4b3495Qvq_kQ_tIK3uxUa";
+const sb = (SB_URL && SB_KEY && window.supabase) ? window.supabase.createClient(SB_URL, SB_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: "hs2-konto",
+    storage: { getItem: k => LS.get(k), setItem: (k, v) => { LS.set(k, v); }, removeItem: k => LS.del(k) } }
+}) : null;
+let ich = null, _einstT = 0, _ohneHoch = false;
+const EINST_SYNC = Object.keys(STD).filter(k => k !== "tab");
+function kontoKnopf() {
+  const b = $("kontoBtn"); b.hidden = !sb;
+  b.classList.toggle("an", !!ich);
+  $("kontoText").textContent = ich ? (ich.email || "Konto").split("@")[0] : "Anmelden";
+}
+const kontoFehler = m => {
+  m = String(m || "");
+  if (/Invalid login credentials/i.test(m)) return "E-Mail oder Passwort stimmt nicht.";
+  if (/already registered|already been registered/i.test(m)) return "Für diese E-Mail gibt es schon ein Konto. Melde dich an.";
+  if (/at least 6/i.test(m)) return "Das Passwort braucht mindestens 6 Zeichen.";
+  if (/invalid format|valid email/i.test(m)) return "Die E-Mail-Adresse stimmt so nicht.";
+  if (/not confirmed/i.test(m)) return "Die E-Mail ist noch nicht bestätigt.";
+  if (/rate limit|too many/i.test(m)) return "Zu viele Versuche. Warte kurz und versuch es nochmal.";
+  if (/fetch|network/i.test(m)) return "Keine Verbindung. Prüf dein Internet.";
+  return "Das hat nicht geklappt: " + m;
+};
+async function schriftHoch() {
+  if (!sb || !ich) return;
+  const { error } = await sb.from("schriften").upsert({ user_id: ich.id, schrift: HS.hatOwn() ? HS.ownExport() : null, geaendert: new Date().toISOString() });
+  if (error) toast("Im Konto speichern ging nicht. Deine Schrift ist trotzdem auf diesem Gerät.");
+}
+function einstHoch() {
+  if (!sb || !ich || _ohneHoch) return;
+  clearTimeout(_einstT);
+  _einstT = setTimeout(() => {
+    const e = {}; EINST_SYNC.forEach(k => e[k] = S[k]);
+    sb.from("schriften").upsert({ user_id: ich.id, einstellungen: e, geaendert: new Date().toISOString() });
+  }, 2500);
+}
+// Einstellungen aus dem Konto übernehmen und alle Bedienelemente nachziehen
+function einstAnwenden(e) {
+  EINST_SYNC.forEach(k => { if (e[k] !== undefined) S[k] = e[k]; });
+  REGLER.forEach(R => { $("r-" + R.id).value = S[R.id]; });
+  $("textFeld").value = S.text; textZahl();
+  $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
+  themaAnwenden(); modusStand();
+  _ohneHoch = true; speichern(); _ohneHoch = false;
+}
+async function ausKontoLaden() {
+  const { data, error } = await sb.from("schriften").select("schrift,einstellungen").eq("user_id", ich.id).maybeSingle();
+  if (error) { toast("Dein Konto ließ sich gerade nicht laden."); return; }
+  if (data && data.schrift && data.schrift.g && Object.keys(data.schrift.g).length) { await HS.ownSetzen(data.schrift); schriftSichern(); }
+  else if (HS.hatOwn()) await schriftHoch();   // vorher ohne Konto eingelesen: mitnehmen
+  if (data && data.einstellungen) einstAnwenden(data.einstellungen); else einstHoch();
+  fontsBauen(); statusZeigen(); neuZeichnen(0);
+}
+function kontoFenster(modus) {
+  modus = modus || "login";
+  if (ich) {
+    const b = fensterAuf("Dein Konto", `
+      <div class="hinweis ok"><b>Angemeldet</b>${esc(ich.email || "")}</div>
+      <p class="hint">Deine Schrift und deine Einstellungen werden im Konto gespeichert und sind auf jedem Gerät da, auf dem du dich anmeldest.</p>
+      <button class="btn breit" id="abmeldenBtn">Abmelden</button>
+      <p class="hint">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>`);
+    b.querySelector("#abmeldenBtn").onclick = async () => {
+      await sb.auth.signOut({ scope: "local" });
+      ich = null; HS.ownLeeren(); LS.del(OWN_KEY); kontoKnopf(); fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Abgemeldet");
+    };
+    return;
+  }
+  const neu = modus === "neu";
+  const b = fensterAuf(neu ? "Konto anlegen" : "Anmelden", `
+    <div class="modus" id="kontoModus"><button type="button" data-v="login" aria-pressed="${!neu}">Anmelden</button><button type="button" data-v="neu" aria-pressed="${neu}">Registrieren</button></div>
+    <p class="hint">Mit Konto ist deine Schrift auf jedem Gerät da und geht nicht verloren.</p>
+    <form id="kontoForm" class="gruppe" novalidate>
+      <div class="field"><label for="kEmail">E-Mail</label><input type="email" id="kEmail" autocomplete="email" inputmode="email" required></div>
+      <div class="field"><label for="kPw">Passwort${neu ? " (mindestens 6 Zeichen)" : ""}</label><input type="password" id="kPw" autocomplete="${neu ? "new-password" : "current-password"}" required></div>
+      <p class="err" id="kFehler"></p>
+      <button class="btn primary breit" id="kLos" type="submit">${neu ? "Konto anlegen" : "Anmelden"}</button>
+    </form>`);
+  b.querySelector("#kontoModus").onclick = e => { const x = e.target.closest("button"); if (x) kontoFenster(x.dataset.v); };
+  b.querySelector("#kontoForm").onsubmit = async e => {
+    e.preventDefault();
+    const email = b.querySelector("#kEmail").value.trim(), pw = b.querySelector("#kPw").value, f = b.querySelector("#kFehler"), los = b.querySelector("#kLos");
+    if (!email || !pw) { f.textContent = "Bitte E-Mail und Passwort eingeben."; return; }
+    los.disabled = true; f.textContent = "";
+    const r = neu ? await sb.auth.signUp({ email, password: pw }) : await sb.auth.signInWithPassword({ email, password: pw });
+    los.disabled = false;
+    if (r.error) { f.textContent = kontoFehler(r.error.message); return; }
+    if (!r.data.session) { f.textContent = "Konto angelegt. Bitte bestätige deine E-Mail und melde dich dann an."; return; }
+    ich = r.data.session.user; kontoKnopf(); fensterZu();
+    await ausKontoLaden();
+    toast(neu ? "Konto angelegt, deine Schrift ist jetzt gesichert" : "Angemeldet");
+  };
+  setTimeout(() => b.querySelector("#kEmail").focus(), 50);
+}
+async function kontoStart() {
+  kontoKnopf();
+  if (!sb) return;
+  const { data } = await sb.auth.getSession();
+  ich = (data && data.session && data.session.user) || null;
+  kontoKnopf();
+  if (ich) await ausKontoLaden();
+  sb.auth.onAuthStateChange((ev, session) => { ich = (session && session.user) || null; kontoKnopf(); });
+}
 
 /* ---------- Start ---------- */
 async function start() {
@@ -1543,14 +1660,17 @@ async function start() {
   fontsBauen(); modusStand(); statusZeigen();
   tab(S.tab || (HS.hatOwn() ? "blatt" : "schrift"), false);
   neuZeichnen(0);
+  kontoStart();
 
   document.addEventListener("click", e => {
     const t = e.target.closest("[data-tab-btn]"); if (t) { tab(t.dataset.tabBtn); return; }
     const g = e.target.closest("[data-geh]"); if (g) { tab(g.dataset.geh); return; }
     if (e.target.closest("[data-nochmal]")) { $("fotoInput").click(); return; }
+    if (e.target.closest("[data-konto]")) { kontoFenster("neu"); return; }
     const c = e.target.closest(".seite canvas"); if (c) seiteGross(c);
   });
   $("einstBtn").onclick = einstellungen;
+  $("kontoBtn").onclick = () => kontoFenster();
   // Foto: antippen öffnet Fotos oder Dateien, oder ein Bild auf die Fläche ziehen
   const ab = $("ablage");
   ab.onclick = () => $("fotoInput").click();
@@ -1586,7 +1706,7 @@ async function start() {
     const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
     const d = parse(await f.text());
     if (!d || d.app !== "handschrift" || !d.g) { toast("Das ist keine Handschrift-Datei"); return; }
-    await HS.ownSetzen(d); schriftSichern(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift geladen");
+    await HS.ownSetzen(d); schriftSichern(); schriftHoch(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift geladen");
   });
   // Schriften nachladen und neu zeichnen, sobald sie da sind
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => neuZeichnen(0));
