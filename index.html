@@ -64,6 +64,10 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .block{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .hint{font-size:12.5px;color:var(--ink-3);line-height:1.45}
 .err{font-size:13px;color:var(--bad);font-weight:600}
+body.gesperrt main,body.gesperrt .untenleiste,body.gesperrt #einstBtn,body.gesperrt #kontoBtn{display:none!important}
+.tor{max-width:440px;margin:0 auto;padding:32px 16px 60px;display:flex;flex-direction:column;gap:16px}
+.tor h1{font-size:26px}
+.tor .block{gap:14px}
 .err:empty{display:none}
 .konto-knopf{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:0 14px 0 11px;height:44px;font-weight:600;font-size:13.5px;color:var(--ink);cursor:pointer;max-width:180px}
 .konto-knopf span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -231,7 +235,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 @media (min-width:900px){ .toast{bottom:24px} }
 </style>
 </head>
-<body data-tab="schrift">
+<body data-tab="schrift" class="gesperrt">
 <header class="kopf">
   <div class="kopf-in">
     <button class="marke" data-tab-btn="schrift" title="Zur eigenen Schrift">
@@ -247,6 +251,13 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
   </div>
 </header>
 
+<section class="tor" id="tor" aria-label="Anmeldung">
+  <div class="sicht-kopf">
+    <h1>Deine Schrift, auf jedem Gerät</h1>
+    <p class="unter">Melde dich an, um loszulegen. Deine eingelesene Schrift wird in deinem Konto gespeichert.</p>
+  </div>
+  <div class="block" id="torForm"><p class="hint">Einen Moment …</p></div>
+</section>
 <main>
 <div class="layout">
   <div class="links">
@@ -1591,55 +1602,131 @@ async function ausKontoLaden() {
   if (data && data.einstellungen) einstAnwenden(data.einstellungen); else einstHoch();
   fontsBauen(); statusZeigen(); neuZeichnen(0);
 }
-function kontoFenster(modus) {
-  modus = modus || "login";
-  if (ich) {
-    const b = fensterAuf("Dein Konto", `
-      <div class="hinweis ok"><b>Angemeldet</b>${esc(ich.email || "")}</div>
-      <p class="hint">Deine Schrift und deine Einstellungen werden im Konto gespeichert und sind auf jedem Gerät da, auf dem du dich anmeldest.</p>
-      <button class="btn breit" id="abmeldenBtn">Abmelden</button>
-      <p class="hint">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>`);
-    b.querySelector("#abmeldenBtn").onclick = async () => {
-      await sb.auth.signOut({ scope: "local" });
-      ich = null; HS.ownLeeren(); LS.del(OWN_KEY); kontoKnopf(); fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Abgemeldet");
+// Angemeldet: Fenster mit Konto und Abmelden
+function kontoFenster() {
+  if (!ich) { torZeigen("login"); return; }
+  const b = fensterAuf("Dein Konto", `
+    <div class="hinweis ok"><b>Angemeldet</b>${esc(ich.email || "")}</div>
+    <p class="hint">Deine Schrift und deine Einstellungen werden im Konto gespeichert und sind auf jedem Gerät da, auf dem du dich anmeldest.</p>
+    <button class="btn breit" id="abmeldenBtn">Abmelden</button>
+    <p class="hint">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>`);
+  b.querySelector("#abmeldenBtn").onclick = async () => {
+    await sb.auth.signOut({ scope: "local" });
+    ich = null; HS.ownLeeren(); LS.del(OWN_KEY); kontoKnopf(); fontsBauen(); statusZeigen(); fensterZu(); torZeigen("login"); toast("Abgemeldet");
+  };
+}
+
+/* Tor: ohne Anmeldung kommt niemand rein. Registrieren nur mit echter, bestätigter E-Mail. */
+const WEGWERF = /@(mailinator|guerrillamail|sharklasers|10minutemail|temp-?mail|tempmail|yopmail|trashmail|getnada|dispostable|maildrop|throwawaymail|mohmal|emailondeck|fakeinbox|mailnesia|spamgourmet|moakt|tmpmail|burnermail)\./i;
+const zurueckUrl = () => location.origin + location.pathname;
+function torWeg() { document.body.classList.remove("gesperrt"); $("tor").hidden = true; }
+function torZeigen(modus, info) {
+  fensterZu();
+  document.body.classList.add("gesperrt"); $("tor").hidden = false; window.scrollTo(0, 0);
+  const t = $("torForm");
+  if (modus === "mail") {
+    t.innerHTML = `<div class="hinweis ok"><b>Fast geschafft</b>Wir haben dir eine Mail an ${esc(info)} geschickt. Tipp auf den Link darin, dann bist du drin.</div>
+      <p class="hint">Keine Mail da? Schau im Spam-Ordner nach, oder lass sie dir nochmal schicken.</p>
+      <p class="err" id="tFehler"></p>
+      <button class="btn breit" id="tNochmal">Mail nochmal schicken</button>
+      <button class="btn ghost breit" id="tZurueck">Zurück zur Anmeldung</button>`;
+    t.querySelector("#tNochmal").onclick = async () => {
+      const r = await sb.auth.resend({ type: "signup", email: info, options: { emailRedirectTo: zurueckUrl() } });
+      if (r.error) t.querySelector("#tFehler").textContent = kontoFehler(r.error.message); else toast("Mail ist unterwegs");
+    };
+    t.querySelector("#tZurueck").onclick = () => torZeigen("login");
+    return;
+  }
+  if (modus === "vergessen") {
+    t.innerHTML = `<h2>Passwort vergessen</h2><p class="hint">Gib deine E-Mail ein. Du bekommst einen Link, mit dem du ein neues Passwort setzt.</p>
+      <form id="tForm" class="gruppe" novalidate>
+        <div class="field"><label for="tEmail">E-Mail</label><input type="email" id="tEmail" autocomplete="email" inputmode="email"></div>
+        <p class="err" id="tFehler"></p>
+        <button class="btn primary breit" id="tLos" type="submit">Link schicken</button>
+      </form>
+      <button class="btn ghost breit" id="tZurueck">Zurück zur Anmeldung</button>`;
+    t.querySelector("#tZurueck").onclick = () => torZeigen("login");
+    t.querySelector("#tForm").onsubmit = async e => {
+      e.preventDefault();
+      const email = t.querySelector("#tEmail").value.trim(), f = t.querySelector("#tFehler");
+      if (!email) { f.textContent = "Bitte deine E-Mail eingeben."; return; }
+      const r = await sb.auth.resetPasswordForEmail(email, { redirectTo: zurueckUrl() });
+      if (r.error) { f.textContent = kontoFehler(r.error.message); return; }
+      t.innerHTML = `<div class="hinweis ok"><b>Mail ist unterwegs</b>Falls es zu ${esc(email)} ein Konto gibt, kommt gleich ein Link. Schau auch im Spam-Ordner nach.</div><button class="btn ghost breit" id="tZurueck">Zurück zur Anmeldung</button>`;
+      t.querySelector("#tZurueck").onclick = () => torZeigen("login");
+    };
+    return;
+  }
+  if (modus === "neuesPw") {
+    t.innerHTML = `<h2>Neues Passwort</h2>
+      <form id="tForm" class="gruppe" novalidate>
+        <div class="field"><label for="tPw">Neues Passwort (mindestens 6 Zeichen)</label><input type="password" id="tPw" autocomplete="new-password"></div>
+        <p class="err" id="tFehler"></p>
+        <button class="btn primary breit" type="submit">Speichern</button>
+      </form>`;
+    t.querySelector("#tForm").onsubmit = async e => {
+      e.preventDefault();
+      const r = await sb.auth.updateUser({ password: t.querySelector("#tPw").value });
+      if (r.error) { t.querySelector("#tFehler").textContent = kontoFehler(r.error.message); return; }
+      history.replaceState(null, "", zurueckUrl());
+      toast("Passwort geändert"); angemeldet(r.data.user);
     };
     return;
   }
   const neu = modus === "neu";
-  const b = fensterAuf(neu ? "Konto anlegen" : "Anmelden", `
-    <div class="modus" id="kontoModus"><button type="button" data-v="login" aria-pressed="${!neu}">Anmelden</button><button type="button" data-v="neu" aria-pressed="${neu}">Registrieren</button></div>
-    <p class="hint">Mit Konto ist deine Schrift auf jedem Gerät da und geht nicht verloren.</p>
-    <form id="kontoForm" class="gruppe" novalidate>
-      <div class="field"><label for="kEmail">E-Mail</label><input type="email" id="kEmail" autocomplete="email" inputmode="email" required></div>
-      <div class="field"><label for="kPw">Passwort${neu ? " (mindestens 6 Zeichen)" : ""}</label><input type="password" id="kPw" autocomplete="${neu ? "new-password" : "current-password"}" required></div>
-      <p class="err" id="kFehler"></p>
-      <button class="btn primary breit" id="kLos" type="submit">${neu ? "Konto anlegen" : "Anmelden"}</button>
-    </form>`);
-  b.querySelector("#kontoModus").onclick = e => { const x = e.target.closest("button"); if (x) kontoFenster(x.dataset.v); };
-  b.querySelector("#kontoForm").onsubmit = async e => {
+  t.innerHTML = `<div class="modus" id="tModus"><button type="button" data-v="login" aria-pressed="${!neu}">Anmelden</button><button type="button" data-v="neu" aria-pressed="${neu}">Registrieren</button></div>
+    <form id="tForm" class="gruppe" novalidate>
+      <div class="field"><label for="tEmail">E-Mail</label><input type="email" id="tEmail" autocomplete="email" inputmode="email"></div>
+      <div class="field"><label for="tPw">Passwort${neu ? " (mindestens 6 Zeichen)" : ""}</label><input type="password" id="tPw" autocomplete="${neu ? "new-password" : "current-password"}"></div>
+      <p class="err" id="tFehler"></p>
+      <button class="btn primary breit" id="tLos" type="submit">${neu ? "Konto anlegen" : "Anmelden"}</button>
+    </form>
+    ${neu ? '<p class="hint">Du bekommst eine Mail mit einem Link. Erst danach ist dein Konto aktiv.</p>' : '<button class="btn ghost breit" id="tVergessen">Passwort vergessen?</button>'}`;
+  t.querySelector("#tModus").onclick = e => { const x = e.target.closest("button"); if (x) torZeigen(x.dataset.v); };
+  if (!neu) t.querySelector("#tVergessen").onclick = () => torZeigen("vergessen");
+  t.querySelector("#tForm").onsubmit = async e => {
     e.preventDefault();
-    const email = b.querySelector("#kEmail").value.trim(), pw = b.querySelector("#kPw").value, f = b.querySelector("#kFehler"), los = b.querySelector("#kLos");
+    const email = t.querySelector("#tEmail").value.trim(), pw = t.querySelector("#tPw").value, f = t.querySelector("#tFehler"), los = t.querySelector("#tLos");
     if (!email || !pw) { f.textContent = "Bitte E-Mail und Passwort eingeben."; return; }
+    if (neu && WEGWERF.test(email)) { f.textContent = "Wegwerf-Adressen gehen nicht. Nimm deine echte E-Mail."; return; }
     los.disabled = true; f.textContent = "";
-    const r = neu ? await sb.auth.signUp({ email, password: pw }) : await sb.auth.signInWithPassword({ email, password: pw });
+    const r = neu
+      ? await sb.auth.signUp({ email, password: pw, options: { emailRedirectTo: zurueckUrl() } })
+      : await sb.auth.signInWithPassword({ email, password: pw });
     los.disabled = false;
-    if (r.error) { f.textContent = kontoFehler(r.error.message); return; }
-    if (!r.data.session) { f.textContent = "Konto angelegt. Bitte bestätige deine E-Mail und melde dich dann an."; return; }
-    ich = r.data.session.user; kontoKnopf(); fensterZu();
-    await ausKontoLaden();
-    toast(neu ? "Konto angelegt, deine Schrift ist jetzt gesichert" : "Angemeldet");
+    if (r.error) {
+      f.textContent = kontoFehler(r.error.message);
+      if (/not confirmed/i.test(r.error.message)) { f.innerHTML = 'Deine E-Mail ist noch nicht bestätigt. <button type="button" class="btn ghost" id="tBest">Bestätigungsmail nochmal schicken</button>'; t.querySelector("#tBest").onclick = async () => { await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: zurueckUrl() } }); torZeigen("mail", email); }; }
+      return;
+    }
+    // Supabase meldet bei schon bestätigten Adressen keinen Fehler, sondern ein Konto ohne Identität
+    if (neu && r.data.user && Array.isArray(r.data.user.identities) && !r.data.user.identities.length) { f.textContent = "Für diese E-Mail gibt es schon ein Konto. Melde dich an."; return; }
+    if (!r.data.session) { torZeigen("mail", email); return; }
+    angemeldet(r.data.session.user);
+    toast(neu ? "Konto angelegt" : "Angemeldet");
   };
-  setTimeout(() => b.querySelector("#kEmail").focus(), 50);
+}
+async function angemeldet(user) {
+  ich = user; kontoKnopf(); torWeg();
+  await ausKontoLaden();
 }
 async function kontoStart() {
   kontoKnopf();
-  if (!sb) return;
+  if (!sb) { torWeg(); return; }
+  const wiederherstellen = /type=recovery/.test(location.hash + location.search);
+  sb.auth.onAuthStateChange((ev, session) => {
+    if (ev === "PASSWORD_RECOVERY") { setTimeout(() => torZeigen("neuesPw"), 0); return; }
+    if (ev === "SIGNED_OUT") { ich = null; kontoKnopf(); }
+  });
   const { data } = await sb.auth.getSession();
-  ich = (data && data.session && data.session.user) || null;
-  kontoKnopf();
-  if (ich) await ausKontoLaden();
-  sb.auth.onAuthStateChange((ev, session) => { ich = (session && session.user) || null; kontoKnopf(); });
+  const user = (data && data.session && data.session.user) || null;
+  if (wiederherstellen && user) { ich = user; torZeigen("neuesPw"); return; }
+  if (user) {
+    if (/access_token|type=signup/.test(location.hash)) { history.replaceState(null, "", zurueckUrl()); toast("E-Mail bestätigt, willkommen"); }
+    angemeldet(user);
+  } else torZeigen("login");
 }
+
 
 /* ---------- Start ---------- */
 async function start() {
@@ -1670,7 +1757,7 @@ async function start() {
     const c = e.target.closest(".seite canvas"); if (c) seiteGross(c);
   });
   $("einstBtn").onclick = einstellungen;
-  $("kontoBtn").onclick = () => kontoFenster();
+  $("kontoBtn").onclick = kontoFenster;
   // Foto: antippen öffnet Fotos oder Dateien, oder ein Bild auf die Fläche ziehen
   const ab = $("ablage");
   ab.onclick = () => $("fotoInput").click();
