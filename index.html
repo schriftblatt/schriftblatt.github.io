@@ -252,6 +252,13 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 .panel-head h3{font-size:17px;flex:1}
 .panel-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px;overscroll-behavior:contain}
 .panel-body canvas{width:100%;height:auto;display:block;box-shadow:var(--shadow)}
+.panel-body.ohne-rand{padding:0;gap:0;overflow:hidden;position:relative}
+.zoom{flex:1;overflow:auto;touch-action:pan-x pan-y;background:var(--surface-2);overscroll-behavior:contain}
+.zoom-in{width:100%}
+.zoom-in canvas{box-shadow:none}
+.zoom-knoepfe{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;background:var(--surface);padding:6px;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.zoom-knoepfe .btn{min-width:48px;font-size:18px}
+.zoom-knoepfe .btn[data-z="1"]{font-size:14px}
 .x{border:0;background:transparent;color:var(--ink-3);cursor:pointer;min-width:44px;min-height:44px;display:grid;place-items:center}
 .x .ico{width:22px;height:22px}
 @media (max-width:700px){
@@ -1711,9 +1718,43 @@ function einstellungen() {
     z.querySelector("#jaLoeschen").onclick = () => { HS.ownLeeren(); LS.del(OWN_KEY); schriftHoch(); fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift gelöscht"); };
   };
 }
+// Große Ansicht einer Seite: zoomen mit zwei Fingern, Doppeltippen oder den Knöpfen
 function seiteGross(c) {
   const k = document.createElement("canvas"); k.width = c.width; k.height = c.height; k.getContext("2d").drawImage(c, 0, 0);
-  fensterAuf("Seite " + (+c.dataset.seite + 1), k, true);
+  const wrap = document.createElement("div"); wrap.className = "zoom";
+  const inner = document.createElement("div"); inner.className = "zoom-in"; inner.appendChild(k); wrap.appendChild(inner);
+  const body = fensterAuf("Seite " + (+c.dataset.seite + 1), wrap, true);
+  body.classList.add("ohne-rand");
+  const leiste = document.createElement("div"); leiste.className = "zoom-knoepfe";
+  leiste.innerHTML = '<button class="btn" data-z="-" aria-label="Kleiner">−</button><button class="btn" data-z="1">Ganze Seite</button><button class="btn" data-z="+" aria-label="Größer">+</button>';
+  body.appendChild(leiste);
+  let z = 1;
+  // Der Punkt unter den Fingern bleibt beim Zoomen an seiner Stelle
+  const setz = (nz, cx, cy) => {
+    nz = Math.max(1, Math.min(5, nz));
+    const r = wrap.getBoundingClientRect(); if (cx == null) { cx = r.width / 2; cy = r.height / 2; }
+    const fx = (wrap.scrollLeft + cx) / inner.offsetWidth, fy = (wrap.scrollTop + cy) / inner.offsetHeight;
+    z = nz; inner.style.width = z * 100 + "%";
+    wrap.scrollLeft = fx * inner.offsetWidth - cx; wrap.scrollTop = fy * inner.offsetHeight - cy;
+  };
+  leiste.onclick = e => { const b = e.target.closest("[data-z]"); if (!b) return; const v = b.dataset.z; setz(v === "+" ? z * 1.6 : v === "-" ? z / 1.6 : 1); };
+  let p0 = null;
+  const abstand = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  wrap.addEventListener("touchstart", e => { if (e.touches.length === 2) p0 = { d: abstand(e.touches[0], e.touches[1]), z }; }, { passive: true });
+  wrap.addEventListener("touchmove", e => {
+    if (e.touches.length !== 2 || !p0) return;
+    e.preventDefault();
+    const [a, b] = e.touches, r = wrap.getBoundingClientRect();
+    setz(p0.z * abstand(a, b) / p0.d, (a.clientX + b.clientX) / 2 - r.left, (a.clientY + b.clientY) / 2 - r.top);
+  }, { passive: false });
+  wrap.addEventListener("touchend", e => { if (e.touches.length < 2) p0 = null; });
+  wrap.addEventListener("gesturestart", e => e.preventDefault());
+  let tLetzt = 0;
+  wrap.addEventListener("click", e => {
+    const t = Date.now(), r = wrap.getBoundingClientRect();
+    if (t - tLetzt < 320) { setz(z > 1.2 ? 1 : 2.5, e.clientX - r.left, e.clientY - r.top); tLetzt = 0; } else tLetzt = t;
+  });
+  wrap.addEventListener("wheel", e => { if (!e.ctrlKey) return; e.preventDefault(); const r = wrap.getBoundingClientRect(); setz(z * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
 }
 function themaAnwenden() {
   document.documentElement.dataset.theme = S.theme === "dunkel" ? "dunkel" : "";
