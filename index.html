@@ -1677,23 +1677,11 @@ function torZeigen(modus, info) {
     return;
   }
   if (modus === "vergessen") {
-    t.innerHTML = `<h2>Passwort vergessen</h2><p class="hint">Gib deine E-Mail ein. Du bekommst einen Link, mit dem du ein neues Passwort setzt.</p>
-      <form id="tForm" class="gruppe" novalidate>
-        <div class="field"><label for="tEmail">E-Mail</label><input type="email" id="tEmail" autocomplete="email" inputmode="email"></div>
-        <p class="err" id="tFehler"></p>
-        <button class="btn primary breit" id="tLos" type="submit">Link schicken</button>
-      </form>
+    // Ohne eigenen Mailversand kann Supabase keine Links verschicken. Der Admin setzt das Konto zurück.
+    t.innerHTML = `<h2>Passwort vergessen</h2>
+      <div class="hinweis">Schreib der Person, die dir den Link zu dieser Seite geschickt hat. Sie setzt dein Konto zurück, danach registrierst du dich einfach neu.</div>
       <button class="btn ghost breit" id="tZurueck">Zurück zur Anmeldung</button>`;
     t.querySelector("#tZurueck").onclick = () => torZeigen("login");
-    t.querySelector("#tForm").onsubmit = async e => {
-      e.preventDefault();
-      const email = t.querySelector("#tEmail").value.trim(), f = t.querySelector("#tFehler");
-      if (!email) { f.textContent = "Bitte deine E-Mail eingeben."; return; }
-      const r = await sb.auth.resetPasswordForEmail(email, { redirectTo: zurueckUrl() });
-      if (r.error) { f.textContent = kontoFehler(r.error.message); return; }
-      t.innerHTML = `<div class="hinweis ok"><b>Mail ist unterwegs</b>Falls es zu ${esc(email)} ein Konto gibt, kommt gleich ein Link. Schau auch im Spam-Ordner nach.</div><button class="btn ghost breit" id="tZurueck">Zurück zur Anmeldung</button>`;
-      t.querySelector("#tZurueck").onclick = () => torZeigen("login");
-    };
     return;
   }
   if (modus === "neuesPw") {
@@ -1721,7 +1709,7 @@ function torZeigen(modus, info) {
       <p class="err" id="tFehler"></p>
       <button class="btn primary breit" id="tLos" type="submit">${neu ? "Konto anlegen" : "Anmelden"}</button>
     </form>
-    ${neu ? '<p class="hint">Du bekommst eine Mail mit einem Link. Erst danach ist dein Konto aktiv.</p>' : '<button class="btn ghost breit" id="tVergessen">Passwort vergessen?</button>'}`;
+    ${neu ? '<p class="hint">Merk dir dein Passwort gut. Damit meldest du dich auf jedem Gerät an.</p>' : '<button class="btn ghost breit" id="tVergessen">Passwort vergessen?</button>'}`;
   t.querySelector("#tModus").onclick = e => { const x = e.target.closest("button"); if (x) torZeigen(x.dataset.v); };
   if (!neu) t.querySelector("#tVergessen").onclick = () => torZeigen("vergessen");
   t.querySelector("#tForm").onsubmit = async e => {
