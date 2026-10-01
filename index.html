@@ -610,13 +610,13 @@ const HS = (function () {
       return bildLaden(m).then(r => { if (r) ziel[k] = r; });
     }));
     await lade(raw.g, g); await lade(raw.w, w);
-    own = { gap: raw.gap == null ? 0.16 : raw.gap, g, w };
+    own = { gap: raw.gap == null ? 0.16 : raw.gap, space: raw.space || null, g, w };
     return hatOwn();
   }
   function ownExport() {
     if (!own) return null;
     const strip = o => { const r = {}; Object.keys(o).forEach(k => { const m = o[k]; r[k] = { w: m.w, h: m.h, top: m.top, x: m.x, url: m.url }; }); return r; };
-    return { app: "handschrift", v: 2, gap: own.gap, g: strip(own.g), w: strip(own.w) };
+    return { app: "handschrift", v: 2, gap: own.gap, space: own.space || null, g: strip(own.g), w: strip(own.w) };
   }
   function hatOwn() { return !!own && Object.keys(own.g).length > 0; }
   function ownLeeren() { own = null; }
@@ -708,7 +708,8 @@ const HS = (function () {
     }
 
     // Zeilen umbrechen. Jede Zeile bekommt ihren eigenen Anfang und ihr eigenes Ende.
-    const spaceW = xh * 0.95, fullW = (geo.right - geo.left) * 0.98, indentW = 8 * MM;
+    // Wortabstand: aus den eigenen Wortreihen gelernt, sonst Standard
+    const spaceW = (useOwn && own.space ? own.space : 0.95) * xh, fullW = (geo.right - geo.left) * 0.98, indentW = 8 * MM;
     const lr = rng(((o.seed || 1) ^ 0x9e3779b9) >>> 0), sA = (o.starts || 0) / 100, sE = (o.ends || 0) / 100;
     let walk = 0;
     const neueZeile = indent => {
@@ -1224,7 +1225,7 @@ const HS = (function () {
 
     // 9. Übernehmen, sobald der Nutzer die Zeilen bestätigt oder korrigiert hat
     _uebernehmen = (texte, ersetzen) => {
-      const neuG = {}, neuW = {}; let probleme = 0;
+      const neuG = {}, neuW = {}, abstaende = []; let probleme = 0;
       rows.forEach((z, zi) => {
         const tok = String(texte[zi] || "").trim().split(/\s+/).filter(Boolean);
         if (!tok.length) return;
@@ -1263,22 +1264,36 @@ const HS = (function () {
             // Knapp an der Linie: genau draufsetzen. Deutlich darunter (f mit Unterlänge): so lassen
             const snap = SIT.has(t) && Math.abs(b.bot - base) < 0.2 * hMed;
             neuG[t] = { img: b.img, w: b.w, h: b.h, top: snap ? -b.h : b.miny - base };
-          } else neuW[t] = { img: b.img, w: b.w, h: b.h, top: b.miny - base };
+          } else neuW[t] = { img: b.img, w: b.w, h: b.h, top: b.miny - base, zeile: zi };
         });
+        // Abstand zwischen zwei Wörtern merken, daraus wird später der Wortabstand
+        for (let i = 0; i < n - 1; i++) if (!einzeln(tok[i]) && !einzeln(tok[i + 1]) && tok[i] !== "#" && tok[i + 1] !== "#") abstaende.push({ zi, px: grs[i + 1].minx - grs[i].maxx });
       });
       // x-Höhe und Buchstabenabstand ableiten
       let xh = median(XLET.filter(c => neuG[c]).map(c => neuG[c].h));
       if (!xh) { const kl = Object.keys(neuG).filter(c => /[a-zäöü]/.test(c)).map(c => neuG[c].h); xh = kl.length ? median(kl) * 0.7 : (median(Object.values(neuW).map(w => w.h)) || 40) * 0.6; }
+      // Wortzeilen sind oft kleiner geschrieben als das Alphabet: Größenfaktor je Zeile aus Wort- und Buchstabenhöhe
+      const fz = {};
+      Object.keys(neuW).forEach(wort => {
+        const zs = [...wort].filter(c => neuG[c]); if (zs.length < 2) return;
+        const zi = neuW[wort].zeile; (fz[zi] = fz[zi] || []).push(neuW[wort].h / Math.max(...zs.map(c => neuG[c].h)));
+      });
+      const fGlobal = median([].concat(...Object.values(fz))) || 1;
+      const fZeile = zi => Math.max(0.5, Math.min(1.6, median(fz[zi] || []) || fGlobal));
+      // Buchstabenabstand innerhalb von Wörtern und Abstand zwischen Wörtern, beides in x-Höhen
       const gapsW = [];
       Object.keys(neuW).forEach(wort => {
         const zs = [...wort]; if (zs.length < 2 || !zs.every(c => neuG[c])) return;
-        gapsW.push((neuW[wort].w - zs.reduce((s, c) => s + neuG[c].w, 0)) / (zs.length - 1) / xh);
+        gapsW.push((neuW[wort].w / fZeile(neuW[wort].zeile) - zs.reduce((s, c) => s + neuG[c].w, 0)) / (zs.length - 1) / xh);
       });
-      const fertig = m => { m.x = xh; m.url = m.img.toDataURL("image/png"); return m; };
-      Object.values(neuG).forEach(fertig); Object.values(neuW).forEach(fertig);
+      const spaces = abstaende.map(a => a.px / (xh * fZeile(a.zi)));
+      const fertig = (m, x) => { m.x = x; m.url = m.img.toDataURL("image/png"); delete m.zeile; return m; };
+      Object.values(neuG).forEach(m => fertig(m, xh));
+      Object.values(neuW).forEach(m => fertig(m, xh * fZeile(m.zeile)));
       if (!own || ersetzen) own = { gap: 0.16, g: {}, w: {} };
       Object.assign(own.g, neuG); Object.assign(own.w, neuW);
       if (gapsW.length) own.gap = Math.max(-0.35, Math.min(0.6, median(gapsW)));
+      if (spaces.length) own.space = Math.max(0.6, Math.min(3, median(spaces)));
       return { zeichen: Object.keys(neuG).length, woerter: Object.keys(neuW).length, probleme };
     };
 
