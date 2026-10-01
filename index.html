@@ -231,7 +231,10 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 }
 @media (max-width:899px){
   .vorschau{order:-1;display:none}
-  body[data-tab="blatt"] .vorschau{display:flex;position:sticky;top:var(--kopfh);z-index:6;background:var(--paper);margin:-16px -16px 0;padding:10px 16px 12px;border-bottom:1px solid var(--line)}
+  body[data-tab="blatt"] .vorschau{display:flex;background:var(--paper);margin:-16px -16px 0;padding:10px 16px 12px;border-bottom:1px solid var(--line)}
+  /* Kleine Vorschau unten rechts, sobald die große weggescrollt ist */
+  .mini{position:fixed;right:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:27;width:84px;padding:0;border:1px solid var(--line);border-radius:4px;background:#fff;box-shadow:0 6px 18px -6px rgba(14,27,42,.45);cursor:zoom-in}
+  .mini canvas{display:block;width:100%;height:auto;border-radius:3px}
   .seiten{flex-direction:row;align-items:stretch;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;height:min(44vh,420px);scroll-snap-type:x mandatory;gap:12px}
   .seite{width:auto;max-width:none;flex:0 0 auto;height:100%;scroll-snap-align:center}
   .seite:only-child{margin:0 auto}
@@ -256,6 +259,8 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
   .panel-body{touch-action:pan-y;overflow-x:hidden;padding:14px}
   .panel-body>*{min-width:0;max-width:100%}
 }
+.mini[hidden]{display:none!important}
+@media (min-width:900px){ .mini{display:none!important} }
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom));z-index:70;background:var(--ink);color:var(--paper);padding:11px 16px;border-radius:9px;font-size:14px;box-shadow:var(--shadow);max-width:min(520px,92vw)}
 @media (min-width:900px){ .toast{bottom:24px} }
 </style>
@@ -424,6 +429,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
     <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg><span>Blatt</span>
   </button>
 </nav>
+<button class="mini" id="mini" hidden aria-label="Blatt groß ansehen"><canvas width="168" height="238"></canvas></button>
 <div id="fenster"></div>
 <input type="file" accept=".json,application/json" id="importInput" hidden>
 
@@ -1423,6 +1429,7 @@ function tab(t, scroll) {
   document.querySelectorAll("[data-tab-btn]").forEach(b => { if (b.getAttribute("role") === "tab") { b.setAttribute("aria-selected", String(b.dataset.tabBtn === t)); b.setAttribute("aria-pressed", String(b.dataset.tabBtn === t)); } });
   if (scroll !== false) { window.scrollTo(0, 0); const l = document.querySelector(".links"); if (l) l.scrollTop = 0; }
   speichern();
+  if ($("mini")) miniStand();
 }
 
 /* ---------- Blatt neu zeichnen ---------- */
@@ -1437,7 +1444,7 @@ function neuZeichnen(ms) {
       messy: S.messy, drift: S.drift, slant: S.slant, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
       titel: S.titel.trim(), datum: S.datum, zeit: S.zeit
     });
-    if (r) { $("seitenInfo").textContent = r.pages === 1 ? "1 Seite" : r.pages + " Seiten"; pdfVorbereiten(); }
+    if (r) { $("seitenInfo").textContent = r.pages === 1 ? "1 Seite" : r.pages + " Seiten"; pdfVorbereiten(); miniMalen(); }
   }, ms == null ? 60 : ms);
 }
 function fehlerZeigen(p) {
@@ -1447,6 +1454,15 @@ function fehlerZeigen(p) {
   $("fehlerListe").innerHTML = p.fehler.map(f => `<li><span><s>${esc(f.vorher)}</s> wird ${esc(f.nachher)}</span><small>${esc(f.art)}</small></li>`).join("")
     + '<li><small>Mit Neu würfeln landen die Fehler an anderen Stellen.</small></li>';
 }
+
+/* ---------- Mini-Vorschau am Handy ---------- */
+const handy = () => window.matchMedia("(max-width: 899px)").matches;
+let _vorschauSichtbar = true;
+function miniMalen() {
+  const c = document.querySelector("#seiten canvas"), m = $("mini").querySelector("canvas");
+  if (c) m.getContext("2d").drawImage(c, 0, 0, m.width, m.height);
+}
+function miniStand() { $("mini").hidden = !(handy() && S.tab === "blatt" && !_vorschauSichtbar && !document.body.classList.contains("gesperrt")); }
 
 /* ---------- PDF teilen ----------
    Das PDF entsteht im Speicher und geht direkt ins Teilen-Menü des Handys (WhatsApp, AirDrop, In Dateien sichern ...).
@@ -1937,6 +1953,9 @@ async function start() {
     const c = e.target.closest(".seite canvas"); if (c) seiteGross(c);
   });
   $("einstBtn").onclick = einstellungen;
+  $("mini").onclick = () => { const c = document.querySelector("#seiten canvas"); if (c) seiteGross(c); };
+  if ("IntersectionObserver" in window) new IntersectionObserver(e => { _vorschauSichtbar = e[0].isIntersecting; miniStand(); }, { rootMargin: "-60px 0px 0px 0px" }).observe(document.querySelector(".vorschau"));
+  window.addEventListener("resize", miniStand);
   $("kontoBtn").onclick = kontoFenster;
   // Beta-Gag: bleibt stehen, bis einmal geklickt wurde, gilt pro Konto
   const GAG_URL = "https://www.flickr.com/photos/ronnyackerman667/6065510171";
