@@ -67,6 +67,12 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 body.gesperrt main,body.gesperrt .untenleiste,body.gesperrt #einstBtn,body.gesperrt #kontoBtn{display:none!important}
 .tor{max-width:440px;margin:0 auto;padding:32px 16px 60px;display:flex;flex-direction:column;gap:16px}
 .tor h1{font-size:26px}
+.zeile-pruef{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line-soft);padding-top:10px}
+.zeile-pruef img{width:100%;display:block;border-radius:6px;border:1px solid var(--line);background:#fff}
+.zeile-pruef input{flex:1;font-family:var(--font-mono);letter-spacing:.02em}
+.zeile-pruef .reihe{flex-wrap:nowrap}
+.anz{font-size:12px;font-weight:600;white-space:nowrap}
+.anz.ok{color:var(--ok)} .anz.warn{color:var(--warn)}
 .tester{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .tester li{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;display:flex;flex-direction:column;gap:3px;overflow-wrap:anywhere}
 .tester .mono{font-size:13px;color:var(--ink-2)}
@@ -289,7 +295,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <div class="block" id="anleitung">
         <ol class="anl">
           <li><b>Papier, Heft oder iPad.</b> Liniert, kariert oder weiß. Auf Papier ein dunkler Kuli oder Fineliner.</li>
-          <li><b>Diese 9 Reihen abschreiben.</b> Jede Reihe auf eine Linie, dazwischen eine Linie frei. Zwischen den Zeichen etwas Platz lassen, die Wörter ganz normal schreiben, so wie du sonst auch schreibst.</li>
+          <li><b>Diese Reihen abschreiben.</b> Jede Reihe auf eine eigene Linie. Zwischen den Zeichen etwas Platz lassen, die Wörter ganz normal schreiben, so wie du sonst auch schreibst. Verschrieben? Kein Problem, das korrigierst du gleich danach.</li>
           <li><b>Hochladen.</b> Foto von oben bei hellem Licht, oder auf dem iPad einen Screenshot.</li>
         </ol>
         <div class="abschrift" id="abschrift"></div>
@@ -1001,29 +1007,24 @@ const HS = (function () {
     const tw = Math.tan(schraeg * Math.PI / 180), yv = x => (x - OW / 2) * tw;
     ok.forEach(c => { const v = yv((c.minx + c.maxx) / 2); c.y0 = c.miny - v; c.y1 = c.maxy - v; });
 
-    // 5. Reihen finden: Lücken zwischen den Reihen sind die größten senkrechten Lücken
-    const segs = [];
-    ok.slice().sort((a, b) => a.y0 - b.y0).forEach(c => {
-      const s = segs[segs.length - 1];
-      if (s && c.y0 <= s.y1) { s.y1 = Math.max(s.y1, c.y1); s.mass += c.area; s.cs.push(c); }
-      else segs.push({ y0: c.y0, y1: c.y1, mass: c.area, cs: [c] });
+    // 5. Zeilen finden: Die Mittelpunkte der Striche häufen sich pro Zeile, auch ohne freie Linie dazwischen
+    const h0 = median(ok.map(c => c.y1 - c.y0 + 1)) || 20;
+    const cl = [];
+    ok.slice().sort((a, b) => (a.y0 + a.y1) - (b.y0 + b.y1)).forEach(c => {
+      const m = (c.y0 + c.y1) / 2, last = cl[cl.length - 1];
+      if (last && m - last.mEnde <= 0.5 * h0) { last.cs.push(c); last.mEnde = m; last.mass += c.area; }
+      else cl.push({ cs: [c], mStart: m, mEnde: m, mass: c.area });
     });
-    const maxM = Math.max(...segs.map(s => s.mass)), sig = segs.filter(s => s.mass >= 0.25 * maxM);
-    const medH = median(sig.map(s => s.y1 - s.y0 + 1)), medM = median(sig.map(s => s.mass));
-    const S2 = segs.filter((s, i) => {
-      if (s.mass >= 0.05 * medM) return true;
-      const gu = i > 0 ? s.y0 - segs[i - 1].y1 : 1e9, gd = i < segs.length - 1 ? segs[i + 1].y0 - s.y1 : 1e9;
-      return Math.min(gu, gd) < 0.6 * medH;
+    const medMass = median(cl.map(x => x.mass)) || 1;
+    const rows = cl.filter(x => x.mass >= 0.15 * medMass);
+    if (!rows.length) return { fehler: "Auf dem Ausschnitt ist keine Schrift zu erkennen. Zieh die Punkte um deine Schrift, mit etwas Rand." };
+    // Kleine Häufchen (Punkte, Striche) zur nächsten Zeile
+    cl.filter(x => x.mass < 0.15 * medMass).forEach(x => {
+      const m = (x.mStart + x.mEnde) / 2; let best = rows[0], bd = 1e9;
+      rows.forEach(z => { const d = Math.abs((z.mStart + z.mEnde) / 2 - m); if (d < bd) { bd = d; best = z; } });
+      best.cs.push(...x.cs);
     });
-    const gaps = []; for (let i = 0; i < S2.length - 1; i++) gaps.push({ i, g: S2[i + 1].y0 - S2[i].y1 });
-    const K = Math.min(ZEILEN.length, gaps.filter(x => x.g > 0.3 * medH).length + 1);
-    const cuts = new Set(gaps.slice().sort((a, b) => b.g - a.g).slice(0, K - 1).map(x => x.i));
-    const rows = []; let cur = null;
-    S2.forEach((s, i) => {
-      if (!cur) { cur = { y0: s.y0, y1: s.y1, cs: [] }; rows.push(cur); }
-      cur.y1 = Math.max(cur.y1, s.y1); cur.cs.push(...s.cs);
-      if (cuts.has(i)) cur = null;
-    });
+    rows.forEach(z => { z.y0 = Math.min(...z.cs.map(c => c.y0)); z.y1 = Math.max(...z.cs.map(c => c.y1)); z.miny = Math.min(...z.cs.map(c => c.miny)); z.maxy = Math.max(...z.cs.map(c => c.maxy)); });
 
     // Hilfen für Gruppen (eine Gruppe = ein Zeichen oder ein Wort)
     const neuGruppe = c => ({ ids: [c.id], minx: c.minx, maxx: c.maxx, miny: c.miny, maxy: c.maxy, area: c.area, x0: 0, x1: OW });
@@ -1076,11 +1077,8 @@ const HS = (function () {
       return { img: out, w: tw2, h: th2, miny: oben, bot: oben + th2 };
     };
 
-    // 6. Jede Reihe in Zeichen oder Wörter zerlegen
-    const neuG = {}, neuW = {}, rowsOut = [];
-    rows.forEach((row, ri) => {
-      const Z = ZEILEN[ri]; if (!Z) return;
-      const n = Z.teile.length;
+    // 6. Jede Zeile in Stücke zerlegen (ein Stück = ein Zeichen oder ein Wort)
+    rows.forEach(row => {
       const cs = row.cs.slice().sort((a, b) => a.minx - b.minx);
       const par = cs.map((_, i) => i);
       const find = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
@@ -1093,108 +1091,134 @@ const HS = (function () {
       const map = new Map();
       cs.forEach((c, i) => { const r = find(i); if (map.has(r)) verschmelzen(map.get(r), neuGruppe(c)); else map.set(r, neuGruppe(c)); });
       let grs = [...map.values()];
-      // b) Kleine Punkte oben neben einem Buchstaben (schräges i, Umlaute) dazunehmen
-      const medA = median(grs.map(x => x.area)) || 1;
-      const big = grs.filter(x => x.area >= 0.15 * medA), tiny = grs.filter(x => x.area < 0.15 * medA);
+      // b) Kleine Teile (i-Punkte, Umlaute, Punkt unter ! und ?, Doppelpunkt) zum Buchstaben darüber oder darunter.
+      //    Was neben keinem Buchstaben steht, bleibt allein (Punkt, Komma).
+      const flaechen = grs.map(x => x.area).sort((x, y) => x - y), p75 = flaechen[Math.floor(flaechen.length * 0.75)] || 1;
+      let big = grs.filter(x => x.area >= 0.25 * p75), tiny = grs.filter(x => x.area < 0.25 * p75);
       const hBig = median(big.map(x => x.maxy - x.miny + 1)) || 20, rest = [];
-      tiny.forEach(t => {
+      tiny.sort((a, b) => a.minx - b.minx);
+      for (let i = 0; i < tiny.length; i++) for (let j = i + 1; j < tiny.length; j++) {
+        const a = tiny[i], b = tiny[j]; if (!a || !b) continue;
+        if (Math.min(a.maxx, b.maxx) - Math.max(a.minx, b.minx) > -0.1 * hBig && Math.abs((a.miny + a.maxy) - (b.miny + b.maxy)) / 2 > 0.15 * hBig) { verschmelzen(a, b); tiny[j] = null; }
+      }
+      tiny.filter(Boolean).forEach(t => {
         const cx = (t.minx + t.maxx) / 2; let best = null, bd = 1e9;
         big.forEach(G => {
-          const gh = G.maxy - G.miny + 1;
-          if (t.maxy < G.miny + 0.4 * gh && cx >= G.minx - 0.3 * hBig && cx <= G.maxx + 0.3 * hBig) { const dd = Math.abs(cx - (G.minx + G.maxx) / 2); if (dd < bd) { bd = dd; best = G; } }
+          if (cx >= G.minx - 0.2 * hBig && cx <= G.maxx + 0.2 * hBig) { const dd = Math.abs(cx - (G.minx + G.maxx) / 2); if (dd < bd) { bd = dd; best = G; } }
         });
         if (best) verschmelzen(best, t); else rest.push(t);
       });
-      grs = big.concat(rest).sort((a, b) => a.minx - b.minx);
-      // c) Auf genau n Stücke bringen: kleine, abseits liegende Reste am Rand weg,
-      //    dann kleinste Lücken schließen, notfalls breite Stücke teilen
-      const medA2 = median(grs.map(x => x.area)) || 1;
-      while (grs.length > n) {
-        const gp = grs.slice(1).map((x, i) => x.minx - grs[i].maxx), mg = median(gp.map(v => Math.max(1, v))) || 1;
-        const weit = v => v > Math.max(4 * mg, 1.5 * hBig);
-        if (weit(gp[gp.length - 1]) && grs[grs.length - 1].area < 0.35 * medA2) { grs.pop(); continue; }
-        if (weit(gp[0]) && grs[0].area < 0.35 * medA2) { grs.shift(); continue; }
-        break;
+      let liste = big.concat(rest).sort((a, b) => a.minx - b.minx);
+      // c) Wortzeile? Dann liegen viele Buchstaben dicht beisammen: dichte Nachbarn zu Wörtern zusammenfassen
+      const lu = liste.slice(1).map((x, i) => x.minx - liste[i].maxx);
+      if (lu.length >= 4 && lu.filter(v => v < 0.25 * hBig).length >= 0.35 * lu.length) {
+        const sortiert = lu.slice().sort((x, y) => x - y);
+        let schwelle = 0.45 * hBig, bestSprung = 0;
+        for (let i = 0; i < sortiert.length - 1; i++) { const sp = sortiert[i + 1] - sortiert[i]; if (sp > bestSprung && sortiert[i + 1] > 0.3 * hBig) { bestSprung = sp; schwelle = (sortiert[i] + sortiert[i + 1]) / 2; } }
+        const woerter = [liste[0]];
+        for (let i = 1; i < liste.length; i++) { if (lu[i - 1] < schwelle) verschmelzen(woerter[woerter.length - 1], liste[i]); else woerter.push(liste[i]); }
+        liste = woerter; row.wort = true;
       }
-      while (grs.length > n) {
-        let bi = 0, bg = 1e9;
-        for (let i = 0; i < grs.length - 1; i++) { const gp = grs[i + 1].minx - grs[i].maxx; if (gp < bg) { bg = gp; bi = i; } }
-        verschmelzen(grs[bi], grs[bi + 1]); grs.splice(bi + 1, 1);
-      }
-      let unsicher = false;
-      if (Z.art === "z") while (grs.length < n) {
-        const mw = median(grs.map(x => x.maxx - x.minx + 1)) || 1;
-        let wi = -1, bw = 1.7;
-        grs.forEach((x, i) => { const rw = (x.maxx - x.minx + 1) / mw; if (rw > bw) { bw = rw; wi = i; } });
-        if (wi < 0) break;
-        grs.splice(wi, 1, ...teilen(grs[wi])); unsicher = true;
-      }
-      const okRow = grs.length === n;
-      rowsOut.push({ Z, ok: okRow, unsicher: okRow && unsicher, found: grs.length, n, grs });
-      if (!okRow) return;
-      const bilder = grs.map(bildAus);
-      if (Z.art === "z") {
-        const sitz = bilder.map((b, i) => SIT.has(Z.teile[i]) ? b.bot : null).filter(v => v != null);
-        const base = median(sitz.length ? sitz : bilder.map(b => b.bot)), hMed = median(bilder.map(b => b.h)) || 20;
-        // Knapp an der Linie: genau draufsetzen. Deutlich darunter (f mit Unterlänge): so lassen, wie geschrieben
-        bilder.forEach((b, i) => {
-          const ch = Z.teile[i], snap = SIT.has(ch) && Math.abs(b.bot - base) < 0.2 * hMed;
-          neuG[ch] = { img: b.img, w: b.w, h: b.h, top: snap ? -b.h : b.miny - base };
-        });
-      } else {
-        // Grundlinie der Wörter: unterster Tintenpunkt je Spalte, davon der Median
-        const unten = [];
-        bilder.forEach(b => {
-          const d = b.img.getContext("2d").getImageData(0, 0, b.w, b.h).data;
-          for (let x = 0; x < b.w; x++) for (let y = b.h - 1; y >= 0; y--) if (d[(y * b.w + x) * 4 + 3] > 128) { unten.push(b.miny + y + 1); break; }
-        });
-        const base = median(unten) || row.y1 + 1;
-        bilder.forEach((b, i) => { neuW[Z.teile[i]] = { img: b.img, w: b.w, h: b.h, top: b.miny - base }; });
-      }
+      row.grs = liste;
     });
 
-    // 7. x-Höhe und Buchstabenabstand ableiten
-    let xh = median(XLET.filter(c => neuG[c]).map(c => neuG[c].h));
-    if (!xh) { const kl = Object.keys(neuG).filter(c => /[a-zäöü]/.test(c)).map(c => neuG[c].h); xh = kl.length ? median(kl) * 0.7 : median(Object.values(neuW).map(w => w.h)) * 0.6 || 30; }
-    const gapsW = [];
-    Object.keys(neuW).forEach(wort => {
-      const zs = [...wort]; if (zs.length < 2 || !zs.every(c => neuG[c])) return;
-      gapsW.push((neuW[wort].w - zs.reduce((s, c) => s + neuG[c].w, 0)) / (zs.length - 1) / xh);
+    // 7. Vorschlag, was in jeder Zeile steht: Alphabet der Reihe nach, breite Stücke sind Wörter
+    const mwAll = median(rows.flatMap(z => z.grs.map(g => g.maxx - g.minx + 1))) || 1;
+    const C = ZEILEN.filter(Z => Z.art === "z").flatMap(Z => Z.teile), Wd = ZEILEN.filter(Z => Z.art === "w").flatMap(Z => Z.teile);
+    let pc = 0, pw = 0;
+    // Sehr breite Stücke in Zeichenzeilen sind Durchgestrichenes oder Kleckse: mit # vorschlagen
+    const mwC = median(rows.filter(z => !z.wort).flatMap(z => z.grs.map(g => g.maxx - g.minx + 1))) || mwAll;
+    rows.forEach(z => {
+      const k = z.grs.length, wort = z.wort || median(z.grs.map(g => g.maxx - g.minx + 1)) > 1.8 * mwAll || pc >= C.length;
+      z.vorschlag = (wort ? Wd.slice(pw, pw += k)
+        : z.grs.map(g => (g.maxx - g.minx + 1) > 2.5 * mwC ? "#" : (pc < C.length ? C[pc++] : "#"))).join(" ");
     });
-    const fertig = m => { m.x = xh; m.url = m.img.toDataURL("image/png"); return m; };
-    Object.values(neuG).forEach(fertig); Object.values(neuW).forEach(fertig);
-    if (!own) own = { gap: 0.16, g: {}, w: {} };
-    Object.assign(own.g, neuG); Object.assign(own.w, neuW);
-    if (gapsW.length) own.gap = Math.max(-0.35, Math.min(0.6, median(gapsW)));
 
-    // 8. Kontrollbild mit Kästen
-    const ks = Math.min(1, 900 / OW), KW = Math.round(OW * ks), KH = Math.round(OH * ks);
-    const kc = cnv(KW, KH), kg = kc.getContext("2d"), kd = kg.createImageData(KW, KH);
-    for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) {
-      const v = Math.max(0, Math.min(255, q[Math.min(OH - 1, (y / ks) | 0) * OW + Math.min(OW - 1, (x / ks) | 0)] * 235)), j = (y * KW + x) * 4;
-      kd.data[j] = kd.data[j + 1] = kd.data[j + 2] = v; kd.data[j + 3] = 255;
-    }
-    kg.putImageData(kd, 0, 0);
-    kg.lineWidth = 2; kg.font = "600 13px 'Public Sans', sans-serif";
-    rowsOut.forEach(R => {
-      const col = !R.ok ? "#B3261E" : R.unsicher ? "#D25A00" : "#0F7355";
-      kg.strokeStyle = col; kg.fillStyle = col;
-      R.grs.forEach((gr, i) => {
-        kg.strokeRect(gr.minx * ks - 2, gr.miny * ks - 2, (gr.maxx - gr.minx) * ks + 4, (gr.maxy - gr.miny) * ks + 4);
-        if (R.ok) kg.fillText(R.Z.teile[i], gr.minx * ks, Math.max(12, gr.miny * ks - 5));
+    // 8. Bild jeder Zeile mit nummerierten Kästen, zum Prüfen
+    const streifen = z => {
+      const y0 = Math.max(0, z.miny - 8), y1 = Math.min(OH - 1, z.maxy + 8), ks = Math.min(1, 900 / OW);
+      const KW = Math.round(OW * ks), KH = Math.max(1, Math.round((y1 - y0 + 1) * ks));
+      const kc = cnv(KW, KH), kg = kc.getContext("2d"), kd = kg.createImageData(KW, KH);
+      for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) {
+        const v = Math.max(0, Math.min(255, q[Math.min(OH - 1, y0 + ((y / ks) | 0)) * OW + Math.min(OW - 1, (x / ks) | 0)] * 235)), j = (y * KW + x) * 4;
+        kd.data[j] = kd.data[j + 1] = kd.data[j + 2] = v; kd.data[j + 3] = 255;
+      }
+      kg.putImageData(kd, 0, 0);
+      kg.strokeStyle = "#1D4E9E"; kg.lineWidth = 1.5; kg.fillStyle = "#1D4E9E"; kg.font = "600 11px 'IBM Plex Mono', monospace";
+      z.grs.forEach((gr, i) => {
+        kg.strokeRect(gr.minx * ks - 1.5, (gr.miny - y0) * ks - 1.5, (gr.maxx - gr.minx) * ks + 3, (gr.maxy - gr.miny) * ks + 3);
+        kg.fillText(String(i + 1), gr.minx * ks, Math.max(10, (gr.miny - y0) * ks - 2));
       });
-    });
-
-    return {
-      zeichen: Object.keys(neuG).length, woerter: Object.keys(neuW).length,
-      reihenGefunden: rows.length,
-      reihen: rowsOut.map(R => ({ label: R.Z.label, art: R.Z.art, ok: R.ok, unsicher: R.unsicher, found: R.found, n: R.n })),
-      kontrolle: kc.toDataURL("image/jpeg", 0.82)
+      return kc.toDataURL("image/jpeg", 0.8);
     };
+
+    // 9. Übernehmen, sobald der Nutzer die Zeilen bestätigt oder korrigiert hat
+    _uebernehmen = texte => {
+      const neuG = {}, neuW = {}; let probleme = 0;
+      rows.forEach((z, zi) => {
+        const tok = String(texte[zi] || "").trim().split(/\s+/).filter(Boolean);
+        if (!tok.length) return;
+        const n = tok.length;
+        let grs = z.grs.map(g => Object.assign({}, g, { ids: g.ids.slice() }));
+        while (grs.length > n) {
+          let bi = 0, bg = 1e9;
+          for (let i = 0; i < grs.length - 1; i++) { const gp = grs[i + 1].minx - grs[i].maxx; if (gp < bg) { bg = gp; bi = i; } }
+          verschmelzen(grs[bi], grs[bi + 1]); grs.splice(bi + 1, 1);
+        }
+        while (grs.length < n) {
+          const mw = median(grs.map(x => x.maxx - x.minx + 1)) || 1;
+          let wi = -1, bw = 1.5;
+          grs.forEach((x, i) => { const rw = (x.maxx - x.minx + 1) / mw; if (rw > bw) { bw = rw; wi = i; } });
+          if (wi < 0) break;
+          grs.splice(wi, 1, ...teilen(grs[wi]));
+        }
+        if (grs.length !== n) { probleme++; return; }
+        const bilder = grs.map(bildAus), einzeln = t => [...t].length === 1;
+        // Grundlinie: einzelne Zeichen ohne Unterlänge, sonst unterster Tintenpunkt je Spalte
+        const sitz = bilder.map((b, i) => einzeln(tok[i]) && SIT.has(tok[i]) ? b.bot : null).filter(v => v != null);
+        let base;
+        if (sitz.length >= 2) base = median(sitz);
+        else {
+          const unten = [];
+          bilder.forEach(b => {
+            const d = b.img.getContext("2d").getImageData(0, 0, b.w, b.h).data;
+            for (let x = 0; x < b.w; x++) for (let y = b.h - 1; y >= 0; y--) if (d[(y * b.w + x) * 4 + 3] > 128) { unten.push(b.miny + y + 1); break; }
+          });
+          base = median(unten) || z.y1 + 1;
+        }
+        const hMed = median(bilder.map(b => b.h)) || 20;
+        bilder.forEach((b, i) => {
+          const t = tok[i]; if (t === "#") return;
+          if (einzeln(t)) {
+            // Knapp an der Linie: genau draufsetzen. Deutlich darunter (f mit Unterlänge): so lassen
+            const snap = SIT.has(t) && Math.abs(b.bot - base) < 0.2 * hMed;
+            neuG[t] = { img: b.img, w: b.w, h: b.h, top: snap ? -b.h : b.miny - base };
+          } else neuW[t] = { img: b.img, w: b.w, h: b.h, top: b.miny - base };
+        });
+      });
+      // x-Höhe und Buchstabenabstand ableiten
+      let xh = median(XLET.filter(c => neuG[c]).map(c => neuG[c].h));
+      if (!xh) { const kl = Object.keys(neuG).filter(c => /[a-zäöü]/.test(c)).map(c => neuG[c].h); xh = kl.length ? median(kl) * 0.7 : (median(Object.values(neuW).map(w => w.h)) || 40) * 0.6; }
+      const gapsW = [];
+      Object.keys(neuW).forEach(wort => {
+        const zs = [...wort]; if (zs.length < 2 || !zs.every(c => neuG[c])) return;
+        gapsW.push((neuW[wort].w - zs.reduce((s, c) => s + neuG[c].w, 0)) / (zs.length - 1) / xh);
+      });
+      const fertig = m => { m.x = xh; m.url = m.img.toDataURL("image/png"); return m; };
+      Object.values(neuG).forEach(fertig); Object.values(neuW).forEach(fertig);
+      if (!own) own = { gap: 0.16, g: {}, w: {} };
+      Object.assign(own.g, neuG); Object.assign(own.w, neuW);
+      if (gapsW.length) own.gap = Math.max(-0.35, Math.min(0.6, median(gapsW)));
+      return { zeichen: Object.keys(neuG).length, woerter: Object.keys(neuW).length, probleme };
+    };
+
+    return { zeilen: rows.map(z => ({ bild: streifen(z), anzahl: z.grs.length, vorschlag: z.vorschlag })) };
   }
+  let _uebernehmen = null;
+  const blattUebernehmen = texte => _uebernehmen ? _uebernehmen(texte) : { zeichen: 0, woerter: 0, probleme: 0 };
 
   return { FONTS, ZEILEN, render, pdfVon, blobLaden, loadPhoto, autoAusschnitt,
-    blattAuslesen, ownSetzen, ownExport, ownLeeren, ownInfo, hatOwn, splitTok, rng };
+    blattAuslesen, blattUebernehmen, ownSetzen, ownExport, ownLeeren, ownInfo, hatOwn, splitTok, rng };
 })();
 
 /* ================= Rechtschreibfehler ================= */
@@ -1403,7 +1427,7 @@ function fontsBauen() {
     + HS.FONTS.map(f => `<button type="button" class="schrift-k" role="radio" data-font="${f.id}" aria-checked="${eff === f.id}"><span class="probe" style="font-family:'${f.css}'">Abc äöü</span><b>${esc(f.name)}</b><small>${esc(f.note)}</small></button>`).join("");
 }
 function abschriftBauen() {
-  $("abschrift").innerHTML = HS.ZEILEN.map((Z, i) => (i ? '<div class="frei"></div>' : "") + `<div class="z${Z.art === "w" ? " w" : ""}">${esc(Z.z)}</div>`).join("");
+  $("abschrift").innerHTML = HS.ZEILEN.map(Z => `<div class="z${Z.art === "w" ? " w" : ""}">${esc(Z.z)}</div>`).join("");
 }
 
 /* ---------- Eingelesene Schrift anzeigen ---------- */
@@ -1476,35 +1500,39 @@ function auslesen() {
     try { res = HS.blattAuslesen(crop.corners); }
     catch (e) { res = { fehler: "Beim Auslesen ist etwas schiefgegangen. Versuch ein schärferes Foto." }; console.error(e); }
     btn.disabled = false; btn.textContent = "Buchstaben ausschneiden";
-    ergebnisZeigen(res);
-    if (!res.fehler && HS.hatOwn()) {
-      schriftSichern(); schriftHoch(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0);
-      toast(res.zeichen ? "Schrift eingelesen" : "Nichts Neues erkannt");
-    }
+    pruefenZeigen(res);
   }, 40);
 }
-function ergebnisZeigen(res) {
+// Prüfen: unter jeder Zeile steht, was dort vermutet wird. Der Nutzer korrigiert, dann wird übernommen.
+const tokenZahl = v => String(v || "").trim().split(/\s+/).filter(Boolean).length;
+function pruefenZeigen(res) {
   const box = $("ergebnis"); box.hidden = false;
   if (res.fehler) { box.innerHTML = `<div class="hinweis bad"><b>Nichts erkannt</b>${esc(res.fehler)}</div>`; return; }
   $("ausschnitt").hidden = true;
-  const fehlend = res.reihen.filter(r => !r.ok).length, unsicher = res.reihen.filter(r => r.unsicher).length;
-  const gef = res.reihenGefunden;
-  let kopf;
-  if (gef < 6) kopf = `<div class="hinweis bad"><b>Nur ${gef} von 9 Reihen gefunden</b>Wahrscheinlich stehen die Reihen zu eng. Lass zwischen den Reihen eine ganze Linie frei und lade ein neues Foto hoch.</div>`;
-  else if (gef !== 9 && gef !== 6) kopf = `<div class="hinweis warn"><b>${gef} von 9 Reihen gefunden</b>Zwei Reihen stehen wohl zu eng beieinander. Lass eine ganze Linie frei. Übernommen sind ${res.zeichen} Zeichen und ${res.woerter} Wörter.</div>`;
-  else if (fehlend) kopf = `<div class="hinweis warn"><b>${res.zeichen} Zeichen und ${res.woerter} Wörter übernommen</b>Rot markierte Reihen fehlen noch. Schreib sie mit mehr Abstand neu und lade nur sie hoch, der Rest bleibt erhalten.</div>`;
-  else if (gef === 6) kopf = `<div class="hinweis ok"><b>Alphabet übernommen, ohne Wörter</b>Die 3 Wortreihen fehlen. Mit ihnen sieht die Schrift echter aus.</div>`;
-  else kopf = `<div class="hinweis ok"><b>Alles übernommen</b>${res.zeichen} Zeichen und ${res.woerter} Wörter.${unsicher ? " Orange Reihen bitte im Bild prüfen." : ""}</div>`;
-  const li = res.reihen.map(r => {
-    const cls = !r.ok ? "bad" : r.unsicher ? "warn" : "ok", ico = !r.ok ? ICO.x : r.unsicher ? ICO.warn : ICO.ok;
-    const was = r.art === "z" ? "Zeichen" : "Wörter";
-    const text = !r.ok ? (r.found < r.n ? `${r.found} von ${r.n} ${was} gefunden, einige berühren sich wohl` : `nicht sauber getrennt`) : r.unsicher ? `${r.n} ${was}, zwei Zeichen berührten sich, bitte prüfen` : `${r.n} von ${r.n} ${was}`;
-    return `<li><span class="${cls}">${ico}</span><span>${esc(r.label)}<small>${text}</small></span></li>`;
-  }).join("");
-  box.innerHTML = `<div class="block"><h3>Ergebnis</h3>${kopf}<ul class="reihen">${li}</ul>
-    <img class="kontrolle" src="${res.kontrolle}" alt="Erkannte Zeichen auf deinem Foto">
-    <p class="hint">Grün übernommen, orange bitte prüfen, rot nicht übernommen. Über jedem Kasten steht, als was er erkannt wurde.</p>
-    <div class="reihe"><button class="btn primary" data-geh="blatt">Weiter zum Blatt</button><button class="btn" data-nochmal>Neues Foto</button></div></div>`;
+  box.innerHTML = `<div class="block"><h3>Kurz prüfen</h3>
+    <p class="hint">Unter jeder Zeile steht, was dort stehen soll, ein Zeichen pro Kasten. Stimmt etwas nicht, ändere den Text so, dass er genau zu deiner Zeile passt. Durchgestrichenes oder Kleckse mit <b>#</b> überspringen. Zeile leer lassen, um sie nicht zu übernehmen.</p>
+    ${res.zeilen.map((z, i) => `<div class="zeile-pruef">
+      <img src="${z.bild}" alt="Zeile ${i + 1}">
+      <div class="reihe"><input type="text" data-zeile="${i}" data-n="${z.anzahl}" value="${esc(z.vorschlag)}" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Zeile ${i + 1}"><span class="anz" data-anz="${i}"></span></div>
+    </div>`).join("")}
+    <p class="err" id="pruefFehler"></p>
+    <div class="reihe"><button class="btn primary" id="uebernehmenBtn">Schrift übernehmen</button><button class="btn" data-nochmal>Neues Foto</button></div></div>`;
+  const zaehlen = inp => {
+    const n = +inp.dataset.n, t = tokenZahl(inp.value), el = box.querySelector(`[data-anz="${inp.dataset.zeile}"]`);
+    el.textContent = t === n ? `${n} passt` : `${n} Kästen, ${t} eingetragen`;
+    el.className = "anz " + (t === n || !t ? "ok" : "warn");
+  };
+  box.querySelectorAll("[data-zeile]").forEach(inp => { zaehlen(inp); inp.addEventListener("input", () => zaehlen(inp)); });
+  $("uebernehmenBtn").onclick = () => {
+    const texte = [...box.querySelectorAll("[data-zeile]")].map(i => i.value);
+    const r = HS.blattUebernehmen(texte);
+    if (!r.zeichen && !r.woerter) { $("pruefFehler").textContent = "Es wurde nichts übernommen. Prüf, ob die Texte zu den Zeilen passen."; return; }
+    schriftSichern(); schriftHoch(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0);
+    box.innerHTML = `<div class="hinweis ${r.probleme ? "warn" : "ok"}"><b>${r.zeichen} Zeichen und ${r.woerter} Wörter übernommen</b>${r.probleme ? `${r.probleme} ${r.probleme === 1 ? "Zeile passte" : "Zeilen passten"} nicht zur Anzahl der Kästen und ${r.probleme === 1 ? "wurde" : "wurden"} übersprungen. ` : ""}Fehlende Zeichen kannst du mit einem neuen Foto ergänzen.</div>
+      <div class="reihe"><button class="btn primary" data-geh="blatt">Weiter zum Blatt</button><button class="btn" data-nochmal>Neues Foto</button></div>`;
+    toast("Schrift eingelesen");
+    $("schriftStatus").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 }
 
 /* ---------- Fenster ---------- */
