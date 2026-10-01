@@ -67,6 +67,11 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 body.gesperrt main,body.gesperrt .untenleiste,body.gesperrt #einstBtn,body.gesperrt #kontoBtn{display:none!important}
 .tor{max-width:440px;margin:0 auto;padding:32px 16px 60px;display:flex;flex-direction:column;gap:16px}
 .tor h1{font-size:26px}
+/* Beta-Gag: ehrlich beschriftet, schließt normal */
+.gag{display:flex;align-items:center;gap:10px;border:1px dashed var(--warn);border-radius:var(--radius);background:var(--surface);padding:8px 8px 8px 14px}
+.gag b{font-size:13.5px;flex:1}
+.gag small{display:block;font-weight:400;color:var(--ink-3);font-size:12px}
+.gag .btn{min-height:40px;padding:8px 12px;border-color:var(--warn);color:var(--warn)}
 .tor .block{gap:14px}
 .err:empty{display:none}
 .konto-knopf{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:0 14px 0 11px;height:44px;font-weight:600;font-size:13.5px;color:var(--ink);cursor:pointer;max-width:180px}
@@ -318,6 +323,11 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <div class="sicht-kopf nur-gross">
         <h2>Dein Blatt</h2>
         <p class="unter">Jede Änderung siehst du sofort rechts.</p>
+      </div>
+      <div class="gag" id="gag" hidden>
+        <b>Geheimer Beta-Knopf<small>Nur für Tester. Wirklich nicht klicken.</small></b>
+        <button class="btn" id="gagBtn">Nicht klicken</button>
+        <button class="x" id="gagZu" aria-label="Ausblenden"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="block gruppe">
         <div class="sec-label">Text</div>
@@ -1254,7 +1264,7 @@ const FEHLER = (function () {
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", datum: "", zeit: "", theme: "hell" };
+  messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", gag: false, datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
@@ -1591,7 +1601,7 @@ function einstAnwenden(e) {
   REGLER.forEach(R => { $("r-" + R.id).value = S[R.id]; });
   $("textFeld").value = S.text; textZahl();
   $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
-  themaAnwenden(); modusStand();
+  themaAnwenden(); modusStand(); $("gag").hidden = !!S.gag;
   _ohneHoch = true; speichern(); _ohneHoch = false;
 }
 async function ausKontoLaden() {
@@ -1744,7 +1754,7 @@ async function start() {
   $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("nameFeld").placeholder = autoName(); $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
   const raw = parse(LS.get(OWN_KEY));
   if (raw) await HS.ownSetzen(raw);
-  fontsBauen(); modusStand(); statusZeigen();
+  fontsBauen(); modusStand(); statusZeigen(); $("gag").hidden = !!S.gag;
   tab(S.tab || (HS.hatOwn() ? "blatt" : "schrift"), false);
   neuZeichnen(0);
   kontoStart();
@@ -1758,6 +1768,11 @@ async function start() {
   });
   $("einstBtn").onclick = einstellungen;
   $("kontoBtn").onclick = kontoFenster;
+  // Beta-Gag: verschwindet nach dem Klick oder Ausblenden, gilt pro Konto
+  const GAG_URL = "https://www.flickr.com/photos/ronnyackerman667/6065510171";
+  const gagWeg = () => { S.gag = true; $("gag").hidden = true; speichern(); };
+  $("gagBtn").onclick = () => { window.open(GAG_URL, "_blank", "noopener"); gagWeg(); };
+  $("gagZu").onclick = gagWeg;
   // Foto: antippen öffnet Fotos oder Dateien, oder ein Bild auf die Fläche ziehen
   const ab = $("ablage");
   ab.onclick = () => $("fotoInput").click();
