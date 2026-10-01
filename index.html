@@ -1,0 +1,1598 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="robots" content="noindex">
+<title>Handschrift</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Caveat:wght@500&family=Reenie+Beanie&family=Shadows+Into+Light+Two&family=Kalam&display=swap">
+<style>
+/* Farben als Variablen. Der Dunkelmodus überschreibt nur diese Werte. */
+:root{
+  --paper:#F6F8FB; --surface:#FFFFFF; --surface-2:#F1F6FC;
+  --line:#D5E2F1; --line-soft:#E8EFF8;
+  --ink:#0E1B2A; --ink-2:#42566C; --ink-3:#7789A0;
+  --accent:#1D4E9E; --accent-soft:#E3ECF8; --accent-ink:#143B7A;
+  --ok:#0F7355; --bad:#B3261E; --warn:#D25A00;
+  --blatt:#FBFAF6;
+  --shadow:0 1px 2px rgba(14,27,42,.05),0 10px 26px -14px rgba(29,78,158,.28);
+  --radius:10px; --kopfh:57px;
+  --font-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --font-body:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+:root[data-theme="dunkel"]{
+  --paper:#000000; --surface:#0A0A0B; --surface-2:#141417;
+  --line:#1E1E22; --line-soft:#151518;
+  --ink:#FFFFFF; --ink-2:#C8C8CE; --ink-3:#8B8B93;
+  --accent:#3B6CC0; --accent-soft:#111B2C; --accent-ink:#9DBDF0;
+  --ok:#4FAE86; --bad:#D97B72; --warn:#D9620B;
+  --blatt:#ECEBE6; --glyph-filter:invert(1);
+  --shadow:0 1px 2px rgba(0,0,0,.6),0 10px 26px -14px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box}
+/* clip statt hidden, sonst kleben Kopfzeile und Leisten nicht mehr */
+html,body{max-width:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:22px} h3{font-size:16px}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+.ico{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+
+/* Kopfzeile */
+header.kopf{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--line)}
+.kopf-in{max-width:1200px;margin:0 auto;padding:8px 16px;display:flex;align-items:center;gap:10px;min-height:56px}
+.marke{border:0;background:transparent;padding:0;cursor:pointer;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.03em;color:var(--accent);display:flex;align-items:center;gap:8px;min-height:44px}
+.spacer{flex:1}
+.rund{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--surface);border-radius:999px;cursor:pointer;width:44px;height:44px;color:var(--ink-2)}
+
+/* Aufbau */
+main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-inset-bottom))}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.links{display:flex;flex-direction:column;gap:14px;min-width:0}
+.sicht{display:flex;flex-direction:column;gap:14px;min-width:0}
+.sicht-kopf{display:flex;flex-direction:column;gap:4px}
+.unter{color:var(--ink-2);font-size:14px}
+.sec-label{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:600}
+.block{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.hint{font-size:12.5px;color:var(--ink-3);line-height:1.45}
+.reihe{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.zwischen{justify-content:space-between}
+
+/* Hinweise: neutral mit farbigem Rand links */
+.hinweis{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--surface);border-radius:var(--radius);padding:10px 12px;font-size:13.5px;line-height:1.45}
+.hinweis.ok{border-left-color:var(--ok)} .hinweis.warn{border-left-color:var(--warn)} .hinweis.bad{border-left-color:var(--bad)}
+.hinweis b{display:block}
+
+/* Knöpfe */
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.danger.voll{background:var(--bad);color:#fff}
+.btn.breit{width:100%}
+.btn[disabled]{opacity:.55;cursor:default}
+.modus{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.modus button{flex:1 1 0;min-width:0;border:0;background:transparent;border-radius:8px;padding:8px 4px;font-size:13px;font-weight:600;color:var(--ink-3);cursor:pointer;min-height:40px;white-space:nowrap}
+.modus button[aria-pressed="true"]{background:var(--surface);color:var(--accent-ink);box-shadow:0 1px 2px rgba(15,35,70,.12)}
+.modus button[disabled]{opacity:.45;cursor:default}
+
+/* Felder */
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label,.lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);font-weight:600}
+select,textarea,input[type=text],input[type=date],input[type=time]{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:10px 11px;width:100%;min-height:44px;min-width:0}
+select:focus,textarea:focus,input:focus{background:var(--surface)}
+textarea{min-height:150px;resize:vertical;line-height:1.55}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Ablage für das Foto: ziehen oder antippen */
+.ablage{border:2px dashed var(--line);border-radius:var(--radius);background:var(--surface-2);padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;cursor:pointer;color:var(--ink-2);font-size:13.5px;min-height:120px;justify-content:center}
+.ablage b{color:var(--accent-ink);font-size:16px}
+.ablage .ico{width:28px;height:28px;color:var(--accent)}
+.ablage:hover,.ablage.drueber{border-color:var(--accent);background:var(--accent-soft)}
+.nur-finger{display:none}
+@media (pointer:coarse){ .nur-finger{display:inline} .nur-maus{display:none} }
+@media (max-width:900px),(pointer:coarse){ input,select,textarea{font-size:16px} }
+.check{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--ink-3);cursor:pointer;line-height:1.4;border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:var(--surface)}
+.check b{display:block;color:var(--ink);font-size:14px;font-weight:600}
+.check input{margin-top:3px;flex:0 0 auto;width:18px;height:18px;accent-color:var(--accent)}
+
+/* Regler */
+.gruppe{display:flex;flex-direction:column;gap:10px}
+.regler{display:flex;flex-direction:column;gap:0}
+.regler-kopf{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px}
+.regler-kopf label{font-weight:600}
+.wert{color:var(--ink-3);font-size:12.5px;text-align:right}
+input[type=range]{width:100%;accent-color:var(--accent);height:32px;margin:0;cursor:pointer}
+
+/* Reiter oben (nur breite Bildschirme) */
+.tabs-oben{display:none}
+
+/* Vorlage zum Abschreiben */
+.abschrift{background:var(--blatt);color:#1b2533;border:1px solid var(--line);border-radius:8px;padding:6px 14px 10px;overflow-x:auto}
+.abschrift .z{font-family:var(--font-mono);font-size:15px;letter-spacing:.03em;border-bottom:1px solid #b9cbe0;padding:6px 0 2px;white-space:nowrap}
+.abschrift .z.w{font-family:var(--font-body);letter-spacing:0;word-spacing:.5em}
+.abschrift .frei{height:20px;border-bottom:1px solid #dbe5f0;position:relative}
+.abschrift .frei::after{content:"frei";position:absolute;right:0;bottom:1px;font-size:10px;color:#9aa8b8}
+ol.anl{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+ol.anl b{font-weight:600}
+
+/* Foto-Ausschnitt */
+.foto{position:relative;user-select:none;-webkit-user-select:none;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#111}
+.foto img{display:block;width:100%;height:100%;pointer-events:none}
+.foto svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.griff{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;display:grid;place-items:center;touch-action:none;cursor:grab}
+.griff span{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.9);border:2px solid var(--accent);font:700 12px var(--font-mono);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+
+/* Eingelesene Schrift */
+.schriften{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.schrift-k{border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:10px 12px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px;min-height:76px;min-width:0}
+.schrift-k[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
+.schrift-k[disabled]{opacity:.55;cursor:default}
+.schrift-k .probe{font-size:30px;line-height:1.1;color:var(--ink);white-space:nowrap;overflow:hidden;height:34px;display:flex;align-items:flex-end;gap:2px}
+.schrift-k .probe img{height:26px;width:auto;filter:var(--glyph-filter,none)}
+.schrift-k small{font-size:12px;color:var(--ink-3)}
+.schrift-k b{font-size:13px;font-weight:600}
+.status-kopf{display:flex;align-items:center;gap:8px;font-weight:600}
+.status-kopf .ico{color:var(--ok)}
+.glyphen{display:grid;grid-template-columns:repeat(auto-fill,minmax(36px,1fr));gap:3px}
+.glyphe{position:relative;aspect-ratio:1/1.15;background:var(--blatt);border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center}
+.glyphe.leer{border-style:dashed;background:transparent}
+.glyphe i{position:absolute;top:1px;left:3px;font-style:normal;font-size:9px;color:#8a95a3;font-family:var(--font-mono)}
+.glyphe img{max-width:78%;max-height:70%;margin-top:6px}
+.woerter{display:flex;flex-wrap:wrap;gap:4px}
+.wort{height:40px;padding:4px 8px;background:var(--blatt);border:1px solid var(--line);border-radius:4px;display:flex;align-items:center}
+.wort img{max-height:100%;max-width:120px}
+.reihen{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.reihen li{display:flex;gap:8px;align-items:flex-start}
+.reihen .ico{margin-top:2px}
+.reihen .ok{color:var(--ok)} .reihen .warn{color:var(--warn)} .reihen .bad{color:var(--bad)}
+.reihen small{display:block;color:var(--ink-3);font-size:12px}
+.kontrolle{width:100%;display:block;border:1px solid var(--line);border-radius:8px;background:#fff}
+details.klapp{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+details.klapp>summary{cursor:pointer;padding:12px 14px;font-weight:600;font-size:14px;min-height:44px;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px}
+details.klapp>summary::-webkit-details-marker{display:none}
+details.klapp>summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:rotate(45deg);margin-right:4px;flex:0 0 auto}
+details.klapp[open]>summary::after{transform:rotate(225deg)}
+details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.fehlerliste{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.fehlerliste li{display:flex;flex-direction:column}
+.fehlerliste s{color:var(--ink-3)}
+.fehlerliste small{color:var(--ink-3);font-size:12px}
+
+/* Vorschau des Blatts */
+.vorschau{min-width:0;display:flex;flex-direction:column;gap:10px}
+.vorschau-leiste{display:flex;align-items:center;gap:8px}
+.vorschau-leiste .info{font-size:12.5px;color:var(--ink-3)}
+.seiten{display:flex;flex-direction:column;align-items:center;gap:18px}
+.seite{width:100%;max-width:820px;display:flex;flex-direction:column;gap:6px}
+.seite canvas{width:100%;height:auto;display:block;box-shadow:var(--shadow);cursor:zoom-in;background:#fff}
+.seite-kopf{font-size:12.5px;color:var(--ink-3)}
+.seite-kopf:empty{display:none}
+
+/* Untere Leiste: drei gleiche Knöpfe */
+.untenleiste{position:fixed;left:0;right:0;bottom:0;z-index:28;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--surface);border-top:1px solid var(--line);
+  padding:6px max(10px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-right))}
+.ul-knopf{flex:1 1 0;max-width:180px;border:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:9px;font-size:11.5px;font-weight:600;color:var(--ink-3);min-height:48px}
+.ul-knopf .ico{width:20px;height:20px}
+.ul-knopf[aria-selected="true"]{color:var(--accent);background:var(--accent-soft)}
+
+@media (min-width:900px){
+  .layout{grid-template-columns:400px minmax(0,1fr);align-items:start;gap:28px}
+  .links{position:sticky;top:calc(var(--kopfh) + 16px);max-height:calc(100vh - var(--kopfh) - 32px);overflow-y:auto;overscroll-behavior:contain;padding:2px 8px 24px 2px}
+  .tabs-oben{display:flex}
+  .untenleiste{display:none}
+  main{padding-bottom:40px}
+  .vorschau-leiste{position:sticky;top:var(--kopfh);z-index:4;background:var(--paper);padding:10px 0}
+}
+@media (max-width:899px){
+  .vorschau{order:-1;display:none}
+  body[data-tab="blatt"] .vorschau{display:flex;position:sticky;top:var(--kopfh);z-index:6;background:var(--paper);margin:-16px -16px 0;padding:10px 16px 12px;border-bottom:1px solid var(--line)}
+  .seiten{flex-direction:row;align-items:stretch;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;height:min(44vh,420px);scroll-snap-type:x mandatory;gap:12px}
+  .seite{width:auto;max-width:none;flex:0 0 auto;height:100%;scroll-snap-align:center}
+  .seite:only-child{margin:0 auto}
+  .seite canvas{height:100%;width:auto}
+  .seite-kopf{display:none}
+  .nur-gross{display:none}
+  .vorschau-leiste .info{display:none}
+}
+
+/* Fenster: von rechts, auf dem Handy genau Bildschirmgröße */
+.scrim{position:fixed;inset:0;background:rgba(10,25,45,.44);z-index:40;border:0;padding:0}
+.panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);z-index:50;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.panel.gross{width:min(900px,100%)}
+.panel-head{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-bottom:1px solid var(--line)}
+.panel-head h3{font-size:17px;flex:1}
+.panel-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px;overscroll-behavior:contain}
+.panel-body canvas{width:100%;height:auto;display:block;box-shadow:var(--shadow)}
+.x{border:0;background:transparent;color:var(--ink-3);cursor:pointer;min-width:44px;min-height:44px;display:grid;place-items:center}
+.x .ico{width:22px;height:22px}
+@media (max-width:700px){
+  .panel{width:100%;border-left:0;height:100vh;height:100dvh;bottom:auto;overflow:hidden;padding-bottom:env(safe-area-inset-bottom)}
+  .panel-body{touch-action:pan-y;overflow-x:hidden;padding:14px}
+  .panel-body>*{min-width:0;max-width:100%}
+}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom));z-index:70;background:var(--ink);color:var(--paper);padding:11px 16px;border-radius:9px;font-size:14px;box-shadow:var(--shadow);max-width:min(520px,92vw)}
+@media (min-width:900px){ .toast{bottom:24px} }
+</style>
+</head>
+<body data-tab="schrift">
+<header class="kopf">
+  <div class="kopf-in">
+    <button class="marke" data-tab-btn="schrift" title="Zur eigenen Schrift">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Handschrift
+    </button>
+    <div class="spacer"></div>
+    <button class="rund" id="einstBtn" aria-label="Einstellungen">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+<div class="layout">
+  <div class="links">
+    <div class="modus tabs-oben" role="tablist">
+      <button data-tab-btn="schrift" role="tab">1 Schrift</button>
+      <button data-tab-btn="blatt" role="tab">2 Blatt</button>
+    </div>
+
+    <!-- 1 Schrift einlesen -->
+    <section class="sicht" id="sicht-schrift">
+      <div class="sicht-kopf">
+        <h2>Deine Schrift</h2>
+        <p class="unter">Einmal das Alphabet und ein paar Wörter abschreiben, Foto hochladen, fertig.</p>
+      </div>
+      <div id="schriftStatus"></div>
+
+      <div class="block" id="anleitung">
+        <ol class="anl">
+          <li><b>Papier, Heft oder iPad.</b> Liniert, kariert oder weiß. Auf Papier ein dunkler Kuli oder Fineliner.</li>
+          <li><b>Diese 9 Reihen abschreiben.</b> Jede Reihe auf eine Linie, dazwischen eine Linie frei. Zwischen den Zeichen etwas Platz lassen, die Wörter ganz normal schreiben, so wie du sonst auch schreibst.</li>
+          <li><b>Hochladen.</b> Foto von oben bei hellem Licht, oder auf dem iPad einen Screenshot.</li>
+        </ol>
+        <div class="abschrift" id="abschrift"></div>
+        <div class="ablage" id="ablage" role="button" tabindex="0" aria-label="Foto hochladen">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4"/><path d="M7 9l5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
+          <b>Foto hochladen</b>
+          <span class="nur-maus">Bild hierher ziehen oder klicken, um eine Datei auszuwählen</span>
+          <span class="nur-finger">Antippen und aus Fotos oder Dateien wählen</span>
+        </div>
+      </div>
+
+      <div class="block" id="ausschnitt" hidden>
+        <h3>Ausschnitt wählen</h3>
+        <p class="hint">Zieh die 4 Punkte um deine 9 Reihen, mit etwas Rand. Nichts anderes soll im Rahmen sein.</p>
+        <div class="foto" id="fotoRahmen">
+          <img id="fotoImg" alt="Dein Foto">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path id="fotoMaske" fill="rgba(0,0,0,.42)" fill-rule="evenodd"/>
+            <polygon id="fotoPoly" fill="none" stroke="#3B6CC0" stroke-width="0.5" vector-effect="non-scaling-stroke" style="stroke-width:2px"/>
+          </svg>
+          <div class="griff" data-i="0"><span>1</span></div>
+          <div class="griff" data-i="1"><span>2</span></div>
+          <div class="griff" data-i="2"><span>3</span></div>
+          <div class="griff" data-i="3"><span>4</span></div>
+        </div>
+        <div class="reihe">
+          <button class="btn primary" id="auslesenBtn">Buchstaben ausschneiden</button>
+          <button class="btn ghost" id="abbrechenBtn">Abbrechen</button>
+        </div>
+      </div>
+
+      <div id="ergebnis" hidden></div>
+      <input type="file" accept="image/*" id="fotoInput" hidden>
+    </section>
+
+    <!-- 2 Blatt: Text und alles Einstellbare -->
+    <section class="sicht" id="sicht-blatt" hidden>
+      <div class="sicht-kopf nur-gross">
+        <h2>Dein Blatt</h2>
+        <p class="unter">Jede Änderung siehst du sofort rechts.</p>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Text</div>
+        <textarea id="textFeld" spellcheck="false" aria-label="Text" placeholder="Text hier einfügen oder tippen"></textarea>
+        <div class="reihe zwischen">
+          <span class="hint mono" id="textZahl"></span>
+          <button class="btn ghost" id="leerenBtn">Leeren</button>
+        </div>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Vorlage</div>
+        <div class="modus" id="vorlageModus"></div>
+        <p class="hint" id="vorlageHinweis"></p>
+        <div class="field"><label for="nameFeld">Dateiname beim Teilen</label><input type="text" id="nameFeld" autocomplete="off"><span class="hint">Leer lassen: Die Datei heißt wie die Überschrift deines Textes.</span></div>
+        <div class="field" id="feldTitel"><label for="titelFeld">Seitentitel</label><input type="text" id="titelFeld" placeholder="leer lassen für keinen Titel"></div>
+        <div class="two" id="feldDatum">
+          <div class="field"><label for="datumFeld">Datum</label><input type="date" id="datumFeld"></div>
+          <div class="field"><label for="zeitFeld">Uhrzeit</label><input type="time" id="zeitFeld"></div>
+        </div>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Papier und Stift</div>
+        <div class="field"><span class="lbl">Papier</span><div class="modus" id="papierModus"></div></div>
+        <div class="field"><span class="lbl">Hintergrund</span><div class="modus" id="tonModus"></div></div>
+        <div class="field"><span class="lbl">Stift</span><div class="modus" id="stiftModus"></div>
+          <p class="hint" id="stiftHinweis" hidden>Auf dunklem Hintergrund schreibt der Stift weiß.</p></div>
+        <label class="check"><input type="checkbox" id="randCheck"><span><b>Roter Rand</b>Randlinie rechts, wie im Schulheft.</span></label>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Schrift</div>
+        <div class="schriften" id="fontWahl" role="radiogroup" aria-label="Schriftart"></div>
+        <div class="gruppe" id="grp-schrift"></div>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Wie ordentlich</div>
+        <div class="gruppe" id="grp-ordnung"></div>
+        <details class="klapp" id="fehlerKlapp" hidden>
+          <summary id="fehlerSumme"></summary>
+          <div class="klapp-in"><ul class="fehlerliste" id="fehlerListe"></ul></div>
+        </details>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Zeilen</div>
+        <div class="gruppe" id="grp-zeilen"></div>
+        <label class="check"><input type="checkbox" id="einzugCheck"><span><b>Absätze einrücken</b>Erste Zeile jedes Absatzes beginnt weiter rechts.</span></label>
+      </div>
+    </section>
+  </div>
+
+  <section class="vorschau" aria-label="Vorschau">
+    <div class="vorschau-leiste">
+      <button class="btn" id="wuerfelBtn" title="Gleiche Einstellungen, neu geschrieben">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/></svg>Neu würfeln
+      </button>
+      <span class="spacer"></span>
+      <span class="info mono" id="seitenInfo"></span>
+      <button class="btn" id="pdfBtn" title="PDF speichern">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>PDF
+      </button>
+      <button class="btn primary" id="teilenBtn">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>Teilen
+      </button>
+    </div>
+    <div class="seiten" id="seiten"></div>
+  </section>
+</div>
+</main>
+
+<nav class="untenleiste" role="tablist">
+  <button class="ul-knopf" data-tab-btn="schrift" role="tab">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Schrift</span>
+  </button>
+  <button class="ul-knopf" data-tab-btn="blatt" role="tab">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg><span>Blatt</span>
+  </button>
+</nav>
+<div id="fenster"></div>
+<input type="file" accept=".json,application/json" id="importInput" hidden>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= Helfer ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
+const parse = s => { try { return JSON.parse(s || "null"); } catch (e) { return null; } };
+
+/* Im Vorschau-Browser ist localStorage gesperrt, dann wird nur im Speicher gehalten */
+let OHNE_SPEICHER = false;
+try { localStorage.setItem("hs2-test", "1"); localStorage.removeItem("hs2-test"); } catch (e) { OHNE_SPEICHER = true; }
+const MEM = {};
+const LS = {
+  get(k) { if (OHNE_SPEICHER) return MEM[k] == null ? null : MEM[k]; try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { if (OHNE_SPEICHER) { MEM[k] = v; return true; } try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
+  del(k) { delete MEM[k]; try { localStorage.removeItem(k); } catch (e) {} }
+};
+function toast(t) {
+  const el = document.createElement("div"); el.className = "toast"; el.textContent = t;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2800);
+}
+const ICO = {
+  ok: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+  warn: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>',
+  x: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+};
+
+/* ================= Engine: Blatt, Papier, Tinte ================= */
+const HS = (function () {
+  const PW = 1654, PH = 2339, MM = PW / 210;
+  const FONTS = [
+    { id: "caveat", name: "Caveat", css: "Caveat", note: "Alltagsschrift" },
+    { id: "reenie", name: "Reenie Beanie", css: "Reenie Beanie", note: "krakelig" },
+    { id: "shadows", name: "Shadows Into Light", css: "Shadows Into Light Two", note: "locker, rund" },
+    { id: "kalam", name: "Kalam", css: "Kalam", note: "ordentlich" }
+  ];
+  const FB = FONTS[1]; // Ersatzschrift für fehlende eigene Zeichen
+  const INKS = {
+    blue: { c: "#1f3b8f", a: [0.84, 1] },
+    royal: { c: "#2846c6", a: [0.8, 0.98] },
+    black: { c: "#1b1b1d", a: [0.84, 1] },
+    pencil: { c: "#55575c", a: [0.55, 0.8] },
+    white: { c: "#f1f1ee", a: [0.86, 1] }
+  };
+
+  // ---------- Grundlagen ----------
+  function rng(seed) {
+    let a = (seed >>> 0) || 1;
+    const r = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    r.j = () => (r() + r() + r()) / 1.5 - 1;
+    return r;
+  }
+  function cnv(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
+  function noiseTile(size, fn) {
+    const c = cnv(size, size), g = c.getContext("2d"), d = g.createImageData(size, size);
+    for (let i = 0; i < d.data.length; i += 4) fn(d.data, i);
+    g.putImageData(d, 0, 0); return c;
+  }
+  let _paperNoise, _inkNoise;
+  function paperNoise() {
+    return _paperNoise || (_paperNoise = noiseTile(160, (d, i) => { const v = Math.random(); d[i] = 110; d[i + 1] = 100; d[i + 2] = 90; d[i + 3] = v < 0.5 ? v * 16 : 0; }));
+  }
+  function inkNoise() {
+    if (_inkNoise) return _inkNoise;
+    const s = noiseTile(96, (d, i) => { const v = Math.random(); d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = Math.pow(v, 3) * 150; });
+    const c = cnv(288, 288), g = c.getContext("2d"); g.imageSmoothingEnabled = true; g.drawImage(s, 0, 0, 288, 288);
+    const s2 = noiseTile(288, (d, i) => { const v = Math.random(); d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = v > 0.93 ? 180 : 0; });
+    g.drawImage(s2, 0, 0);
+    return (_inkNoise = c);
+  }
+  function blobLaden(blob, name) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  function download(canvas, name) {
+    return new Promise(res => canvas.toBlob(b => { blobLaden(b, name); res(); }, "image/png"));
+  }
+
+  // ---------- Seite und Papier ----------
+  // Vorlagen: heft (Schulblock), onenote, notizen (Apple Notizen). Jede mit eigenem Rand, Kopf und Linienfarbe.
+  const TAGE = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+  const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+  function geometry(o) {
+    const tpl = o.tpl || "heft", kopf = tpl === "onenote" ? (o.titel ? 34 : 24) : tpl === "notizen" ? 20 : 24;
+    const top = kopf * MM, bottom = 16 * MM;
+    let pitch = o.pitchMM * MM, left = (tpl === "heft" ? 20 : tpl === "onenote" ? 22 : 15) * MM;
+    const marginX = PW - 26 * MM, bases = [];
+    if (o.paper === "grid") {
+      const st = 5 * MM; pitch = Math.max(1, Math.round(o.pitchMM / 5)) * st;
+      for (let y = Math.ceil((top + pitch * 0.8) / st) * st; y < PH - bottom; y += pitch) bases.push(y);
+      left = Math.round(left / st) * st;
+    } else {
+      for (let y = top + pitch; y < PH - bottom; y += pitch) bases.push(y);
+    }
+    const right = o.margin && o.paper !== "blank" ? marginX - 4 * MM : PW - (tpl === "heft" ? 16 : 14) * MM;
+    return { pitch, bases, left, right, marginX, top };
+  }
+  const FARBEN = {
+    heft: {
+      hell: { bg: "#fcfcf9", linie: "rgba(110,145,185,0.55)", raster: "rgba(110,145,185,0.38)", noise: true },
+      dunkel: { bg: "#1f1f1f", linie: "rgba(255,255,255,0.10)", raster: "rgba(255,255,255,0.08)" }
+    },
+    onenote: {
+      hell: { bg: "#ffffff", linie: "rgba(155,194,230,0.9)", raster: "rgba(155,194,230,0.7)", text: "#000000", grau: "#767676", strich: "#c8c8c8" },
+      dunkel: { bg: "#1f1f1f", linie: "rgba(255,255,255,0.13)", raster: "rgba(255,255,255,0.10)", text: "#ffffff", grau: "#a6a6a6", strich: "#4a4a4a" }
+    },
+    notizen: {
+      hell: { bg: "#ffffff", linie: "#e2e2e4", raster: "#e6e6e8", grau: "#8e8e93" },
+      dunkel: { bg: "#1c1c1e", linie: "#3a3a3c", raster: "#333336", grau: "#8e8e93" }
+    }
+  };
+  const farben = o => FARBEN[o.tpl || "heft"][o.dark ? "dunkel" : "hell"];
+  const _paperCache = {};
+  function paper(o, geo) {
+    const key = [o.tpl, o.dark, o.paper, geo.pitch, geo.top, o.margin].join("|");
+    if (_paperCache[key]) return _paperCache[key];
+    const F = farben(o), c = cnv(PW, PH), g = c.getContext("2d");
+    g.fillStyle = F.bg; g.fillRect(0, 0, PW, PH);
+    if (F.noise) { g.fillStyle = g.createPattern(paperNoise(), "repeat"); g.fillRect(0, 0, PW, PH); }
+    if (o.paper === "lined") {
+      g.strokeStyle = F.linie; g.lineWidth = 1.6;
+      geo.bases.forEach(y => { g.beginPath(); g.moveTo(0, y); g.lineTo(PW, y); g.stroke(); });
+    }
+    if (o.paper === "grid") {
+      const st = 5 * MM; g.strokeStyle = F.raster; g.lineWidth = 1.2;
+      for (let x = st; x < PW; x += st) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, PH); g.stroke(); }
+      for (let y = st; y < PH; y += st) { g.beginPath(); g.moveTo(0, y); g.lineTo(PW, y); g.stroke(); }
+    }
+    if (o.margin && o.paper !== "blank") {
+      g.strokeStyle = o.dark ? "rgba(225,95,95,0.6)" : "rgba(200,80,80,0.55)"; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(geo.marginX, 0); g.lineTo(geo.marginX, PH); g.stroke();
+    }
+    return (_paperCache[key] = c);
+  }
+  // Kopf wie in der App: OneNote mit Titel, Datum und Uhrzeit links, Notizen mit Datum mittig
+  function kopfZeichnen(g, o, geo) {
+    const tpl = o.tpl || "heft"; if (tpl === "heft") return;
+    const F = farben(o), d = o.datum ? new Date(o.datum + "T12:00:00") : new Date(), zeit = o.zeit || "";
+    g.save(); g.textBaseline = "alphabetic"; g.globalAlpha = 1;
+    if (tpl === "onenote") {
+      const sans = '"Segoe UI", Calibri, "Helvetica Neue", Arial, sans-serif';
+      let y = 13 * MM;
+      if (o.titel) {
+        g.fillStyle = F.text; g.font = `${7.2 * MM}px ${sans}`; g.fillText(o.titel, geo.left, 19 * MM);
+        const w = Math.max(70 * MM, g.measureText(o.titel).width + 4 * MM);
+        g.strokeStyle = F.strich; g.lineWidth = 2; g.beginPath(); g.moveTo(geo.left, 21.5 * MM); g.lineTo(geo.left + w, 21.5 * MM); g.stroke();
+        y = 27 * MM;
+      }
+      g.fillStyle = F.grau; g.font = `${3.9 * MM}px ${sans}`;
+      const datum = `${TAGE[d.getDay()]}, ${d.getDate()}. ${MONATE[d.getMonth()]} ${d.getFullYear()}`;
+      g.fillText(datum, geo.left, y);
+      if (zeit) g.fillText(zeit, geo.left + g.measureText(datum).width + 9 * MM, y);
+    } else {
+      g.fillStyle = F.grau; g.textAlign = "center";
+      g.font = `${3.6 * MM}px -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif`;
+      g.fillText(`${d.getDate()}. ${MONATE[d.getMonth()]} ${d.getFullYear()}${zeit ? " um " + zeit : ""}`, PW / 2, 11 * MM);
+    }
+    g.restore();
+  }
+
+  // ---------- Eigene Schrift ----------
+  // own = { gap, g:{zeichen:{w,h,top,x,url,img}}, w:{wort:{...}} }
+  // x ist die x-Höhe des Fotos, aus dem das Zeichen stammt. So passen Zeichen aus verschiedenen Fotos zusammen.
+  let own = null;
+  const QUOTE_MAP = { "„": '"', "“": '"', "”": '"', "‚": "'", "‘": "'", "’": "'", "–": "-", "—": "-", "»": '"', "«": '"', "ẞ": "ß" };
+  function glyphFor(ch) {
+    if (!own) return null;
+    const c = QUOTE_MAP[ch] || ch;
+    return own.g[c] || own.g[c.toLowerCase()] || own.g[c.toUpperCase()] || null;
+  }
+  function tinted(gl, color) {
+    gl.tint = gl.tint || {};
+    if (gl.tint[color]) return gl.tint[color];
+    const c = cnv(gl.w, gl.h), g = c.getContext("2d");
+    g.drawImage(gl.img, 0, 0); g.globalCompositeOperation = "source-in"; g.fillStyle = color; g.fillRect(0, 0, gl.w, gl.h);
+    return (gl.tint[color] = c);
+  }
+  function bildLaden(m) {
+    return new Promise(res => { const img = new Image(); img.onload = () => { m.img = img; res(m); }; img.onerror = () => res(null); img.src = m.url; });
+  }
+  async function ownSetzen(raw) {
+    if (!raw || !raw.g) { own = null; return false; }
+    const g = {}, w = {};
+    const lade = (quelle, ziel) => Promise.all(Object.keys(quelle || {}).map(k => {
+      const m = Object.assign({}, quelle[k]); if (!m.x) m.x = raw.xh || 32;
+      return bildLaden(m).then(r => { if (r) ziel[k] = r; });
+    }));
+    await lade(raw.g, g); await lade(raw.w, w);
+    own = { gap: raw.gap == null ? 0.16 : raw.gap, g, w };
+    return hatOwn();
+  }
+  function ownExport() {
+    if (!own) return null;
+    const strip = o => { const r = {}; Object.keys(o).forEach(k => { const m = o[k]; r[k] = { w: m.w, h: m.h, top: m.top, x: m.x, url: m.url }; }); return r; };
+    return { app: "handschrift", v: 2, gap: own.gap, g: strip(own.g), w: strip(own.w) };
+  }
+  function hatOwn() { return !!own && Object.keys(own.g).length > 0; }
+  function ownLeeren() { own = null; }
+  function ownInfo() {
+    if (!own) return { zeichen: 0, woerter: 0, g: {}, w: {} };
+    return { zeichen: Object.keys(own.g).length, woerter: Object.keys(own.w).length, g: own.g, w: own.w };
+  }
+
+  // ---------- Blatt beschreiben ----------
+  const mctx = cnv(10, 10).getContext("2d");
+  let _tok = 0, _layer;
+  async function fontReady(css) { try { await document.fonts.load(`40px "${css}"`, "aäöüßAÖ"); } catch (e) {} }
+  function fontPxFor(css, xh) {
+    mctx.font = `100px "${css}"`;
+    const m = mctx.measureText("x").actualBoundingBoxAscent || 45;
+    return xh * 100 / m;
+  }
+  const LEAD = /^[„"“'‚(«»]+/, TRAIL = /[.,;:!?"“”'‘’)»«…]+$/;
+  function splitTok(t) {
+    const l = (t.match(LEAD) || [""])[0], rest = t.slice(l.length), tr = (rest.match(TRAIL) || [""])[0];
+    return { lead: l, core: rest.slice(0, rest.length - tr.length), trail: tr };
+  }
+  async function render(container, o) {
+    const tok = ++_tok;
+    const geo = geometry(o), r = rng(o.seed), k = o.messy / 100, d = o.drift / 100;
+    // Digitale Seiten (OneNote, Notizen): gleichmäßige Tinte, kein Papierkorn
+    const digital = (o.tpl || "heft") !== "heft";
+    const ink0 = INKS[o.dark ? "white" : o.ink] || INKS.blue;
+    const ink = digital ? { c: ink0.c, a: [0.97, 1] } : ink0;
+    const xh = 0.33 * geo.pitch * (o.size / 100);
+    const sh = Math.tan((o.slant || 0) * Math.PI / 180);
+    await fontReady(FB.css);
+    const useOwn = o.font === "own" && hatOwn();
+    const font = FONTS.find(f => f.id === o.font) || FONTS[0];
+    if (!useOwn) await fontReady(font.css);
+    if (tok !== _tok) return null;
+
+    const fbPx = fontPxFor(FB.css, xh), fbStr = `${fbPx}px "${FB.css}"`;
+    let measure, drawWord;
+    // Unordentlich heißt: jeder Buchstabe etwas anders groß, breit, geneigt, versetzt und anders weit vom Nachbarn
+    if (useOwn) {
+      const gapPx = (own.gap == null ? 0.16 : own.gap) * xh;
+      // Ein Wort besteht aus Stücken: eigene Zeichen, ganze eigene Wörter oder Ersatzschrift
+      const pieces = t => {
+        const out = [], p = splitTok(t);
+        const chars = str => {
+          for (const ch of str) {
+            const gl = glyphFor(ch);
+            if (gl) { const s = xh / gl.x; out.push({ m: gl, s, adv: gl.w * s + gapPx }); }
+            else { mctx.font = fbStr; out.push({ ch, adv: mctx.measureText(ch).width + gapPx * 0.5 }); }
+          }
+        };
+        const wi = p.core && own.w[p.core];
+        if (wi) { chars(p.lead); const s = xh / wi.x; out.push({ m: wi, s, adv: wi.w * s + gapPx, wort: true }); chars(p.trail); }
+        else chars(t);
+        return out;
+      };
+      measure = t => { let w = 0; for (const q of pieces(t)) w += q.adv; return Math.max(xh * 0.3, w - gapPx); };
+      drawWord = (g, t, kk) => {
+        let cx = 0; const a0 = g.globalAlpha;
+        for (const q of pieces(t)) {
+          if (q.ch) { g.font = fbStr; g.fillText(q.ch, cx, 0); cx += q.adv; continue; }
+          const m = q.m, j = kk * (q.wort ? 0.45 : 1);
+          const sx = q.s * (1 + r.j() * 0.10 * j), sy = q.s * (1 + r.j() * 0.14 * j);
+          g.save(); g.translate(cx + r.j() * 0.05 * xh * j, r.j() * 0.45 * MM * j);
+          g.rotate(r.j() * 0.02 * j); g.transform(1, 0, r.j() * 0.18 * j, 1, 0, 0);
+          if (!digital) g.globalAlpha = a0 * (1 - r() * 0.16 * j);
+          g.drawImage(tinted(m, ink.c), 0, m.top * sy, m.w * sx, m.h * sy);
+          g.restore();
+          cx += q.adv + m.w * (sx - q.s) + r.j() * 0.12 * xh * j;
+        }
+        return Math.max(0, cx - gapPx);
+      };
+    } else {
+      const px = fontPxFor(font.css, xh), fstr = `${px}px "${font.css}"`;
+      measure = w => { mctx.font = fstr; return mctx.measureText(w).width; };
+      drawWord = (g, w, kk) => {
+        g.font = fstr;
+        if (font.connected) { g.fillText(w, 0, 0); return g.measureText(w).width; }
+        let cx = 0;
+        for (const ch of w) {
+          const cw = g.measureText(ch).width, sx = 1 + r.j() * 0.10 * kk, sy = 1 + r.j() * 0.14 * kk;
+          g.save(); g.translate(cx, r.j() * 0.45 * MM * kk); g.rotate(r.j() * 0.02 * kk); g.transform(1, 0, r.j() * 0.18 * kk, 1, 0, 0);
+          g.scale(sx, sy); g.fillText(ch, 0, 0); g.restore();
+          cx += cw * sx + r.j() * 0.1 * xh * kk;
+        }
+        return cx;
+      };
+    }
+
+    // Zeilen umbrechen. Jede Zeile bekommt ihren eigenen Anfang und ihr eigenes Ende.
+    const spaceW = xh * 0.95, fullW = (geo.right - geo.left) * 0.98, indentW = 8 * MM;
+    const lr = rng(((o.seed || 1) ^ 0x9e3779b9) >>> 0), sA = (o.starts || 0) / 100, sE = (o.ends || 0) / 100;
+    let walk = 0;
+    const neueZeile = indent => {
+      walk = walk * 0.8 + lr.j() * 5 * MM * sA;
+      const off = Math.max(-geo.left + 8 * MM, walk + lr.j() * 2 * MM * sA) + (indent ? indentW : 0);
+      let cut = lr() * 0.22 * sE * fullW;
+      if (lr() < 0.3 * sE) cut = -lr() * 0.04 * fullW; // ab und zu etwas über den Rand hinaus
+      cut = Math.max(cut, -(PW - 8 * MM - geo.right));
+      return { words: [], off, max: fullW - off - cut };
+    };
+    const paras = o.paras || String(o.text || "").replace(/\r/g, "").split("\n").map(p => p.split(/[ \t]+/).filter(Boolean).map(t => ({ t })));
+    const lines = [];
+    paras.forEach(words => {
+      if (!words.length) { lines.push({ words: [], off: 0 }); return; }
+      let cur = neueZeile(!!o.indent), w = 0;
+      words.forEach(it => {
+        const ww = measure(it.t), add = cur.words.length ? spaceW + ww : ww;
+        if (cur.words.length && w + add > cur.max) { lines.push(cur); cur = neueZeile(false); w = 0; }
+        cur.words.push({ t: it.t, w: ww }); w += cur.words.length > 1 ? spaceW + ww : ww;
+      });
+      lines.push(cur);
+    });
+    while (lines.length > 1 && !lines[lines.length - 1].words.length) lines.pop();
+
+    const per = geo.bases.length, n = Math.max(1, Math.ceil(lines.length / per));
+    if (!_layer) _layer = cnv(PW, PH);
+    const L = _layer, lg = L.getContext("2d");
+    const pg = paper(o, geo);
+
+    while (container.children.length > n) container.lastChild.remove();
+    for (let p = 0; p < n; p++) {
+      let wrap = container.children[p];
+      if (!wrap) {
+        wrap = document.createElement("div"); wrap.className = "seite";
+        wrap.innerHTML = '<div class="seite-kopf" data-l></div><canvas></canvas>';
+        container.appendChild(wrap);
+      }
+      const c = wrap.querySelector("canvas");
+      if (c.width !== PW) { c.width = PW; c.height = PH; }
+      c.dataset.seite = p;
+      wrap.querySelector("[data-l]").textContent = n > 1 ? `Seite ${p + 1} von ${n}` : "";
+
+      lg.setTransform(1, 0, 0, 1, 0, 0); lg.globalCompositeOperation = "source-over"; lg.globalAlpha = 1;
+      lg.clearRect(0, 0, PW, PH); lg.fillStyle = ink.c; lg.textBaseline = "alphabetic";
+      for (let li = 0; li < per; li++) {
+        const gi = p * per + li, line = lines[gi]; if (!line) break;
+        // gegen Ende des Textes wird die Schrift etwas müder
+        const kk = k * (0.75 + 0.5 * gi / Math.max(1, lines.length - 1));
+        // d steuert, wie weit die Wörter von der Linie abkommen: Schräge, Wandern, Sprünge
+        const y0 = geo.bases[li], slope = r.j() * 0.03 * d;
+        const startX = geo.left + (line.off || 0) + r.j() * 0.8 * MM * (0.3 * k + d);
+        const lift = 0.3 * MM + r.j() * 1.1 * MM * d;
+        let x = startX, wander = 0;
+        line.words.forEach(wd => {
+          wander = wander * 0.7 + r.j() * 1.3 * MM * d;
+          const wy = y0 - lift + slope * (x - startX) + wander + r.j() * 0.2 * MM * kk;
+          const sc = 1 + r.j() * 0.07 * kk, sxw = 1 + r.j() * 0.06 * kk;
+          lg.globalAlpha = ink.a[0] + r() * (ink.a[1] - ink.a[0]);
+          lg.save(); lg.translate(x, wy); lg.rotate(r.j() * 0.012 * (kk + d)); lg.transform(1, 0, -sh, 1, 0, 0); lg.scale(sc * sxw, sc);
+          const bw = drawWord(lg, wd.t, kk);
+          lg.restore();
+          x += (bw || wd.w) * sc * sxw + spaceW * (0.8 + r() * 0.5 * (0.4 + kk));
+        });
+      }
+      if (!digital) {
+        lg.globalAlpha = 0.55; lg.globalCompositeOperation = "destination-out";
+        lg.fillStyle = lg.createPattern(inkNoise(), "repeat"); lg.fillRect(0, 0, PW, PH);
+        lg.globalCompositeOperation = "source-over"; lg.globalAlpha = 1;
+      }
+      const g = c.getContext("2d");
+      g.clearRect(0, 0, PW, PH); g.drawImage(pg, 0, 0);
+      if (p === 0) kopfZeichnen(g, o, geo);
+      g.drawImage(L, 0, 0);
+      if (tok !== _tok) return null;
+      if (p % 2 === 1) await new Promise(res => setTimeout(res, 0));
+    }
+    return { pages: n, own: !!useOwn };
+  }
+
+  // Kleiner PDF-Schreiber: eine JPEG-Seite pro Canvas, A4, ohne Bibliothek
+  async function pdfBlob(cs) {
+    const enc = new TextEncoder(), parts = [], offs = [];
+    let len = 0;
+    const push = d => { const b = typeof d === "string" ? enc.encode(d) : d; parts.push(b); len += b.length; };
+    const obj = (n, body) => { offs[n] = len; push(`${n} 0 obj\n`); body(); push("\nendobj\n"); };
+    push("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+    const n = cs.length, kids = [];
+    for (let i = 0; i < n; i++) kids.push(`${3 + i * 3} 0 R`);
+    obj(1, () => push("<< /Type /Catalog /Pages 2 0 R >>"));
+    obj(2, () => push(`<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${n} >>`));
+    const W = 595.28, H = 841.89;
+    for (let i = 0; i < n; i++) {
+      const c = cs[i], t = cnv(c.width, c.height), g = t.getContext("2d");
+      g.fillStyle = "#fff"; g.fillRect(0, 0, t.width, t.height); g.drawImage(c, 0, 0);
+      const blob = await new Promise(r => t.toBlob(r, "image/jpeg", 0.92));
+      const jpg = new Uint8Array(await blob.arrayBuffer());
+      const p = 3 + i * 3, content = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+      obj(p, () => push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 ${p + 2} 0 R >> >> /Contents ${p + 1} 0 R >>`));
+      obj(p + 1, () => push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`));
+      obj(p + 2, () => { push(`<< /Type /XObject /Subtype /Image /Width ${t.width} /Height ${t.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); push(jpg); push("\nendstream"); });
+    }
+    const total = 3 + n * 3, xref = len;
+    let x = `xref\n0 ${total}\n0000000000 65535 f \n`;
+    for (let i = 1; i < total; i++) x += String(offs[i]).padStart(10, "0") + " 00000 n \n";
+    push(x + `trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+    return new Blob(parts, { type: "application/pdf" });
+  }
+  const pdfVon = container => pdfBlob([...container.querySelectorAll("canvas")]);
+
+  // ---------- Foto ----------
+  let _photo = null;
+  function grayOf(c) {
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = c.width * c.height, out = new Float32Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += 4) out[i] = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
+    return out;
+  }
+  // Wie grayOf, aber rote Randlinien und rötliche Flecken zählen als Papier
+  function tinteOf(c) {
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = c.width * c.height, out = new Float32Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += 4) {
+      const R = d[j], G = d[j + 1], B = d[j + 2];
+      let v = 0.299 * R + 0.587 * G + 0.114 * B;
+      if (R - Math.max(G, B) > 40) v = Math.max(v, 0.9 * R);
+      out[i] = v;
+    }
+    return out;
+  }
+  function loadPhoto(file) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        const s = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = cnv(Math.round(img.naturalWidth * s), Math.round(img.naturalHeight * s));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        _photo = c;
+        res({ url, w: c.width, h: c.height });
+      };
+      img.onerror = rej; img.src = url;
+    });
+  }
+  function homog(src, dst) {
+    const A = [], b = [];
+    for (let i = 0; i < 4; i++) {
+      const [u, v] = src[i], [x, y] = dst[i];
+      A.push([u, v, 1, 0, 0, 0, -u * x, -v * x]); b.push(x);
+      A.push([0, 0, 0, u, v, 1, -u * y, -v * y]); b.push(y);
+    }
+    for (let i = 0; i < 8; i++) {
+      let p = i; for (let r = i + 1; r < 8; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r;
+      [A[i], A[p]] = [A[p], A[i]]; [b[i], b[p]] = [b[p], b[i]];
+      for (let r = i + 1; r < 8; r++) { const f = A[r][i] / A[i][i]; for (let c = i; c < 8; c++) A[r][c] -= f * A[i][c]; b[r] -= f * b[i]; }
+    }
+    const h = new Array(8);
+    for (let i = 7; i >= 0; i--) { let s = b[i]; for (let c = i + 1; c < 8; c++) s -= A[i][c] * h[c]; h[i] = s / A[i][i]; }
+    return h;
+  }
+
+  // Helligkeit relativ zum Papier drumherum: macht Schatten und Lichtverlauf unschädlich
+  function verhaeltnis(gray, W, H, B) {
+    const bw = Math.ceil(W / B), bh = Math.ceil(H / B);
+    let bg = new Float32Array(bw * bh);
+    for (let y = 0; y < H; y++) { const by = (y / B) | 0; for (let x = 0; x < W; x++) { const j = by * bw + ((x / B) | 0), v = gray[y * W + x]; if (v > bg[j]) bg[j] = v; } }
+    for (let it = 0; it < 2; it++) {
+      const nb = new Float32Array(bw * bh);
+      for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+        let s = 0, c = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const yy = y + dy, xx = x + dx; if (yy < 0 || xx < 0 || yy >= bh || xx >= bw) continue; s += bg[yy * bw + xx]; c++; }
+        nb[y * bw + x] = s / c;
+      }
+      bg = nb;
+    }
+    const q = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) {
+      const fy = Math.min(bh - 1, Math.max(0, (y + 0.5) / B - 0.5)), y0 = Math.floor(fy), y1 = Math.min(bh - 1, y0 + 1), ty = fy - y0;
+      for (let x = 0; x < W; x++) {
+        const fx = Math.min(bw - 1, Math.max(0, (x + 0.5) / B - 0.5)), x0 = Math.floor(fx), x1 = Math.min(bw - 1, x0 + 1), tx = fx - x0;
+        const b = (bg[y0 * bw + x0] * (1 - tx) + bg[y0 * bw + x1] * tx) * (1 - ty) + (bg[y1 * bw + x0] * (1 - tx) + bg[y1 * bw + x1] * tx) * ty;
+        q[y * W + x] = gray[y * W + x] / Math.max(40, b);
+      }
+    }
+    return q;
+  }
+  function komponenten(M, W, H) {
+    const N = W * H, lab = new Int32Array(N), comps = [null], stack = new Int32Array(N);
+    for (let i = 0; i < N; i++) {
+      if (!M[i] || lab[i]) continue;
+      const id = comps.length; let sp = 0; stack[sp++] = i; lab[i] = id;
+      let area = 0, minx = W, maxx = 0, miny = H, maxy = 0;
+      while (sp) {
+        const p = stack[--sp], x = p % W, y = (p / W) | 0;
+        area++; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;
+        for (let dy = -1; dy <= 1; dy++) {
+          const ny = y + dy; if (ny < 0 || ny >= H) continue;
+          for (let dx = -1; dx <= 1; dx++) { const nx = x + dx; if (nx < 0 || nx >= W) continue; const q = ny * W + nx; if (M[q] && !lab[q]) { lab[q] = id; stack[sp++] = q; } }
+        }
+      }
+      comps.push({ id, area, minx, maxx, miny, maxy });
+    }
+    return { lab, comps };
+  }
+
+  // Erste Schätzung für den Ausschnitt: Rahmen um alles, was nach Buchstaben aussieht
+  function autoAusschnitt() {
+    const def = [{ x: 0.06, y: 0.06 }, { x: 0.94, y: 0.06 }, { x: 0.94, y: 0.94 }, { x: 0.06, y: 0.94 }];
+    if (!_photo) return { corners: def, found: false };
+    const s = Math.min(1, 520 / Math.max(_photo.width, _photo.height)), w = Math.round(_photo.width * s), h = Math.round(_photo.height * s);
+    const sc = cnv(w, h); sc.getContext("2d").drawImage(_photo, 0, 0, w, h);
+    const gray = tinteOf(sc), n = w * h;
+    let sum = 0; for (let i = 0; i < n; i++) sum += gray[i];
+    if (sum / n < 110) for (let i = 0; i < n; i++) gray[i] = 255 - gray[i];
+    const q = verhaeltnis(gray, w, h, 12), M = new Uint8Array(n);
+    for (let i = 0; i < n; i++) M[i] = q[i] < 0.66 ? 1 : 0;
+    const { comps } = komponenten(M, w, h);
+    const ok = comps.filter(c => c && c.area >= 3 && c.minx > 2 && c.miny > 2 && c.maxx < w - 3 && c.maxy < h - 3 && (c.maxx - c.minx) < w * 0.08 && (c.maxy - c.miny) < h * 0.08);
+    if (ok.length < 12) return { corners: def, found: false };
+    const xs = ok.map(c => (c.minx + c.maxx) / 2).sort((a, b) => a - b), ys = ok.map(c => (c.miny + c.maxy) / 2).sort((a, b) => a - b);
+    const pct = (a, p) => a[Math.min(a.length - 1, Math.max(0, Math.round(p * (a.length - 1))))];
+    const x0 = Math.max(0.01, pct(xs, 0.01) / w - 0.05), x1 = Math.min(0.99, pct(xs, 0.99) / w + 0.05);
+    const y0 = Math.max(0.01, pct(ys, 0.01) / h - 0.05), y1 = Math.min(0.99, pct(ys, 0.99) / h + 0.05);
+    return { corners: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }], found: true };
+  }
+
+  // ---------- Freies Blatt auslesen ----------
+  const ZEILEN = [
+    { art: "z", z: "a b c d e f g h i j k l m" },
+    { art: "z", z: "n o p q r s t u v w x y z" },
+    { art: "z", z: "A B C D E F G H I J K L M" },
+    { art: "z", z: "N O P Q R S T U V W X Y Z" },
+    { art: "z", z: "ä ö ü ß Ä Ö Ü . , ! ?" },
+    { art: "z", z: "0 1 2 3 4 5 6 7 8 9 - : ( )" },
+    { art: "w", z: "und die der das ist" },
+    { art: "w", z: "nicht ein eine mit sich" },
+    { art: "w", z: "auf auch zu den von" }
+  ];
+  ZEILEN.forEach(Z => { Z.teile = Z.z.split(" "); Z.label = Z.art === "z" ? `${Z.teile[0]} bis ${Z.teile[Z.teile.length - 1]}` : Z.teile.join(", "); });
+  // Zeichen, die auf der Grundlinie sitzen (alles ohne Unterlänge)
+  const SIT = new Set([..."abcdefhiklmnorstuvwxzäöüßABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ0123456789.!?:&%€@"]);
+  const XLET = [..."acemnorsuvwxz"];
+
+  function blattAuslesen(corners) {
+    if (!_photo) throw new Error("Kein Foto");
+    const W = _photo.width, H = _photo.height, src = tinteOf(_photo);
+    const P = corners.map(p => [p.x * W, p.y * H]);
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const qw = (dist(P[0], P[1]) + dist(P[3], P[2])) / 2, qh = (dist(P[0], P[3]) + dist(P[1], P[2])) / 2;
+    const OW = Math.round(Math.max(700, Math.min(1400, qw))), OH = Math.max(60, Math.round(OW * qh / qw));
+    const hm = homog([[0, 0], [OW, 0], [OW, OH], [0, OH]], P);
+    const N = OW * OH, gray = new Float32Array(N);
+    let sum = 0;
+    // 1. Entzerren
+    for (let v = 0; v < OH; v++) for (let u = 0; u < OW; u++) {
+      const dd = hm[6] * u + hm[7] * v + 1, x = (hm[0] * u + hm[1] * v + hm[2]) / dd, y = (hm[3] * u + hm[4] * v + hm[5]) / dd;
+      const xi = Math.floor(x), yi = Math.floor(y); let val = 255;
+      if (xi >= 0 && yi >= 0 && xi < W - 1 && yi < H - 1) { const fx = x - xi, fy = y - yi, i = yi * W + xi; val = (src[i] * (1 - fx) + src[i + 1] * fx) * (1 - fy) + (src[i + W] * (1 - fx) + src[i + W + 1] * fx) * fy; }
+      gray[v * OW + u] = val; sum += val;
+    }
+    // Helle Schrift auf dunklem Grund (Tablet, OneNote) umdrehen
+    if (sum / N < 110) for (let i = 0; i < N; i++) gray[i] = 255 - gray[i];
+    // 2. Tinte vom Papier trennen
+    const q = verhaeltnis(gray, OW, OH, 32), A = new Float32Array(N), M = new Uint8Array(N);
+    for (let i = 0; i < N; i++) { A[i] = Math.max(0, Math.min(1, (0.82 - q[i]) / 0.3)); M[i] = q[i] < 0.66 ? 1 : 0; }
+    // 3. Lange gerade Linien entfernen (Heftlinien, Rand, Kästchen), Kreuzungen mit Buchstaben bleiben
+    const LF = new Uint8Array(N), minH = Math.max(90, Math.round(OW * 0.1)), minV = Math.max(90, Math.round(OH * 0.1));
+    for (let y = 0; y < OH; y++) { let s = -1; for (let x = 0; x <= OW; x++) { const on = x < OW && M[y * OW + x]; if (on && s < 0) s = x; else if (!on && s >= 0) { if (x - s >= minH) for (let t = s; t < x; t++) LF[y * OW + t] |= 1; s = -1; } } }
+    for (let x = 0; x < OW; x++) { let s = -1; for (let y = 0; y <= OH; y++) { const on = y < OH && M[y * OW + x]; if (on && s < 0) s = y; else if (!on && s >= 0) { if (y - s >= minV) for (let t = s; t < y; t++) LF[t * OW + x] |= 2; s = -1; } } }
+    for (let i = 0; i < N; i++) {
+      if (!LF[i]) continue;
+      const x = i % OW, y = (i / OW) | 0; let a = 0, b = 0;
+      if (LF[i] === 1) {
+        for (let t = 1; t <= 8 && y - t >= 0; t++) { const j = i - t * OW; if (!LF[j]) { a = M[j]; break; } }
+        for (let t = 1; t <= 8 && y + t < OH; t++) { const j = i + t * OW; if (!LF[j]) { b = M[j]; break; } }
+      } else if (LF[i] === 2) {
+        for (let t = 1; t <= 8 && x - t >= 0; t++) { const j = i - t; if (!LF[j]) { a = M[j]; break; } }
+        for (let t = 1; t <= 8 && x + t < OW; t++) { const j = i + t; if (!LF[j]) { b = M[j]; break; } }
+      }
+      if (!(a && b)) { M[i] = 0; A[i] = 0; }
+    }
+    // 4. Zusammenhängende Striche finden
+    const { lab, comps } = komponenten(M, OW, OH);
+    const minA = Math.max(8, Math.round(14 * (OW / 1400) * (OW / 1400)));
+    const ok0 = comps.filter(c => c && c.area >= minA && c.minx > 1 && c.miny > 1 && c.maxx < OW - 2 && c.maxy < OH - 2 && (c.maxx - c.minx) < OW * 0.4 && (c.maxy - c.miny) < OH * 0.3);
+    if (ok0.length < 5) return { fehler: "Auf dem Ausschnitt ist keine Schrift zu erkennen. Zieh die Punkte um deine Schrift, mit etwas Rand." };
+    // Striche, die höher sind als drei Buchstaben, sind Linienreste und keine Schrift
+    const medCH = median(ok0.map(c => c.maxy - c.miny + 1));
+    const ok = ok0.filter(c => c.maxy - c.miny + 1 <= 3.2 * medCH);
+
+    // Schräglage des Fotos schätzen: bei welchem Winkel liegen die Buchstaben am saubersten in Reihen
+    const probe = deg => {
+      const t = Math.tan(deg * Math.PI / 180), bins = new Map(); let s = 0;
+      ok.forEach(c => { const b = Math.round(((c.miny + c.maxy) / 2 - ((c.minx + c.maxx) / 2 - OW / 2) * t) / 3); bins.set(b, (bins.get(b) || 0) + c.area); });
+      bins.forEach(v => { s += v * v; }); return s;
+    };
+    let schraeg = 0, bestS = -1;
+    for (let a = -8; a <= 8.001; a += 0.25) { const s = probe(a); if (s > bestS) { bestS = s; schraeg = a; } }
+    for (let a = schraeg - 0.25; a <= schraeg + 0.25; a += 0.05) { const s = probe(a); if (s > bestS) { bestS = s; schraeg = a; } }
+    const tw = Math.tan(schraeg * Math.PI / 180), yv = x => (x - OW / 2) * tw;
+    ok.forEach(c => { const v = yv((c.minx + c.maxx) / 2); c.y0 = c.miny - v; c.y1 = c.maxy - v; });
+
+    // 5. Reihen finden: Lücken zwischen den Reihen sind die größten senkrechten Lücken
+    const segs = [];
+    ok.slice().sort((a, b) => a.y0 - b.y0).forEach(c => {
+      const s = segs[segs.length - 1];
+      if (s && c.y0 <= s.y1) { s.y1 = Math.max(s.y1, c.y1); s.mass += c.area; s.cs.push(c); }
+      else segs.push({ y0: c.y0, y1: c.y1, mass: c.area, cs: [c] });
+    });
+    const maxM = Math.max(...segs.map(s => s.mass)), sig = segs.filter(s => s.mass >= 0.25 * maxM);
+    const medH = median(sig.map(s => s.y1 - s.y0 + 1)), medM = median(sig.map(s => s.mass));
+    const S2 = segs.filter((s, i) => {
+      if (s.mass >= 0.05 * medM) return true;
+      const gu = i > 0 ? s.y0 - segs[i - 1].y1 : 1e9, gd = i < segs.length - 1 ? segs[i + 1].y0 - s.y1 : 1e9;
+      return Math.min(gu, gd) < 0.6 * medH;
+    });
+    const gaps = []; for (let i = 0; i < S2.length - 1; i++) gaps.push({ i, g: S2[i + 1].y0 - S2[i].y1 });
+    const K = Math.min(ZEILEN.length, gaps.filter(x => x.g > 0.3 * medH).length + 1);
+    const cuts = new Set(gaps.slice().sort((a, b) => b.g - a.g).slice(0, K - 1).map(x => x.i));
+    const rows = []; let cur = null;
+    S2.forEach((s, i) => {
+      if (!cur) { cur = { y0: s.y0, y1: s.y1, cs: [] }; rows.push(cur); }
+      cur.y1 = Math.max(cur.y1, s.y1); cur.cs.push(...s.cs);
+      if (cuts.has(i)) cur = null;
+    });
+
+    // Hilfen für Gruppen (eine Gruppe = ein Zeichen oder ein Wort)
+    const neuGruppe = c => ({ ids: [c.id], minx: c.minx, maxx: c.maxx, miny: c.miny, maxy: c.maxy, area: c.area, x0: 0, x1: OW });
+    const verschmelzen = (a, b) => { a.ids.push(...b.ids); a.minx = Math.min(a.minx, b.minx); a.maxx = Math.max(a.maxx, b.maxx); a.miny = Math.min(a.miny, b.miny); a.maxy = Math.max(a.maxy, b.maxy); a.area += b.area; a.x0 = Math.min(a.x0, b.x0); a.x1 = Math.max(a.x1, b.x1); return a; };
+    const boxNeu = gr => {
+      const ids = new Set(gr.ids); let minx = 1e9, maxx = -1, miny = 1e9, maxy = -1, area = 0;
+      for (let y = gr.miny; y <= gr.maxy; y++) for (let x = Math.max(gr.minx, gr.x0); x <= Math.min(gr.maxx, gr.x1 - 1); x++) {
+        if (!ids.has(lab[y * OW + x])) continue; area++;
+        if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;
+      }
+      Object.assign(gr, { minx, maxx, miny, maxy, area }); return gr;
+    };
+    const teilen = gr => {
+      const ids = new Set(gr.ids), w = gr.maxx - gr.minx + 1, col = new Float32Array(w);
+      for (let y = gr.miny; y <= gr.maxy; y++) for (let x = gr.minx; x <= gr.maxx; x++) if (x >= gr.x0 && x < gr.x1 && ids.has(lab[y * OW + x])) col[x - gr.minx]++;
+      let best = 1e9, cx = gr.minx + (w >> 1);
+      for (let x = Math.round(w * 0.3); x <= Math.round(w * 0.7); x++) if (col[x] < best) { best = col[x]; cx = gr.minx + x; }
+      const l = boxNeu(Object.assign({}, gr, { ids: gr.ids.slice(), x1: cx })), r = boxNeu(Object.assign({}, gr, { ids: gr.ids.slice(), x0: cx }));
+      return [l, r];
+    };
+    // Zeichenbild ausschneiden, Schräglage zurückdrehen, auf die Tinte zuschneiden.
+    // miny und bot sind in geraden Koordinaten (ohne Schräglage), bot ist die Unterkante.
+    const bildAus = gr => {
+      const ids = new Set(gr.ids), x0 = Math.max(0, gr.minx - 1, gr.x0), x1 = Math.min(OW - 1, gr.maxx + 1, gr.x1 - 1);
+      const y0 = Math.max(0, gr.miny - 1), y1 = Math.min(OH - 1, gr.maxy + 1), gw = x1 - x0 + 1, gh = y1 - y0 + 1;
+      const c = cnv(gw, gh), g = c.getContext("2d"), id = g.createImageData(gw, gh);
+      const drin = j => ids.has(lab[j]);
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+        const i = y * OW + x; let v = 0;
+        if (drin(i)) v = Math.max(A[i], 0.5);
+        else if (!lab[i] && A[i] > 0 && ((x > 0 && drin(i - 1)) || (x < OW - 1 && drin(i + 1)) || (y > 0 && drin(i - OW)) || (y < OH - 1 && drin(i + OW)))) v = A[i];
+        id.data[((y - y0) * gw + (x - x0)) * 4 + 3] = Math.round(Math.min(1, v * 1.15) * 255);
+      }
+      g.putImageData(id, 0, 0);
+      const mx = (x0 + x1 + 1) / 2, my = (y0 + y1 + 1) / 2 - yv(mx);
+      let img = c, W2 = gw, H2 = gh;
+      if (Math.abs(schraeg) > 0.3) {
+        const a = -schraeg * Math.PI / 180, ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+        W2 = Math.ceil(gw * ca + gh * sa) + 2; H2 = Math.ceil(gw * sa + gh * ca) + 2;
+        img = cnv(W2, H2); const g2 = img.getContext("2d");
+        g2.translate(W2 / 2, H2 / 2); g2.rotate(a); g2.drawImage(c, -gw / 2, -gh / 2);
+      }
+      const dd = img.getContext("2d").getImageData(0, 0, W2, H2).data;
+      let tx0 = W2, tx1 = -1, ty0 = H2, ty1 = -1;
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) if (dd[(y * W2 + x) * 4 + 3] > 20) { if (x < tx0) tx0 = x; if (x > tx1) tx1 = x; if (y < ty0) ty0 = y; if (y > ty1) ty1 = y; }
+      if (tx1 < 0) { tx0 = 0; ty0 = 0; tx1 = W2 - 1; ty1 = H2 - 1; }
+      const tw2 = tx1 - tx0 + 1, th2 = ty1 - ty0 + 1, out = cnv(tw2, th2);
+      out.getContext("2d").drawImage(img, -tx0, -ty0);
+      const oben = my - H2 / 2 + ty0;
+      return { img: out, w: tw2, h: th2, miny: oben, bot: oben + th2 };
+    };
+
+    // 6. Jede Reihe in Zeichen oder Wörter zerlegen
+    const neuG = {}, neuW = {}, rowsOut = [];
+    rows.forEach((row, ri) => {
+      const Z = ZEILEN[ri]; if (!Z) return;
+      const n = Z.teile.length;
+      const cs = row.cs.slice().sort((a, b) => a.minx - b.minx);
+      const par = cs.map((_, i) => i);
+      const find = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+      // a) Teile, die übereinander liegen, gehören zusammen (Punkte, Striche)
+      for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length && cs[j].minx <= cs[i].maxx; j++) {
+        const ov = Math.min(cs[i].maxx, cs[j].maxx) - Math.max(cs[i].minx, cs[j].minx) + 1;
+        const nw = Math.min(cs[i].maxx - cs[i].minx, cs[j].maxx - cs[j].minx) + 1;
+        if (ov > 0.5 * nw) { const a = find(i), b = find(j); if (a !== b) par[b] = a; }
+      }
+      const map = new Map();
+      cs.forEach((c, i) => { const r = find(i); if (map.has(r)) verschmelzen(map.get(r), neuGruppe(c)); else map.set(r, neuGruppe(c)); });
+      let grs = [...map.values()];
+      // b) Kleine Punkte oben neben einem Buchstaben (schräges i, Umlaute) dazunehmen
+      const medA = median(grs.map(x => x.area)) || 1;
+      const big = grs.filter(x => x.area >= 0.15 * medA), tiny = grs.filter(x => x.area < 0.15 * medA);
+      const hBig = median(big.map(x => x.maxy - x.miny + 1)) || 20, rest = [];
+      tiny.forEach(t => {
+        const cx = (t.minx + t.maxx) / 2; let best = null, bd = 1e9;
+        big.forEach(G => {
+          const gh = G.maxy - G.miny + 1;
+          if (t.maxy < G.miny + 0.4 * gh && cx >= G.minx - 0.3 * hBig && cx <= G.maxx + 0.3 * hBig) { const dd = Math.abs(cx - (G.minx + G.maxx) / 2); if (dd < bd) { bd = dd; best = G; } }
+        });
+        if (best) verschmelzen(best, t); else rest.push(t);
+      });
+      grs = big.concat(rest).sort((a, b) => a.minx - b.minx);
+      // c) Auf genau n Stücke bringen: kleine, abseits liegende Reste am Rand weg,
+      //    dann kleinste Lücken schließen, notfalls breite Stücke teilen
+      const medA2 = median(grs.map(x => x.area)) || 1;
+      while (grs.length > n) {
+        const gp = grs.slice(1).map((x, i) => x.minx - grs[i].maxx), mg = median(gp.map(v => Math.max(1, v))) || 1;
+        const weit = v => v > Math.max(4 * mg, 1.5 * hBig);
+        if (weit(gp[gp.length - 1]) && grs[grs.length - 1].area < 0.35 * medA2) { grs.pop(); continue; }
+        if (weit(gp[0]) && grs[0].area < 0.35 * medA2) { grs.shift(); continue; }
+        break;
+      }
+      while (grs.length > n) {
+        let bi = 0, bg = 1e9;
+        for (let i = 0; i < grs.length - 1; i++) { const gp = grs[i + 1].minx - grs[i].maxx; if (gp < bg) { bg = gp; bi = i; } }
+        verschmelzen(grs[bi], grs[bi + 1]); grs.splice(bi + 1, 1);
+      }
+      let unsicher = false;
+      if (Z.art === "z") while (grs.length < n) {
+        const mw = median(grs.map(x => x.maxx - x.minx + 1)) || 1;
+        let wi = -1, bw = 1.7;
+        grs.forEach((x, i) => { const rw = (x.maxx - x.minx + 1) / mw; if (rw > bw) { bw = rw; wi = i; } });
+        if (wi < 0) break;
+        grs.splice(wi, 1, ...teilen(grs[wi])); unsicher = true;
+      }
+      const okRow = grs.length === n;
+      rowsOut.push({ Z, ok: okRow, unsicher: okRow && unsicher, found: grs.length, n, grs });
+      if (!okRow) return;
+      const bilder = grs.map(bildAus);
+      if (Z.art === "z") {
+        const sitz = bilder.map((b, i) => SIT.has(Z.teile[i]) ? b.bot : null).filter(v => v != null);
+        const base = median(sitz.length ? sitz : bilder.map(b => b.bot)), hMed = median(bilder.map(b => b.h)) || 20;
+        // Knapp an der Linie: genau draufsetzen. Deutlich darunter (f mit Unterlänge): so lassen, wie geschrieben
+        bilder.forEach((b, i) => {
+          const ch = Z.teile[i], snap = SIT.has(ch) && Math.abs(b.bot - base) < 0.2 * hMed;
+          neuG[ch] = { img: b.img, w: b.w, h: b.h, top: snap ? -b.h : b.miny - base };
+        });
+      } else {
+        // Grundlinie der Wörter: unterster Tintenpunkt je Spalte, davon der Median
+        const unten = [];
+        bilder.forEach(b => {
+          const d = b.img.getContext("2d").getImageData(0, 0, b.w, b.h).data;
+          for (let x = 0; x < b.w; x++) for (let y = b.h - 1; y >= 0; y--) if (d[(y * b.w + x) * 4 + 3] > 128) { unten.push(b.miny + y + 1); break; }
+        });
+        const base = median(unten) || row.y1 + 1;
+        bilder.forEach((b, i) => { neuW[Z.teile[i]] = { img: b.img, w: b.w, h: b.h, top: b.miny - base }; });
+      }
+    });
+
+    // 7. x-Höhe und Buchstabenabstand ableiten
+    let xh = median(XLET.filter(c => neuG[c]).map(c => neuG[c].h));
+    if (!xh) { const kl = Object.keys(neuG).filter(c => /[a-zäöü]/.test(c)).map(c => neuG[c].h); xh = kl.length ? median(kl) * 0.7 : median(Object.values(neuW).map(w => w.h)) * 0.6 || 30; }
+    const gapsW = [];
+    Object.keys(neuW).forEach(wort => {
+      const zs = [...wort]; if (zs.length < 2 || !zs.every(c => neuG[c])) return;
+      gapsW.push((neuW[wort].w - zs.reduce((s, c) => s + neuG[c].w, 0)) / (zs.length - 1) / xh);
+    });
+    const fertig = m => { m.x = xh; m.url = m.img.toDataURL("image/png"); return m; };
+    Object.values(neuG).forEach(fertig); Object.values(neuW).forEach(fertig);
+    if (!own) own = { gap: 0.16, g: {}, w: {} };
+    Object.assign(own.g, neuG); Object.assign(own.w, neuW);
+    if (gapsW.length) own.gap = Math.max(-0.35, Math.min(0.6, median(gapsW)));
+
+    // 8. Kontrollbild mit Kästen
+    const ks = Math.min(1, 900 / OW), KW = Math.round(OW * ks), KH = Math.round(OH * ks);
+    const kc = cnv(KW, KH), kg = kc.getContext("2d"), kd = kg.createImageData(KW, KH);
+    for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) {
+      const v = Math.max(0, Math.min(255, q[Math.min(OH - 1, (y / ks) | 0) * OW + Math.min(OW - 1, (x / ks) | 0)] * 235)), j = (y * KW + x) * 4;
+      kd.data[j] = kd.data[j + 1] = kd.data[j + 2] = v; kd.data[j + 3] = 255;
+    }
+    kg.putImageData(kd, 0, 0);
+    kg.lineWidth = 2; kg.font = "600 13px 'Public Sans', sans-serif";
+    rowsOut.forEach(R => {
+      const col = !R.ok ? "#B3261E" : R.unsicher ? "#D25A00" : "#0F7355";
+      kg.strokeStyle = col; kg.fillStyle = col;
+      R.grs.forEach((gr, i) => {
+        kg.strokeRect(gr.minx * ks - 2, gr.miny * ks - 2, (gr.maxx - gr.minx) * ks + 4, (gr.maxy - gr.miny) * ks + 4);
+        if (R.ok) kg.fillText(R.Z.teile[i], gr.minx * ks, Math.max(12, gr.miny * ks - 5));
+      });
+    });
+
+    return {
+      zeichen: Object.keys(neuG).length, woerter: Object.keys(neuW).length,
+      reihenGefunden: rows.length,
+      reihen: rowsOut.map(R => ({ label: R.Z.label, art: R.Z.art, ok: R.ok, unsicher: R.unsicher, found: R.found, n: R.n })),
+      kontrolle: kc.toDataURL("image/jpeg", 0.82)
+    };
+  }
+
+  return { FONTS, ZEILEN, render, pdfVon, blobLaden, loadPhoto, autoAusschnitt,
+    blattAuslesen, ownSetzen, ownExport, ownLeeren, ownInfo, hatOwn, splitTok, rng };
+})();
+
+/* ================= Rechtschreibfehler ================= */
+const FEHLER = (function () {
+  // Typische Fehler aus Schulheften, bewusst eher in längeren Wörtern: richtig -> falsch
+  const WOERTER = {
+    "nämlich": "nähmlich", "eigentlich": "eigendlich", "endlich": "entlich", "vielleicht": "vieleicht", "endgültig": "entgültig",
+    "Standard": "Standart", "Maschine": "Maschiene", "Reparatur": "Reperatur", "interessant": "intressant", "Interesse": "Intresse",
+    "Ergebnis": "Ergebniss", "Ereignis": "Ereigniss", "Erlebnis": "Erlebniss", "Verhältnis": "Verhältniss", "Gedächtnis": "Gedächnis",
+    "Kenntnis": "Kentnis", "wahrscheinlich": "warscheinlich", "bisschen": "bischen", "irgendwie": "irgentwie", "irgendwann": "irgentwann",
+    "tödlich": "tötlich", "Rhythmus": "Rythmus", "Atmosphäre": "Athmosphäre", "tolerant": "tollerant", "Toleranz": "Tolleranz",
+    "Jugendliche": "Jugentliche", "Jugendlichen": "Jugentlichen", "Gesellschaft": "Gesellschafft", "ziemlich": "ziehmlich",
+    "außerdem": "ausserdem", "schließlich": "schliesslich", "Beispiel": "Beispiehl", "überhaupt": "überhaubt", "Geschäfte": "Geschefte",
+    "spazieren": "spatzieren", "Krankheit": "Krangheit", "Information": "Informazion", "Informationen": "Informazionen", "Erfahrung": "Erfarung",
+    "Fahrrad": "Fahrad", "trotzdem": "trozdem", "plötzlich": "plözlich", "ungefähr": "ungefär", "allmählich": "allmälich",
+    "Voraussetzung": "Vorraussetzung", "Reflexion": "Reflektion", "Konkurrenz": "Konkurenz", "Aggression": "Agression",
+    "Interview": "Interwiev", "Karriere": "Kariere", "Kommunikation": "Komunikation", "wiederholen": "widerholen", "Wiederholung": "Widerholung",
+    "Widerstand": "Wiederstand", "Widerspruch": "Wiederspruch", "widersprechen": "wiedersprechen", "Diskussion": "Diskusion",
+    "Adresse": "Addresse", "Akzeptanz": "Akzeptans", "Lizenz": "Lizens", "Philosophie": "Philosofie", "Hypothese": "Hypotese",
+    "Rhetorik": "Retorik", "Theater": "Teater", "Charakter": "Karakter", "Ressourcen": "Resourcen", "Ingenieur": "Ingeneur",
+    "nummerieren": "numerieren", "Sympathie": "Sympatie", "sympathisch": "sympatisch", "Mathematik": "Matematik", "Experiment": "Expariment",
+    "Zigarette": "Zigarrette", "Kommission": "Komission", "Paket": "Packet", "Werbung": "Werbunk", "selbstständig": "selbstständich",
+    "anscheinend": "anscheined", "tatsächlich": "tatsächlig", "unterschiedlich": "unterschiedlig", "Persönlichkeit": "Persöhnlichkeit"
+  };
+  const REGELN = [
+    { art: "das statt dass", w: 7, f: p => /^[Dd]ass$/.test(p.core) ? p.core.slice(0, 3) : null },
+    { art: "Wort falsch geschrieben", w: 9, f: p => WOERTER[p.core] || null },
+    { art: "Komma vergessen", w: 4, komma: true, f: p => p.trail.includes(",") ? p.core : null },
+    { art: "klein statt groß", w: 3, f: (p, a) => !a.satzAnfang && /^[A-ZÄÖÜ][a-zäöüß]{5,}$/.test(p.core) ? p.core[0].toLowerCase() + p.core.slice(1) : null },
+    { art: "ß und ss vertauscht", w: 3, f: p => p.core.length < 5 ? null : /ß/.test(p.core) ? p.core.replace("ß", "ss") : (/[^s]ss$/.test(p.core) && !/^[Dd]ass$/.test(p.core)) ? p.core.replace(/ss$/, "ß") : null },
+    { art: "Doppelbuchstabe vergessen", w: 3, f: p => { const m = p.core.length > 5 && p.core.match(/(bb|dd|ff|gg|ll|mm|nn|pp|rr|tt)/); return m ? p.core.replace(m[0], m[0][0]) : null; } },
+    { art: "ie statt i", w: 2, f: p => p.core.length > 5 && /ie(?=[bcdfghklmnprstz])/.test(p.core) ? p.core.replace(/ie(?=[bcdfghklmnprstz])/, "i") : null },
+    { art: "Dehnungs-h vergessen", w: 2, f: p => p.core.length > 5 && /[aeiouäöü]h(?=[lmnr])/.test(p.core) ? p.core.replace(/([aeiouäöü])h(?=[lmnr])/, "$1") : null },
+    { art: "z statt tz", w: 1, f: p => p.core.length > 5 && /tz/.test(p.core) ? p.core.replace("tz", "z") : null },
+    { art: "k statt ck", w: 1, f: p => p.core.length > 5 && /ck/.test(p.core) ? p.core.replace("ck", "k") : null },
+    { art: "Buchstabe vergessen", w: 1, f: (p, a, r) => { const c = p.core; if (c.length < 8 || !/^[A-Za-zäöüßÄÖÜ]+$/.test(c)) return null; const i = 2 + ((r() * (c.length - 4)) | 0); return c.slice(0, i) + c.slice(i + 1); } }
+  ];
+
+  function plan(text, fehlerPro100, seed) {
+    const r = HS.rng(((seed || 1) ^ 0x5bd1e995) >>> 0);
+    const paras = String(text || "").replace(/\r/g, "").split("\n").map(par => par.split(/[ \t]+/).filter(Boolean).map(t => ({ t })));
+    const alle = [];
+    paras.forEach(ws => {
+      let satzAnfang = true;
+      ws.forEach(it => { const p = HS.splitTok(it.t); alle.push({ it, p, satzAnfang }); satzAnfang = /[.!?:]/.test(p.trail); });
+    });
+    const anz = alle.length;
+    const nF = fehlerPro100 > 0 ? Math.max(anz >= 15 ? 1 : 0, Math.round(anz * fehlerPro100 / 100)) : 0;
+    const fehler = [], belegt = new Set(), kand = [];
+    // Kandidaten: typische Fehler und lange Wörter zuerst, mit Zufall
+    alle.forEach((a, idx) => {
+      if (!a.p.core) return;
+      const opts = REGELN.map(R => ({ R, neu: R.f(a.p, a, r) })).filter(o => o.neu && (o.R.komma || o.neu !== a.p.core));
+      if (opts.length) kand.push({ idx, opts, score: r() * Math.max(...opts.map(o => o.R.w)) * Math.min(1.8, 0.3 + a.p.core.length / 7) });
+    });
+    kand.sort((x, y) => y.score - x.score);
+    for (const k of kand) {
+      if (fehler.length >= nF) break;
+      if (belegt.has(k.idx) || belegt.has(k.idx - 1) || belegt.has(k.idx + 1)) continue;
+      const sum = k.opts.reduce((s, o) => s + o.R.w, 0); let x = r() * sum, o = k.opts[0];
+      for (const op of k.opts) { x -= op.R.w; if (x <= 0) { o = op; break; } }
+      const a = alle[k.idx], vorher = a.it.t;
+      a.it.t = o.R.komma ? a.p.lead + a.p.core + a.p.trail.replace(",", "") : a.p.lead + o.neu + a.p.trail;
+      fehler.push({ art: o.R.art, vorher, nachher: a.it.t });
+      belegt.add(k.idx);
+    }
+    return { paras, fehler, woerter: anz };
+  }
+  return { plan };
+})();
+
+/* ================= Oberfläche ================= */
+const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
+const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
+const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
+  messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", datum: "", zeit: "", theme: "hell" };
+const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
+if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
+if (S.tab === "text") S.tab = "blatt";
+function speichern() { const o = {}; Object.keys(STD).forEach(k => o[k] = S[k]); LS.set(ST_KEY, JSON.stringify(o)); }
+const effFont = () => (S.font === "own" ? HS.hatOwn() : HS.FONTS.some(f => f.id === S.font)) ? S.font : "caveat";
+
+const fmtZahl = v => String(v).replace(".", ",");
+const stufe = (v, a, b, c, d) => v < 15 ? a : v < 45 ? b : v < 75 ? c : d;
+const REGLER = [
+  { grp: "schrift", id: "size", label: "Größe", min: 60, max: 160, step: 5, fmt: v => v + " %" },
+  { grp: "schrift", id: "pitch", label: "Zeilenabstand", min: 6, max: 14, step: 0.5, fmt: v => S.paper === "grid" ? Math.max(1, Math.round(v / 5)) + " Kästchen" : fmtZahl(v) + " mm" },
+  { grp: "schrift", id: "slant", label: "Schräglage", min: -15, max: 15, step: 1, fmt: v => v === 0 ? "wie geschrieben" : (v > 0 ? "nach rechts " : "nach links ") + Math.abs(v) + "°" },
+  { grp: "ordnung", id: "messy", label: "Unordentlich", min: 0, max: 100, step: 5, fmt: v => stufe(v, "sehr sauber", "sauber", "normal", "hingeschmiert") },
+  { grp: "ordnung", id: "drift", label: "Abweichung von der Linie", min: 0, max: 100, step: 5, fmt: v => stufe(v, "genau auf der Linie", "leicht", "deutlich", "stark") },
+  { grp: "ordnung", id: "errors", label: "Rechtschreibfehler", min: 0, max: 10, step: 1, fmt: v => v === 0 ? "keine" : v + " pro 100 Wörter" },
+  { grp: "zeilen", id: "starts", label: "Zeilenanfänge", min: 0, max: 100, step: 5, fmt: v => stufe(v, "alle gleich", "leicht versetzt", "deutlich versetzt", "stark versetzt") },
+  { grp: "zeilen", id: "ends", label: "Zeilenenden", min: 0, max: 100, step: 5, fmt: v => stufe(v, "bis zum Rand", "leicht flatternd", "deutlich flatternd", "stark flatternd") }
+];
+const VORLAGEN = [["heft", "Heft"], ["onenote", "OneNote"], ["notizen", "Notizen"]];
+const VORLAGE_TEXT = {
+  heft: "Wie ein fotografiertes Blatt aus dem Block.",
+  onenote: "Wie eine Seite aus OneNote: Datum und Uhrzeit oben links, gleichmäßige digitale Tinte.",
+  notizen: "Wie eine Notiz aus Apple Notizen: Datum oben in der Mitte, gleichmäßige digitale Tinte."
+};
+const PAPIERE = [["lined", "Liniert"], ["grid", "Kariert"], ["blank", "Blanko"]];
+const TOENE = [["hell", "Hell"], ["dunkel", "Dunkel"]];
+const STIFTE = [["blue", "Kuli"], ["royal", "Füller"], ["black", "Schwarz"], ["pencil", "Bleistift"]];
+
+/* ---------- Reiter ---------- */
+function tab(t, scroll) {
+  S.tab = t; document.body.dataset.tab = t;
+  ["schrift", "blatt"].forEach(x => { $("sicht-" + x).hidden = x !== t; });
+  document.querySelectorAll("[data-tab-btn]").forEach(b => { if (b.getAttribute("role") === "tab") { b.setAttribute("aria-selected", String(b.dataset.tabBtn === t)); b.setAttribute("aria-pressed", String(b.dataset.tabBtn === t)); } });
+  if (scroll !== false) { window.scrollTo(0, 0); const l = document.querySelector(".links"); if (l) l.scrollTop = 0; }
+  speichern();
+}
+
+/* ---------- Blatt neu zeichnen ---------- */
+let _zt = 0, _plan = null;
+function neuZeichnen(ms) {
+  clearTimeout(_zt);
+  _zt = setTimeout(async () => {
+    _plan = FEHLER.plan(S.text, S.errors, S.seed);
+    fehlerZeigen(_plan);
+    const r = await HS.render($("seiten"), {
+      paras: _plan.paras, font: effFont(), tpl: S.tpl, paper: S.paper, dark: S.ton === "dunkel", ink: S.ink, size: S.size, pitchMM: S.pitch,
+      messy: S.messy, drift: S.drift, slant: S.slant, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
+      titel: S.titel.trim(), datum: S.datum, zeit: S.zeit
+    });
+    if (r) { $("seitenInfo").textContent = r.pages === 1 ? "1 Seite" : r.pages + " Seiten"; pdfVorbereiten(); }
+  }, ms == null ? 60 : ms);
+}
+function fehlerZeigen(p) {
+  const n = p.fehler.length;
+  $("fehlerKlapp").hidden = !n;
+  $("fehlerSumme").textContent = (n === 1 ? "1 Fehler" : n + " Fehler") + " eingebaut";
+  $("fehlerListe").innerHTML = p.fehler.map(f => `<li><span><s>${esc(f.vorher)}</s> wird ${esc(f.nachher)}</span><small>${esc(f.art)}</small></li>`).join("")
+    + '<li><small>Mit Neu würfeln landen die Fehler an anderen Stellen.</small></li>';
+}
+
+/* ---------- PDF teilen ----------
+   Das PDF entsteht im Speicher und geht direkt ins Teilen-Menü des Handys (WhatsApp, AirDrop, In Dateien sichern ...).
+   Es wird nach jedem Zeichnen vorbereitet, weil Safari das Teilen nur direkt nach dem Antippen erlaubt. */
+let _stand = 0, _pdf = null, _pdfT = 0;
+// Dateiname wie bei einer echten Datei: eigener Name, sonst OneNote-Titel, sonst erste Zeile des Textes
+function autoName() {
+  const erste = (S.text.split("\n").map(z => z.trim()).find(Boolean) || "").replace(/[.:!?,;]+$/, "");
+  const kurz = erste.length > 40 ? erste.slice(0, 40).replace(/\s+\S*$/, "") : erste;
+  return (S.tpl === "onenote" && S.titel.trim()) || kurz || (S.tpl === "notizen" ? "Notiz" : "Dokument");
+}
+const pdfName = () => ((S.dateiname.trim() || autoName()).replace(/[\\/:*?"<>|]/g, "").replace(/\.pdf$/i, "").trim() || "Dokument") + ".pdf";
+function pdfVorbereiten() {
+  const st = ++_stand; _pdf = null; clearTimeout(_pdfT);
+  _pdfT = setTimeout(async () => {
+    const b = await HS.pdfVon($("seiten"));
+    if (st === _stand) _pdf = { st, file: new File([b], pdfName(), { type: "application/pdf" }) };
+  }, 700);
+}
+async function pdfDatei() {
+  if (_pdf && _pdf.st === _stand && _pdf.file.name === pdfName()) return _pdf.file;
+  return new File([await HS.pdfVon($("seiten"))], pdfName(), { type: "application/pdf" });
+}
+async function teilen() {
+  const fertig = _pdf && _pdf.st === _stand && _pdf.file.name === pdfName();
+  const f = await pdfDatei();
+  if (navigator.canShare && navigator.canShare({ files: [f] })) {
+    try { await navigator.share({ files: [f], title: f.name.replace(/\.pdf$/, "") }); }
+    catch (e) {
+      if (e.name === "AbortError") return;
+      if (!fertig) { toast("PDF ist jetzt fertig. Bitte nochmal auf Teilen tippen."); return; }
+      HS.blobLaden(f, f.name); toast("Teilen ging nicht, das PDF wurde gespeichert.");
+    }
+  } else { HS.blobLaden(f, f.name); toast("Teilen gibt es in diesem Browser nicht, das PDF wurde gespeichert."); }
+}
+
+/* ---------- Bedienelemente aufbauen ---------- */
+function reglerBauen() {
+  REGLER.forEach(R => {
+    const d = document.createElement("div"); d.className = "regler";
+    d.innerHTML = `<div class="regler-kopf"><label for="r-${R.id}">${R.label}</label><span class="wert" id="w-${R.id}"></span></div><input type="range" id="r-${R.id}" min="${R.min}" max="${R.max}" step="${R.step}">`;
+    $("grp-" + R.grp).appendChild(d);
+    const inp = d.querySelector("input"); inp.value = S[R.id];
+    inp.addEventListener("input", () => { S[R.id] = +inp.value; wertZeigen(R); speichern(); neuZeichnen(); });
+    wertZeigen(R);
+  });
+}
+function wertZeigen(R) { $("w-" + R.id).textContent = R.fmt(S[R.id]); }
+function modusBauen(id, liste, key) {
+  const box = $(id);
+  box.innerHTML = liste.map(([v, l]) => `<button type="button" data-v="${v}">${l}</button>`).join("");
+  box.addEventListener("click", e => { const b = e.target.closest("button"); if (!b || b.disabled) return; S[key] = b.dataset.v; modusStand(); speichern(); neuZeichnen(); });
+}
+function modusStand() {
+  [["vorlageModus", "tpl"], ["papierModus", "paper"], ["tonModus", "ton"], ["stiftModus", "ink"]].forEach(([id, key]) => $(id).querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === S[key]))));
+  const dunkel = S.ton === "dunkel";
+  $("stiftModus").querySelectorAll("button").forEach(b => { b.disabled = dunkel; });
+  $("stiftHinweis").hidden = !dunkel;
+  $("randCheck").checked = S.margin; $("randCheck").disabled = S.paper === "blank";
+  $("einzugCheck").checked = S.indent;
+  $("vorlageHinweis").textContent = VORLAGE_TEXT[S.tpl] || "";
+  $("feldTitel").hidden = S.tpl !== "onenote";
+  $("feldDatum").hidden = S.tpl === "heft";
+  if ($("nameFeld")) $("nameFeld").placeholder = autoName();
+  REGLER.forEach(wertZeigen);
+}
+function fontsBauen() {
+  const own = HS.hatOwn(), info = HS.ownInfo(), eff = effFont();
+  const probeOwn = own ? ["A", "b", "c"].map(ch => info.g[ch] ? `<img src="${info.g[ch].url}" alt="">` : "").join("") : '<span style="font-size:15px;color:var(--ink-3)">noch leer</span>';
+  $("fontWahl").innerHTML = `<button type="button" class="schrift-k" role="radio" data-font="own" aria-checked="${eff === "own"}"${own ? "" : " disabled"}><span class="probe">${probeOwn}</span><b>Meine Handschrift</b><small>${own ? "eingelesen" : "erst einlesen"}</small></button>`
+    + HS.FONTS.map(f => `<button type="button" class="schrift-k" role="radio" data-font="${f.id}" aria-checked="${eff === f.id}"><span class="probe" style="font-family:'${f.css}'">Abc äöü</span><b>${esc(f.name)}</b><small>${esc(f.note)}</small></button>`).join("");
+}
+function abschriftBauen() {
+  $("abschrift").innerHTML = HS.ZEILEN.map((Z, i) => (i ? '<div class="frei"></div>' : "") + `<div class="z${Z.art === "w" ? " w" : ""}">${esc(Z.z)}</div>`).join("");
+}
+
+/* ---------- Eingelesene Schrift anzeigen ---------- */
+function statusZeigen() {
+  const box = $("schriftStatus"), info = HS.ownInfo();
+  const ohne = OHNE_SPEICHER ? '<div class="hinweis warn"><b>Vorschau ohne Speichern</b>Dieser Browser erlaubt hier kein Speichern. Deine Schrift ist nach dem Neuladen weg.</div>' : "";
+  if (!info.zeichen) {
+    box.innerHTML = ohne + '<div class="hinweis"><b>Noch keine Schrift eingelesen</b>Bis dahin schreibt das Blatt mit einer Beispielschrift. So kannst du schon alles ausprobieren.</div>';
+    return;
+  }
+  const alle = [...new Set(HS.ZEILEN.filter(Z => Z.art === "z").flatMap(Z => Z.teile).concat(Object.keys(info.g)))];
+  const zellen = alle.map(ch => { const m = info.g[ch]; return m ? `<div class="glyphe"><i>${esc(ch)}</i><img src="${m.url}" alt="${esc(ch)}"></div>` : `<div class="glyphe leer" title="fehlt"><i>${esc(ch)}</i></div>`; }).join("");
+  const woerter = Object.keys(info.w).map(w => `<div class="wort"><img src="${info.w[w].url}" alt="${esc(w)}"></div>`).join("");
+  box.innerHTML = ohne + `<div class="block">
+    <div class="status-kopf">${ICO.ok}<span>Deine Schrift ist eingelesen</span></div>
+    <div class="hint mono">${info.zeichen} Zeichen, ${info.woerter} Wörter</div>
+    <div class="glyphen">${zellen}</div>
+    ${woerter ? `<div class="woerter">${woerter}</div>` : ""}
+    <p class="hint">Gestrichelte Kästchen fehlen noch, dort schreibt eine Ersatzschrift. Ein neues Foto ergänzt nur, was erkannt wird.</p>
+    <button class="btn primary breit" data-geh="blatt">Weiter zum Blatt</button>
+  </div>`;
+}
+
+/* ---------- Foto und Ausschnitt ---------- */
+let crop = null; // { url, w, h, corners }
+function cropZeigen() {
+  $("ausschnitt").hidden = false; $("ergebnis").hidden = true;
+  $("fotoImg").src = crop.url; $("fotoRahmen").style.aspectRatio = crop.w + " / " + crop.h;
+  griffeSetzen();
+  $("ausschnitt").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function griffeSetzen() {
+  const c = crop.corners;
+  document.querySelectorAll(".griff").forEach(g => { const p = c[+g.dataset.i]; g.style.left = p.x * 100 + "%"; g.style.top = p.y * 100 + "%"; });
+  $("fotoPoly").setAttribute("points", c.map(p => p.x * 100 + "," + p.y * 100).join(" "));
+  $("fotoMaske").setAttribute("d", "M0,0H100V100H0Z M" + c.map(p => p.x * 100 + "," + p.y * 100).join(" L") + "Z");
+}
+function griffeAktivieren() {
+  document.querySelectorAll(".griff").forEach(g => {
+    g.addEventListener("pointerdown", e => { e.preventDefault(); g.setPointerCapture(e.pointerId); g.dataset.zieht = "1"; });
+    g.addEventListener("pointermove", e => {
+      if (!g.dataset.zieht || !crop) return;
+      const r = $("fotoRahmen").getBoundingClientRect();
+      crop.corners[+g.dataset.i] = { x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) };
+      griffeSetzen();
+    });
+    const los = () => { delete g.dataset.zieht; };
+    g.addEventListener("pointerup", los); g.addEventListener("pointercancel", los);
+  });
+}
+async function fotoGewaehlt(file) {
+  if (!file) return;
+  if (file.type && !/^image\//.test(file.type)) { toast("Bitte ein Bild nehmen, zum Beispiel JPG, PNG oder einen Screenshot."); return; }
+  try {
+    const r = await HS.loadPhoto(file);
+    crop = { url: r.url, w: r.w, h: r.h, corners: HS.autoAusschnitt().corners };
+    cropZeigen();
+  } catch (e) { toast("Das Bild ließ sich nicht öffnen. Versuch ein JPG oder PNG."); }
+}
+function schriftSichern() {
+  const ok = LS.set(OWN_KEY, JSON.stringify(HS.ownExport()));
+  if (!ok) toast("Speichern ging nicht, der Speicher im Browser ist voll.");
+}
+function auslesen() {
+  if (!crop) return;
+  const btn = $("auslesenBtn"); btn.disabled = true; btn.textContent = "Lese aus …";
+  setTimeout(() => {
+    let res;
+    try { res = HS.blattAuslesen(crop.corners); }
+    catch (e) { res = { fehler: "Beim Auslesen ist etwas schiefgegangen. Versuch ein schärferes Foto." }; console.error(e); }
+    btn.disabled = false; btn.textContent = "Buchstaben ausschneiden";
+    ergebnisZeigen(res);
+    if (!res.fehler && HS.hatOwn()) {
+      schriftSichern(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0);
+      toast(res.zeichen ? "Schrift eingelesen" : "Nichts Neues erkannt");
+    }
+  }, 40);
+}
+function ergebnisZeigen(res) {
+  const box = $("ergebnis"); box.hidden = false;
+  if (res.fehler) { box.innerHTML = `<div class="hinweis bad"><b>Nichts erkannt</b>${esc(res.fehler)}</div>`; return; }
+  $("ausschnitt").hidden = true;
+  const fehlend = res.reihen.filter(r => !r.ok).length, unsicher = res.reihen.filter(r => r.unsicher).length;
+  const gef = res.reihenGefunden;
+  let kopf;
+  if (gef < 6) kopf = `<div class="hinweis bad"><b>Nur ${gef} von 9 Reihen gefunden</b>Wahrscheinlich stehen die Reihen zu eng. Lass zwischen den Reihen eine ganze Linie frei und lade ein neues Foto hoch.</div>`;
+  else if (gef !== 9 && gef !== 6) kopf = `<div class="hinweis warn"><b>${gef} von 9 Reihen gefunden</b>Zwei Reihen stehen wohl zu eng beieinander. Lass eine ganze Linie frei. Übernommen sind ${res.zeichen} Zeichen und ${res.woerter} Wörter.</div>`;
+  else if (fehlend) kopf = `<div class="hinweis warn"><b>${res.zeichen} Zeichen und ${res.woerter} Wörter übernommen</b>Rot markierte Reihen fehlen noch. Schreib sie mit mehr Abstand neu und lade nur sie hoch, der Rest bleibt erhalten.</div>`;
+  else if (gef === 6) kopf = `<div class="hinweis ok"><b>Alphabet übernommen, ohne Wörter</b>Die 3 Wortreihen fehlen. Mit ihnen sieht die Schrift echter aus.</div>`;
+  else kopf = `<div class="hinweis ok"><b>Alles übernommen</b>${res.zeichen} Zeichen und ${res.woerter} Wörter.${unsicher ? " Orange Reihen bitte im Bild prüfen." : ""}</div>`;
+  const li = res.reihen.map(r => {
+    const cls = !r.ok ? "bad" : r.unsicher ? "warn" : "ok", ico = !r.ok ? ICO.x : r.unsicher ? ICO.warn : ICO.ok;
+    const was = r.art === "z" ? "Zeichen" : "Wörter";
+    const text = !r.ok ? (r.found < r.n ? `${r.found} von ${r.n} ${was} gefunden, einige berühren sich wohl` : `nicht sauber getrennt`) : r.unsicher ? `${r.n} ${was}, zwei Zeichen berührten sich, bitte prüfen` : `${r.n} von ${r.n} ${was}`;
+    return `<li><span class="${cls}">${ico}</span><span>${esc(r.label)}<small>${text}</small></span></li>`;
+  }).join("");
+  box.innerHTML = `<div class="block"><h3>Ergebnis</h3>${kopf}<ul class="reihen">${li}</ul>
+    <img class="kontrolle" src="${res.kontrolle}" alt="Erkannte Zeichen auf deinem Foto">
+    <p class="hint">Grün übernommen, orange bitte prüfen, rot nicht übernommen. Über jedem Kasten steht, als was er erkannt wurde.</p>
+    <div class="reihe"><button class="btn primary" data-geh="blatt">Weiter zum Blatt</button><button class="btn" data-nochmal>Neues Foto</button></div></div>`;
+}
+
+/* ---------- Fenster ---------- */
+let _fy = 0;
+function fensterAuf(titel, html, gross) {
+  const f = $("fenster");
+  f.innerHTML = `<button class="scrim" aria-label="Schließen"></button><div class="panel${gross ? " gross" : ""}" role="dialog" aria-modal="true" aria-label="${esc(titel)}"><div class="panel-head"><h3>${esc(titel)}</h3><button class="x" aria-label="Schließen">${ICO.x}</button></div><div class="panel-body"></div></div>`;
+  const body = f.querySelector(".panel-body");
+  if (typeof html === "string") body.innerHTML = html; else body.appendChild(html);
+  _fy = window.scrollY;
+  Object.assign(document.body.style, { position: "fixed", top: -_fy + "px", left: "0", right: "0" });
+  f.querySelector(".scrim").onclick = fensterZu; f.querySelector(".x").onclick = fensterZu;
+  return body;
+}
+function fensterZu() {
+  $("fenster").innerHTML = "";
+  Object.assign(document.body.style, { position: "", top: "", left: "", right: "" });
+  window.scrollTo(0, _fy);
+}
+function einstellungen() {
+  const b = fensterAuf("Einstellungen", `
+    <div class="field"><span class="lbl">Darstellung der Seite</span><div class="modus" id="themaModus"><button type="button" data-v="hell">Hell</button><button type="button" data-v="dunkel">Dunkel</button></div></div>
+    <div class="field"><span class="lbl">Deine Schrift</span>
+      <p class="hint">Deine Schrift bleibt nur auf diesem Gerät, nichts wird hochgeladen. Für ein anderes Gerät als Datei sichern und dort laden.</p>
+      <div class="reihe"><button class="btn" id="exportBtn">Als Datei sichern</button><button class="btn" id="importBtn">Datei laden</button></div>
+      <div id="loeschZone" class="reihe"><button class="btn danger" id="loeschBtn">Schrift löschen</button></div>
+    </div>`);
+  const thema = () => b.querySelectorAll("#themaModus button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === S.theme)));
+  thema();
+  b.querySelector("#themaModus").onclick = e => { const x = e.target.closest("button"); if (!x) return; S.theme = x.dataset.v; themaAnwenden(); thema(); speichern(); };
+  b.querySelector("#exportBtn").onclick = () => {
+    const d = HS.ownExport(); if (!d || !Object.keys(d.g).length) { toast("Noch keine Schrift zum Sichern"); return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(d)], { type: "application/json" })); a.download = "meine-schrift.json";
+    document.body.appendChild(a); a.click(); a.remove(); toast("Datei gesichert");
+  };
+  b.querySelector("#importBtn").onclick = () => $("importInput").click();
+  b.querySelector("#loeschBtn").onclick = () => {
+    const z = b.querySelector("#loeschZone");
+    z.innerHTML = '<span class="hint" style="flex-basis:100%">Wirklich löschen? Das geht nicht rückgängig.</span><button class="btn danger voll" id="jaLoeschen">Ja, löschen</button><button class="btn ghost" id="neinLoeschen">Abbrechen</button>';
+    z.querySelector("#neinLoeschen").onclick = () => { fensterZu(); einstellungen(); };
+    z.querySelector("#jaLoeschen").onclick = () => { HS.ownLeeren(); LS.del(OWN_KEY); fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift gelöscht"); };
+  };
+}
+function seiteGross(c) {
+  const k = document.createElement("canvas"); k.width = c.width; k.height = c.height; k.getContext("2d").drawImage(c, 0, 0);
+  fensterAuf("Seite " + (+c.dataset.seite + 1), k, true);
+}
+function themaAnwenden() {
+  document.documentElement.dataset.theme = S.theme === "dunkel" ? "dunkel" : "";
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", S.theme === "dunkel" ? "#0A0A0B" : "#FFFFFF");
+}
+function textZahl() {
+  const w = (S.text.trim().match(/\S+/g) || []).length;
+  $("textZahl").textContent = w + " Wörter";
+}
+const zwei = n => (n < 10 ? "0" : "") + n;
+
+/* ---------- Start ---------- */
+async function start() {
+  themaAnwenden();
+  const kopfh = () => document.documentElement.style.setProperty("--kopfh", document.querySelector("header.kopf").offsetHeight + "px");
+  kopfh(); window.addEventListener("resize", kopfh);
+  // Datum und Uhrzeit für den Seitenkopf: beim ersten Mal jetzt
+  const jetzt = new Date();
+  if (!S.datum) S.datum = `${jetzt.getFullYear()}-${zwei(jetzt.getMonth() + 1)}-${zwei(jetzt.getDate())}`;
+  if (!S.zeit) S.zeit = `${zwei(jetzt.getHours())}:${zwei(jetzt.getMinutes())}`;
+  reglerBauen();
+  modusBauen("vorlageModus", VORLAGEN, "tpl"); modusBauen("papierModus", PAPIERE, "paper"); modusBauen("tonModus", TOENE, "ton"); modusBauen("stiftModus", STIFTE, "ink");
+  abschriftBauen();
+  $("textFeld").value = S.text; textZahl();
+  $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("nameFeld").placeholder = autoName(); $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
+  const raw = parse(LS.get(OWN_KEY));
+  if (raw) await HS.ownSetzen(raw);
+  fontsBauen(); modusStand(); statusZeigen();
+  tab(S.tab || (HS.hatOwn() ? "blatt" : "schrift"), false);
+  neuZeichnen(0);
+
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-tab-btn]"); if (t) { tab(t.dataset.tabBtn); return; }
+    const g = e.target.closest("[data-geh]"); if (g) { tab(g.dataset.geh); return; }
+    if (e.target.closest("[data-nochmal]")) { $("fotoInput").click(); return; }
+    const c = e.target.closest(".seite canvas"); if (c) seiteGross(c);
+  });
+  $("einstBtn").onclick = einstellungen;
+  // Foto: antippen öffnet Fotos oder Dateien, oder ein Bild auf die Fläche ziehen
+  const ab = $("ablage");
+  ab.onclick = () => $("fotoInput").click();
+  ab.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fotoInput").click(); } };
+  ["dragenter", "dragover"].forEach(t => ab.addEventListener(t, e => { e.preventDefault(); ab.classList.add("drueber"); }));
+  ["dragleave", "drop"].forEach(t => ab.addEventListener(t, () => ab.classList.remove("drueber")));
+  // Auch irgendwo auf die Seite gezogen: nicht im Browser öffnen, sondern übernehmen
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => {
+    e.preventDefault();
+    const f = [...((e.dataTransfer && e.dataTransfer.files) || [])][0];
+    if (!f) return;
+    if (S.tab !== "schrift") tab("schrift");
+    fotoGewaehlt(f);
+  });
+  $("fotoInput").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) fotoGewaehlt(f); });
+  $("auslesenBtn").onclick = auslesen;
+  $("abbrechenBtn").onclick = () => { $("ausschnitt").hidden = true; crop = null; };
+  griffeAktivieren();
+  $("textFeld").addEventListener("input", e => { S.text = e.target.value; textZahl(); $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(300); });
+  $("leerenBtn").onclick = () => { S.text = ""; $("textFeld").value = ""; textZahl(); speichern(); neuZeichnen(0); $("textFeld").focus(); };
+  $("titelFeld").addEventListener("input", e => { S.titel = e.target.value; $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(200); });
+  $("nameFeld").addEventListener("input", e => { S.dateiname = e.target.value; speichern(); });
+  $("datumFeld").addEventListener("change", e => { S.datum = e.target.value; speichern(); neuZeichnen(0); });
+  $("zeitFeld").addEventListener("change", e => { S.zeit = e.target.value; speichern(); neuZeichnen(0); });
+  $("fontWahl").addEventListener("click", e => { const b = e.target.closest("[data-font]"); if (!b || b.disabled) return; S.font = b.dataset.font; fontsBauen(); speichern(); neuZeichnen(0); });
+  $("randCheck").onchange = e => { S.margin = e.target.checked; speichern(); neuZeichnen(); };
+  $("einzugCheck").onchange = e => { S.indent = e.target.checked; speichern(); neuZeichnen(); };
+  $("wuerfelBtn").onclick = () => { S.seed = (Math.random() * 1e9) | 0; speichern(); neuZeichnen(0); };
+  $("pdfBtn").onclick = async () => { const f = await pdfDatei(); HS.blobLaden(f, f.name); };
+  $("teilenBtn").onclick = teilen;
+  $("importInput").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+    const d = parse(await f.text());
+    if (!d || d.app !== "handschrift" || !d.g) { toast("Das ist keine Handschrift-Datei"); return; }
+    await HS.ownSetzen(d); schriftSichern(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift geladen");
+  });
+  // Schriften nachladen und neu zeichnen, sobald sie da sind
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => neuZeichnen(0));
+}
+start();
+})();
+</script>
+</body>
+</html>
