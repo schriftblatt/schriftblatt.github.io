@@ -1615,7 +1615,8 @@ async function ausKontoLaden() {
   if (error) { toast("Dein Konto ließ sich gerade nicht laden."); return; }
   if (data && data.schrift && data.schrift.g && Object.keys(data.schrift.g).length) { await HS.ownSetzen(data.schrift); schriftSichern(); }
   else if (HS.hatOwn()) await schriftHoch();   // vorher ohne Konto eingelesen: mitnehmen
-  if (data && data.einstellungen) einstAnwenden(data.einstellungen); else einstHoch();
+  if (data && data.einstellungen) einstAnwenden(data.einstellungen);
+  else { S.gag = false; $("gag").hidden = false; einstHoch(); }   // neues Konto: Gag-Stand nicht vom vorherigen Konto erben
   fontsBauen(); statusZeigen(); neuZeichnen(0);
 }
 /* Admin: Liste aller Tester. Die Datenbank prüft selbst, ob du Admin bist (sql/02-admin.sql). */
