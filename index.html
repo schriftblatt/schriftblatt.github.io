@@ -360,8 +360,8 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
         <p class="unter">Jede Änderung siehst du sofort rechts.</p>
       </div>
       <div class="gag" id="gag" hidden>
-        <b>Geheimer Beta-Knopf<small>Nur für Tester. Wirklich nicht klicken.</small></b>
-        <button class="btn" id="gagBtn">Nicht klicken</button>
+        <b>Geheimer Beta-Knopf<small>Nur für Tester.</small></b>
+        <button class="btn" id="gagBtn">Klick mich</button>
       </div>
       <div class="block gruppe">
         <div class="sec-label">Text</div>
@@ -1277,7 +1277,8 @@ const HS = (function () {
         if (schw != null) {
           const gruppen = [z.grs[0]];
           for (let k = 1; k < z.grs.length; k++) {
-            if (lu[k - 1] < schw) { const a = gruppen[gruppen.length - 1], b = z.grs[k]; a.junk = a.junk || b.junk; verschmelzen(a, b); } else gruppen.push(z.grs[k]);
+            const a = gruppen[gruppen.length - 1], b = z.grs[k];
+            if (lu[k - 1] < schw && !a.junk && !b.junk) verschmelzen(a, b); else gruppen.push(b);
           }
           const nJ = gruppen.filter(g => !g.junk).length;
           // Nah an der Vorlage: so übernehmen, wie geschrieben. Weicht es ab, bleibt der Vorschlag die ganze Reihe und die Zeile wird orange.
@@ -1810,8 +1811,8 @@ function pruefenZeigen(res) {
       g.clearRect(0, 0, cv.width, cv.height); g.drawImage(im, 0, 0);
       g.lineWidth = 1.5; g.font = "700 14px 'IBM Plex Mono', monospace"; g.textBaseline = "bottom";
       z.kaesten.forEach((k, j) => {
-        const t = passt ? tok[j] : String(j + 1), junk = passt && t === "#";
-        g.strokeStyle = !passt ? "#D25A00" : junk ? "#8B8B93" : "#1D4E9E";
+        const t = tok[j] !== undefined ? tok[j] : "?", junk = t === "#";
+        g.strokeStyle = junk ? "#8B8B93" : !passt ? "#D25A00" : "#1D4E9E";
         g.strokeRect(k.x - 1.5, k.y - 1.5, k.w + 3, k.h + 3);
         const tw = g.measureText(t).width + 6, ty = Math.max(16, k.y - 3);
         g.fillStyle = g.strokeStyle; g.fillRect(k.x - 1.5, ty - 15, tw, 16);
@@ -1975,13 +1976,14 @@ async function schriftHoch() {
   const { error } = await sb.from("schriften").upsert({ user_id: ich.id, schrift: HS.hatOwn() ? HS.ownExport() : null, geaendert: new Date().toISOString() });
   if (error) toast("Im Konto speichern ging nicht. Deine Schrift ist trotzdem auf diesem Gerät.");
 }
-function einstHoch() {
+function einstHoch(sofort) {
   if (!sb || !ich || _ohneHoch) return;
   clearTimeout(_einstT);
-  _einstT = setTimeout(() => {
+  const hoch = () => {
     const e = {}; EINST_SYNC.forEach(k => e[k] = S[k]);
-    sb.from("schriften").upsert({ user_id: ich.id, einstellungen: e, geaendert: new Date().toISOString() });
-  }, 2500);
+    return sb.from("schriften").upsert({ user_id: ich.id, einstellungen: e, geaendert: new Date().toISOString() });
+  };
+  if (sofort) hoch(); else _einstT = setTimeout(hoch, 2500);
 }
 // Einstellungen aus dem Konto übernehmen und alle Bedienelemente nachziehen
 function einstAnwenden(e) {
@@ -1989,8 +1991,14 @@ function einstAnwenden(e) {
   REGLER.forEach(R => { $("r-" + R.id).value = S[R.id]; });
   $("textFeld").value = S.text; textZahl();
   $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
-  themaAnwenden(); modusStand(); $("gag").hidden = !!S.gag;
+  themaAnwenden(); modusStand(); gagStand();
   _ohneHoch = true; speichern(); _ohneHoch = false;
+}
+// Beta-Knopf: einmal geklickt, für dieses Konto für immer weg. Zusätzlich auf dem Gerät gemerkt, falls das Speichern im Konto noch läuft.
+const gagSchluessel = () => ich ? "hs2-gag-" + ich.id : "hs2-gag";
+function gagStand() {
+  if (LS.get(gagSchluessel()) === "1") S.gag = true;
+  $("gag").hidden = !!S.gag;
 }
 async function ausKontoLaden() {
   const { data, error } = await sb.from("schriften").select("schrift,einstellungen").eq("user_id", ich.id).maybeSingle();
@@ -1998,7 +2006,7 @@ async function ausKontoLaden() {
   if (data && data.schrift && data.schrift.g && Object.keys(data.schrift.g).length) { await HS.ownSetzen(data.schrift); schriftSichern(); }
   else if (HS.hatOwn()) await schriftHoch();   // vorher ohne Konto eingelesen: mitnehmen
   if (data && data.einstellungen) einstAnwenden(data.einstellungen);
-  else { S.gag = false; $("gag").hidden = false; einstHoch(); }   // neues Konto: Gag-Stand nicht vom vorherigen Konto erben
+  else { S.gag = false; gagStand(); einstHoch(); }   // neues Konto: Gag-Stand nicht vom vorherigen Konto erben
   fontsBauen(); statusZeigen(); neuZeichnen(0);
 }
 /* Admin: Liste aller Tester. Die Datenbank prüft selbst, ob du Admin bist (sql/02-admin.sql). */
@@ -2159,7 +2167,7 @@ async function start() {
   $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("nameFeld").placeholder = autoName(); $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
   const raw = parse(LS.get(OWN_KEY));
   if (raw) await HS.ownSetzen(raw);
-  fontsBauen(); modusStand(); statusZeigen(); $("gag").hidden = !!S.gag;
+  fontsBauen(); modusStand(); statusZeigen(); gagStand();
   tab(S.tab || (HS.hatOwn() ? "blatt" : "schrift"), false);
   neuZeichnen(0);
   kontoStart();
@@ -2178,7 +2186,10 @@ async function start() {
   $("kontoBtn").onclick = kontoFenster;
   // Beta-Gag: bleibt stehen, bis einmal geklickt wurde, gilt pro Konto
   const GAG_URL = "https://www.flickr.com/photos/ronnyackerman667/6065510171";
-  const gagWeg = () => { S.gag = true; $("gag").hidden = true; speichern(); };
+  const gagWeg = () => {
+    S.gag = true; $("gag").hidden = true; LS.set(gagSchluessel(), "1");
+    _ohneHoch = true; speichern(); _ohneHoch = false; einstHoch(true);
+  };
   $("gagBtn").onclick = () => { window.open(GAG_URL, "_blank", "noopener"); gagWeg(); };
   // Foto: antippen öffnet Fotos oder Dateien, oder ein Bild auf die Fläche ziehen
   const ab = $("ablage");
