@@ -740,14 +740,21 @@ const HS = (function () {
     } else {
       const px = fontPxFor(font.css, xh), fstr = `${px}px "${font.css}"`;
       measure = w => { mctx.font = fstr; return mctx.measureText(w).width; };
+      // Strichstärke für fertige Schriften: dünner durch Abtragen am Rand, dicker durch Nachziehen der Kontur
+      const st = (o.staerke || 100) / 100, abtragen = st < 1 ? px * 0.065 * (1 - st) : 0, auftragen = st > 1 ? px * 0.07 * (st - 1) : 0;
+      const zeichen = (g, ch) => {
+        g.fillText(ch, 0, 0);
+        if (auftragen) { g.lineWidth = auftragen; g.lineJoin = "round"; g.strokeStyle = g.fillStyle; g.strokeText(ch, 0, 0); }
+        if (abtragen) { g.save(); g.globalCompositeOperation = "destination-out"; g.globalAlpha = 1; g.lineWidth = abtragen; g.lineJoin = "round"; g.strokeText(ch, 0, 0); g.restore(); }
+      };
       drawWord = (g, w, kk) => {
         g.font = fstr;
-        if (font.connected) { g.fillText(w, 0, 0); return g.measureText(w).width; }
+        if (font.connected) { zeichen(g, w); return g.measureText(w).width; }
         let cx = 0;
         for (const ch of w) {
           const cw = g.measureText(ch).width, sx = 1 + r.j() * 0.10 * kk, sy = 1 + r.j() * 0.14 * kk;
           g.save(); g.translate(cx, r.j() * 0.45 * MM * kk); g.rotate(r.j() * 0.02 * kk); g.transform(1, 0, r.j() * 0.18 * kk, 1, 0, 0);
-          g.scale(sx, sy); g.fillText(ch, 0, 0); g.restore();
+          g.scale(sx, sy); zeichen(g, ch); g.restore();
           cx += cw * sx + r.j() * 0.1 * xh * kk;
         }
         return cx;
@@ -1566,7 +1573,7 @@ const UMSCHREIBEN = (function () {
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", gag: false, urtext: "", datum: "", zeit: "", theme: "hell" };
+  staerke: 100, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", gag: false, urtext: "", datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
@@ -1578,6 +1585,7 @@ const stufe = (v, a, b, c, d) => v < 15 ? a : v < 45 ? b : v < 75 ? c : d;
 const REGLER = [
   { grp: "schrift", id: "size", label: "Größe", min: 60, max: 160, step: 5, fmt: v => v + " %" },
   { grp: "schrift", id: "pitch", label: "Zeilenabstand", min: 6, max: 14, step: 0.5, fmt: v => S.paper === "grid" ? Math.max(1, Math.round(v / 5)) + " Kästchen" : fmtZahl(v) + " mm" },
+  { grp: "schrift", id: "staerke", label: "Strichstärke", min: 40, max: 160, step: 5, nurFertig: true, fmt: v => v === 100 ? "wie die Schrift" : v < 100 ? "dünner, " + v + " %" : "dicker, " + v + " %" },
   { grp: "schrift", id: "slant", label: "Schräglage", min: -15, max: 15, step: 1, fmt: v => v === 0 ? "wie geschrieben" : (v > 0 ? "nach rechts " : "nach links ") + Math.abs(v) + "°" },
   { grp: "ordnung", id: "messy", label: "Unordentlich", min: 0, max: 100, step: 5, fmt: v => stufe(v, "sehr sauber", "sauber", "normal", "hingeschmiert") },
   { grp: "ordnung", id: "drift", label: "Abweichung von der Linie", min: 0, max: 100, step: 5, fmt: v => stufe(v, "genau auf der Linie", "leicht", "deutlich", "stark") },
@@ -1614,7 +1622,7 @@ function neuZeichnen(ms) {
     fehlerZeigen(_plan);
     const r = await HS.render($("seiten"), {
       paras: _plan.paras, font: effFont(), tpl: S.tpl, paper: S.paper, dark: S.ton === "dunkel", ink: S.ink, size: S.size, pitchMM: S.pitch,
-      messy: S.messy, drift: S.drift, slant: S.slant, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
+      messy: S.messy, drift: S.drift, slant: S.slant, staerke: S.staerke, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
       titel: S.titel.trim(), datum: S.datum, zeit: S.zeit
     });
     if (r) { $("seitenInfo").textContent = r.pages === 1 ? "1 Seite" : r.pages + " Seiten"; pdfVorbereiten(); miniMalen(); }
@@ -1675,7 +1683,7 @@ async function teilen() {
 /* ---------- Bedienelemente aufbauen ---------- */
 function reglerBauen() {
   REGLER.forEach(R => {
-    const d = document.createElement("div"); d.className = "regler";
+    const d = document.createElement("div"); d.className = "regler"; d.id = "regler-" + R.id;
     d.innerHTML = `<div class="regler-kopf"><label for="r-${R.id}">${R.label}</label><span class="wert" id="w-${R.id}"></span></div><input type="range" id="r-${R.id}" min="${R.min}" max="${R.max}" step="${R.step}">`;
     $("grp-" + R.grp).appendChild(d);
     const inp = d.querySelector("input"); inp.value = S[R.id];
@@ -1707,6 +1715,8 @@ function fontsBauen() {
   const probeOwn = own ? ["A", "b", "c"].map(ch => info.g[ch] ? `<img src="${info.g[ch].url}" alt="">` : "").join("") : '<span style="font-size:15px;color:var(--ink-3)">noch leer</span>';
   $("fontWahl").innerHTML = `<button type="button" class="schrift-k" role="radio" data-font="own" aria-checked="${eff === "own"}"${own ? "" : " disabled"}><span class="probe">${probeOwn}</span><b>Meine Handschrift</b><small>${own ? "eingelesen" : "erst einlesen"}</small></button>`
     + HS.FONTS.map(f => `<button type="button" class="schrift-k" role="radio" data-font="${f.id}" aria-checked="${eff === f.id}"><span class="probe" style="font-family:'${f.css}'">Abc äöü</span><b>${esc(f.name)}</b><small>${esc(f.note)}</small></button>`).join("");
+  // Strichstärke nur für fertige Schriften, die eigene Handschrift hat ihre echte Strichstärke
+  const rs = $("regler-staerke"); if (rs) rs.hidden = eff === "own";
 }
 function abschriftBauen() {
   $("abschrift").innerHTML = HS.ZEILEN.map(Z => `<div class="z${Z.art === "w" ? " w" : ""}">${esc(Z.z)}</div>`).join("");
