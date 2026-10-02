@@ -80,6 +80,17 @@ body.gesperrt main,body.gesperrt .untenleiste,body.gesperrt #einstBtn,body.gespe
 .zeile-pruef .reihe{flex-wrap:nowrap}
 .anz{font-size:12px;font-weight:600;white-space:nowrap}
 .anz.ok{color:var(--ok)} .anz.warn{color:var(--warn)}
+.hs-karte{border:1px solid var(--line);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:10px}
+.hs-karte.aktiv{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.hs-kopf{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hs-kopf b{font-size:15px;overflow-wrap:anywhere}
+.hs-kopf .m-ok{font-size:11.5px;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.hs-ab{display:flex;gap:10px;align-items:flex-start}
+.hs-ab img,.hs-ohne{width:84px;flex:0 0 84px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.hs-ohne{height:60px;display:grid;place-items:center;font-size:11px;color:#8a95a3}
+.hs-ab-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.hs-ab-text small{color:var(--ink-3);font-size:12.5px}
+.btn.rot{color:var(--bad)}
 .tester{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .tester li{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;display:flex;flex-direction:column;gap:3px;overflow-wrap:anywhere}
 .tester .mono{font-size:13px;color:var(--ink-2)}
@@ -638,7 +649,14 @@ const HS = (function () {
   function bildLaden(m) {
     return new Promise(res => { const img = new Image(); img.onload = () => { m.img = img; res(m); }; img.onerror = () => res(null); img.src = m.url; });
   }
-  async function ownSetzen(raw) {
+  // Neues Format: { abschriften: [ {g, w, gap, space}, {...} ] }, bis zu zwei Abschriften einer Handschrift.
+  // Altes Format { g, w, g2, w2, gap, space } wird weiter gelesen.
+  async function ownSetzen(daten) {
+    let raw = daten;
+    if (daten && Array.isArray(daten.abschriften)) {
+      const [a0, a1] = daten.abschriften, mittel = k => { const v = [a0, a1].filter(a => a && a[k] != null).map(a => a[k]); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
+      raw = a0 ? { g: a0.g, w: a0.w, g2: a1 ? a1.g : {}, w2: a1 ? a1.w : {}, gap: mittel("gap"), space: mittel("space") } : null;
+    }
     if (!raw || !raw.g) { own = null; return false; }
     const g = {}, w = {}, g2 = {}, w2 = {};
     const lade = (quelle, ziel) => Promise.all(Object.keys(quelle || {}).map(k => {
@@ -646,11 +664,12 @@ const HS = (function () {
       return bildLaden(m).then(r => { if (r) ziel[k] = r; });
     }));
     await Promise.all([lade(raw.g, g), lade(raw.w, w), lade(raw.g2, g2), lade(raw.w2, w2)]);
-    own = { gap: raw.gap == null ? 0.16 : raw.gap, space: raw.space || null, g, w, g2, w2 };
+    own = { gap: raw.gap == null ? 0.16 : raw.gap, space: raw.space || null, g, w, g2, w2, daten: daten && daten.abschriften ? daten : null };
     return hatOwn();
   }
   function ownExport() {
     if (!own) return null;
+    if (own.daten) return Object.assign({ app: "handschrift", v: 4 }, own.daten);
     const strip = o => { const r = {}; Object.keys(o).forEach(k => { const m = o[k]; r[k] = { w: m.w, h: m.h, top: m.top, x: m.x, url: m.url }; }); return r; };
     return { app: "handschrift", v: 3, gap: own.gap, space: own.space || null, g: strip(own.g), w: strip(own.w), g2: strip(own.g2 || {}), w2: strip(own.w2 || {}) };
   }
@@ -1315,7 +1334,7 @@ const HS = (function () {
     };
 
     // 9. Übernehmen, sobald der Nutzer die Zeilen bestätigt oder korrigiert hat
-    _uebernehmen = (texte, modus) => {
+    _uebernehmen = texte => {
       const neuG = {}, neuW = {}, abstaende = []; let probleme = 0;
       rows.forEach((z, zi) => {
         const tok = String(texte[zi] || "").trim().split(/\s+/).filter(Boolean);
@@ -1396,21 +1415,26 @@ const HS = (function () {
       Object.keys(neuW).forEach(wort => fertig(neuW[wort], xh * fWort(wort)));
       const neuGap = gapsW.length ? Math.max(-0.35, Math.min(0.6, median(gapsW))) : null;
       const neuSpace = spaces.length ? Math.max(0.6, Math.min(3, median(spaces))) : null;
-      if (modus === "2" && own && Object.keys(own.g).length) {
-        // Zweite Abschrift: jede Fassung kommt dazu, Abstände werden gemittelt
-        own.g2 = Object.assign(own.g2 || {}, neuG); own.w2 = Object.assign(own.w2 || {}, neuW);
-        if (neuGap != null) own.gap = own.gap == null ? neuGap : (own.gap + neuGap) / 2;
-        if (neuSpace != null) own.space = own.space ? (own.space + neuSpace) / 2 : neuSpace;
-      } else {
-        own = { gap: neuGap == null ? 0.16 : neuGap, space: neuSpace, g: neuG, w: neuW, g2: {}, w2: {} };
-      }
-      return { zeichen: Object.keys(neuG).length, woerter: Object.keys(neuW).length, probleme };
+      // Ergebnis ist eine Abschrift. Wohin sie gehört (neue Handschrift oder zweite Abschrift), entscheidet die Oberfläche.
+      const flach = o => { const r = {}; Object.keys(o).forEach(k => { const m = o[k]; r[k] = { w: m.w, h: m.h, top: m.top, x: m.x, url: m.url }; }); return r; };
+      return { abschrift: { g: flach(neuG), w: flach(neuW), gap: neuGap, space: neuSpace }, bild: vorschauBild,
+        zeichen: Object.keys(neuG).length, woerter: Object.keys(neuW).length, probleme };
     };
+    // Kleines Vorschaubild des Blatts fürs Profil
+    const vorschauBild = (() => {
+      const vs = Math.min(1, 360 / OW), VW = Math.round(OW * vs), VH = Math.round(OH * vs), vc = cnv(VW, VH), vg = vc.getContext("2d"), vd = vg.createImageData(VW, VH);
+      for (let y = 0; y < VH; y++) for (let x = 0; x < VW; x++) {
+        const v = Math.max(0, Math.min(255, q[Math.min(OH - 1, (y / vs) | 0) * OW + Math.min(OW - 1, (x / vs) | 0)] * 240)), j = (y * VW + x) * 4;
+        vd.data[j] = vd.data[j + 1] = vd.data[j + 2] = v; vd.data[j + 3] = 255;
+      }
+      vg.putImageData(vd, 0, 0);
+      return vc.toDataURL("image/jpeg", 0.6);
+    })();
 
     return { zeilen: rows.map(z => Object.assign(streifen(z), { anzahl: z.grs.length, vorschlag: z.vorschlag || "" })) };
   }
   let _uebernehmen = null;
-  const blattUebernehmen = (texte, modus) => _uebernehmen ? _uebernehmen(texte, modus) : { zeichen: 0, woerter: 0, probleme: 0 };
+  const blattUebernehmen = texte => _uebernehmen ? _uebernehmen(texte) : { zeichen: 0, woerter: 0, probleme: 0 };
 
   return { FONTS, ZEILEN, render, pdfVon, blobLaden, loadPhoto, autoAusschnitt,
     blattAuslesen, blattUebernehmen, ownSetzen, ownExport, ownLeeren, ownInfo, hatOwn, splitTok, rng };
@@ -1573,7 +1597,7 @@ const UMSCHREIBEN = (function () {
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  staerke: 100, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", gag: false, urtext: "", datum: "", zeit: "", theme: "hell" };
+  staerke: 100, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", gag: false, schriftId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
@@ -1734,7 +1758,8 @@ function statusZeigen() {
   const zellen = alle.map(ch => { const m = info.g[ch]; return m ? `<div class="glyphe"><i>${esc(ch)}</i><img src="${m.url}" alt="${esc(ch)}"></div>` : `<div class="glyphe leer" title="fehlt"><i>${esc(ch)}</i></div>`; }).join("");
   const woerter = Object.keys(info.w).map(w => `<div class="wort"><img src="${info.w[w].url}" alt="${esc(w)}"></div>`).join("");
   box.innerHTML = ohne + `<div class="block">
-    <div class="status-kopf">${ICO.ok}<span>Deine Schrift ist eingelesen</span></div>
+    <div class="status-kopf">${ICO.ok}<span>${aktiveHs() ? `In Gebrauch: „${esc(aktiveHs().name)}“` : "Deine Schrift ist eingelesen"}</span></div>
+    ${HSL.length > 1 ? '<p class="hint">Andere Handschrift wählen: oben rechts auf deinen Namen.</p>' : ""}
     <div class="hint mono">${info.zeichen} Zeichen, ${info.woerter} Wörter, ${info.zweite ? "2 Abschriften" : "1 Abschrift"}</div>
     ${info.zweite ? "" : '<div class="hinweis warn"><b>Zweite Abschrift fehlt</b>Schreib das Blatt noch einmal ab und lade es als 2. Abschrift hoch. Dann wechseln sich zwei Fassungen jedes Buchstabens ab, und kein „e“ sieht aus wie das andere.<div class="reihe" style="margin-top:8px"><button class="btn" data-nochmal>2. Abschrift hochladen</button></div></div>'}
     <div class="glyphen">${zellen}</div>
@@ -1809,7 +1834,7 @@ function pruefenZeigen(res) {
       <div class="reihe"><input type="text" data-zeile="${i}" data-n="${z.anzahl}" value="${esc(z.vorschlag)}" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Zeile ${i + 1}"><span class="anz" data-anz="${i}"></span></div>
       <p class="hint" data-hilfe="${i}" hidden></p>
     </div>`).join("")}
-    <div class="field"><span class="lbl">Welche Abschrift ist das?</span><div class="modus" id="abschriftModus"><button type="button" data-v="1">1. Abschrift</button><button type="button" data-v="2">2. Abschrift</button></div><p class="hint" id="abschriftHinweis"></p></div>
+    <div class="field"><span class="lbl">Wohin mit diesem Blatt?</span><div class="modus" id="abschriftModus"><button type="button" data-v="neu">Neue Handschrift</button><button type="button" data-v="zweite">2. Abschrift</button></div><p class="hint" id="abschriftHinweis"></p></div>
     <p class="err" id="pruefFehler"></p>
     <div class="reihe"><button class="btn primary" id="uebernehmenBtn">Schrift übernehmen</button><button class="btn" data-nochmal>Neues Foto</button></div></div>`;
   // Zeilenbild mit Kästen und dem Zeichen darüber, wird bei jeder Änderung neu beschriftet
@@ -1841,20 +1866,29 @@ function pruefenZeigen(res) {
     zeichnen(+inp.dataset.zeile);
   };
   box.querySelectorAll("[data-zeile]").forEach(inp => { zaehlen(inp); inp.addEventListener("input", () => zaehlen(inp)); });
-  // Vorauswahl: Gibt es schon eine Schrift ohne zweite Fassung, ist das hier vermutlich die zweite
-  let abschrift = HS.hatOwn() && !HS.ownInfo().zweite ? "2" : "1";
+  // Vorauswahl: Hat die verwendete Handschrift erst eine Abschrift, ist das hier vermutlich die zweite
+  const voll = !!(sb && ich) && HSL.length >= MAX_HS, hatAktive = HS.hatOwn(), aktName = (aktiveHs() && aktiveHs().name) || "deine Schrift";
+  let abschrift = (hatAktive && (!HS.ownInfo().zweite || voll)) ? "zweite" : "neu";
   const abschriftStand = () => {
-    $("abschriftModus").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === abschrift)));
-    $("abschriftHinweis").textContent = abschrift === "1" ? "Ersetzt deine gespeicherte Schrift komplett." : "Jedes Zeichen bekommt eine zweite Fassung dazu. Beide wechseln sich im Text ab.";
+    $("abschriftModus").querySelectorAll("button").forEach(b => {
+      b.setAttribute("aria-pressed", String(b.dataset.v === abschrift));
+      b.disabled = (b.dataset.v === "neu" && voll) || (b.dataset.v === "zweite" && !hatAktive);
+    });
+    $("abschriftHinweis").textContent = abschrift === "neu"
+      ? (voll ? "Du hast schon 5 Handschriften. Lösch eine im Profil, um eine neue anzulegen." : "Wird als neue Handschrift gespeichert und gleich verwendet.")
+      : `Kommt als 2. Abschrift zu „${aktName}“${HS.ownInfo().zweite ? ", die bisherige 2. Abschrift wird ersetzt" : ""}. Beide Fassungen wechseln sich im Text ab.`;
   };
   $("abschriftModus").onclick = e => { const b = e.target.closest("button"); if (b) { abschrift = b.dataset.v; abschriftStand(); } };
   abschriftStand();
-  $("uebernehmenBtn").onclick = () => {
+  $("uebernehmenBtn").onclick = async () => {
     const texte = [...box.querySelectorAll("[data-zeile]")].map(i => i.value);
-    const r = HS.blattUebernehmen(texte, abschrift);
+    const r = HS.blattUebernehmen(texte);
     if (!r.zeichen && !r.woerter) { $("pruefFehler").textContent = "Es wurde nichts übernommen. Prüf, ob die Texte zu den Zeilen passen."; return; }
-    schriftSichern(); schriftHoch(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0);
-    box.innerHTML = `<div class="hinweis ${r.probleme ? "warn" : "ok"}"><b>${abschrift === "2" ? "2. Abschrift: " : ""}${r.zeichen} Zeichen und ${r.woerter} Wörter übernommen</b>${r.probleme ? `${r.probleme} ${r.probleme === 1 ? "Zeile passte" : "Zeilen passten"} nicht zur Anzahl der Kästen und ${r.probleme === 1 ? "wurde" : "wurden"} übersprungen. ` : ""}Fehlende Zeichen kannst du mit einem neuen Foto ergänzen.</div>
+    const knopf = $("uebernehmenBtn"); knopf.disabled = true; knopf.textContent = "Speichere …";
+    try { await abschriftSpeichern(r, abschrift); }
+    catch (e) { knopf.disabled = false; knopf.textContent = "Schrift übernehmen"; $("pruefFehler").textContent = "Speichern ging nicht: " + kontoFehler(e && e.message); return; }
+    S.font = "own"; speichern(); fontsBauen(); statusZeigen(); neuZeichnen(0);
+    box.innerHTML = `<div class="hinweis ${r.probleme ? "warn" : "ok"}"><b>${abschrift === "zweite" ? "2. Abschrift: " : ""}${r.zeichen} Zeichen und ${r.woerter} Wörter übernommen</b>${r.probleme ? `${r.probleme} ${r.probleme === 1 ? "Zeile passte" : "Zeilen passten"} nicht zur Anzahl der Kästen und ${r.probleme === 1 ? "wurde" : "wurden"} übersprungen. ` : ""}Fehlende Zeichen kannst du mit einem neuen Foto ergänzen.</div>
       <div class="reihe"><button class="btn primary" data-geh="blatt">Weiter zum Blatt</button><button class="btn" data-nochmal>Neues Foto</button></div>`;
     toast("Schrift eingelesen");
     $("schriftStatus").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1887,25 +1921,18 @@ function einstellungen() {
       <ol class="anl" style="font-size:13.5px"><li>In <b>Safari</b> unten auf <b>Teilen</b> tippen (Viereck mit Pfeil).</li><li>Runterscrollen, <b>Zum Home-Bildschirm</b>, dann <b>Hinzufügen</b>.</li><li>Ab dann über das Symbol öffnen und einmal neu anmelden.</li></ol>
       <p class="hint">Auf Android: in Chrome oben rechts die drei Punkte, dann <b>App installieren</b>.</p></div>`}
     <div class="field"><span class="lbl">Deine Schrift</span>
-      <p class="hint">Deine Schrift ist in deinem Konto gespeichert. Zusätzlich kannst du sie als Datei sichern.</p>
+      <p class="hint">Deine Handschriften sind in deinem Konto gespeichert, verwalten kannst du sie im Profil (dein Name oben rechts). Zusätzlich kannst du die gerade verwendete als Datei sichern.</p>
       <div class="reihe"><button class="btn" id="exportBtn">Als Datei sichern</button><button class="btn" id="importBtn">Datei laden</button></div>
-      <div id="loeschZone" class="reihe"><button class="btn danger" id="loeschBtn">Schrift löschen</button></div>
     </div>`);
   const thema = () => b.querySelectorAll("#themaModus button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === S.theme)));
   thema();
   b.querySelector("#themaModus").onclick = e => { const x = e.target.closest("button"); if (!x) return; S.theme = x.dataset.v; themaAnwenden(); thema(); speichern(); };
   b.querySelector("#exportBtn").onclick = () => {
-    const d = HS.ownExport(); if (!d || !Object.keys(d.g).length) { toast("Noch keine Schrift zum Sichern"); return; }
+    const d = HS.ownExport(); if (!d || !HS.hatOwn()) { toast("Noch keine Schrift zum Sichern"); return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(d)], { type: "application/json" })); a.download = "meine-schrift.json";
     document.body.appendChild(a); a.click(); a.remove(); toast("Datei gesichert");
   };
   b.querySelector("#importBtn").onclick = () => $("importInput").click();
-  b.querySelector("#loeschBtn").onclick = () => {
-    const z = b.querySelector("#loeschZone");
-    z.innerHTML = '<span class="hint" style="flex-basis:100%">Wirklich löschen? Das geht nicht rückgängig.</span><button class="btn danger voll" id="jaLoeschen">Ja, löschen</button><button class="btn ghost" id="neinLoeschen">Abbrechen</button>';
-    z.querySelector("#neinLoeschen").onclick = () => { fensterZu(); einstellungen(); };
-    z.querySelector("#jaLoeschen").onclick = () => { HS.ownLeeren(); LS.del(OWN_KEY); schriftHoch(); fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift gelöscht"); };
-  };
 }
 // Große Ansicht einer Seite: zoomen mit zwei Fingern, Doppeltippen oder den Knöpfen
 function seiteGross(c) {
@@ -1981,11 +2008,6 @@ const kontoFehler = m => {
   if (/fetch|network/i.test(m)) return "Keine Verbindung. Prüf dein Internet.";
   return "Das hat nicht geklappt: " + m;
 };
-async function schriftHoch() {
-  if (!sb || !ich) return;
-  const { error } = await sb.from("schriften").upsert({ user_id: ich.id, schrift: HS.hatOwn() ? HS.ownExport() : null, geaendert: new Date().toISOString() });
-  if (error) toast("Im Konto speichern ging nicht. Deine Schrift ist trotzdem auf diesem Gerät.");
-}
 function einstHoch(sofort) {
   if (!sb || !ich || _ohneHoch) return;
   clearTimeout(_einstT);
@@ -2013,11 +2035,23 @@ function gagStand() {
 async function ausKontoLaden() {
   const { data, error } = await sb.from("schriften").select("schrift,einstellungen").eq("user_id", ich.id).maybeSingle();
   if (error) { toast("Dein Konto ließ sich gerade nicht laden."); return; }
-  if (data && data.schrift && data.schrift.g && Object.keys(data.schrift.g).length) { await HS.ownSetzen(data.schrift); schriftSichern(); }
-  else if (HS.hatOwn()) await schriftHoch();   // vorher ohne Konto eingelesen: mitnehmen
   if (data && data.einstellungen) einstAnwenden(data.einstellungen);
   else { S.gag = false; gagStand(); einstHoch(); }   // neues Konto: Gag-Stand nicht vom vorherigen Konto erben
-  fontsBauen(); statusZeigen(); neuZeichnen(0);
+  // Ohne die Tabelle "handschriften" (SQL noch nicht ausgeführt): alte Schrift weiter benutzen, nichts löschen
+  if (!(await listeLaden())) {
+    if (data && data.schrift && data.schrift.g) await HS.ownSetzen(data.schrift);
+    fontsBauen(); statusZeigen(); neuZeichnen(0); return;
+  }
+  if (!HSL.length) {
+    // Schrift aus der Zeit vor den Handschriften, oder vorher ohne Konto eingelesen: als erste Handschrift übernehmen
+    const alt = (data && data.schrift && data.schrift.g && Object.keys(data.schrift.g).length) ? data.schrift : (HS.hatOwn() ? HS.ownExport() : null);
+    if (alt) {
+      const ab = alsAbschriften(alt);
+      try { await hsNeu("Meine Schrift", ab, ab.map(a => Object.assign(metaVon(Object.keys(a.g || {}).length, Object.keys(a.w || {}).length), { datum: null }))); return; }
+      catch (e) { console.error(e); }
+    }
+  }
+  await aktiveLaden();
 }
 /* Admin: Liste aller Tester. Die Datenbank prüft selbst, ob du Admin bist (sql/02-admin.sql). */
 let istAdmin = false;
@@ -2040,20 +2074,141 @@ async function testerListe() {
     </li>`).join("")}</ul>`;
 }
 
-// Angemeldet: Fenster mit Konto und Abmelden
-function kontoFenster() {
-  if (!ich) { torZeigen("login"); return; }
-  const b = fensterAuf("Dein Konto", `
-    <div class="hinweis ok"><b>Angemeldet</b>${esc(ich.email || "")}</div>
-    <p class="hint">Deine Schrift und deine Einstellungen werden im Konto gespeichert und sind auf jedem Gerät da, auf dem du dich anmeldest.</p>
+/* ---------- Handschriften verwalten ----------
+   Mit Konto: Tabelle "handschriften", bis zu 5 pro Konto (sql/03-handschriften.sql).
+   info = kleine Übersicht fürs Profil, daten = Buchstabenbilder, geladen wird nur die gewählte.
+   Jede Handschrift hat bis zu 2 Abschriften. Ohne Konto gibt es nur eine im Browser. */
+let HSL = [];
+const MAX_HS = 5;
+const aktiveHs = () => HSL.find(h => h.id === S.schriftId) || null;
+const jetztIso = () => new Date().toISOString();
+const metaVon = (zeichen, woerter, bild) => ({ datum: jetztIso(), zeichen, woerter, bild: bild || null });
+const alsAbschriften = d => d.abschriften ? d.abschriften
+  : [{ g: d.g, w: d.w || {}, gap: d.gap, space: d.space }].concat(d.g2 && Object.keys(d.g2).length ? [{ g: d.g2, w: d.w2 || {}, gap: d.gap, space: d.space }] : []);
+async function listeLaden() {
+  if (!sb || !ich) { HSL = []; return false; }
+  const r = await sb.from("handschriften").select("id,name,info,erstellt").order("erstellt");
+  if (r.error) { console.error(r.error); return false; }
+  HSL = r.data || [];
+  return true;
+}
+async function aktiveLaden() {
+  if (sb && ich) {
+    if (!aktiveHs()) { S.schriftId = HSL.length ? HSL[0].id : ""; speichern(); }
+    if (!S.schriftId) { HS.ownLeeren(); LS.del(OWN_KEY); }
+    else {
+      const r = await sb.from("handschriften").select("daten").eq("id", S.schriftId).single();
+      if (r.error) { toast("Deine Handschrift ließ sich gerade nicht laden."); return; }
+      await HS.ownSetzen(r.data.daten); schriftSichern();
+    }
+  }
+  fontsBauen(); statusZeigen(); neuZeichnen(0);
+}
+async function hsHolen(id) {
+  const r = await sb.from("handschriften").select("daten,info").eq("id", id).single();
+  if (r.error) throw r.error;
+  return { ab: (r.data.daten && r.data.daten.abschriften) || [], inf: (r.data.info && r.data.info.abschriften) || [] };
+}
+async function hsNeu(name, ab, inf) {
+  const r = await sb.from("handschriften").insert({ name, daten: { abschriften: ab }, info: { abschriften: inf } }).select("id").single();
+  if (r.error) throw r.error;
+  S.schriftId = r.data.id; speichern();
+  await listeLaden(); await aktiveLaden();
+}
+// Neue Abschrift speichern: als neue Handschrift oder als 2. Abschrift der gerade verwendeten
+async function abschriftSpeichern(res, ziel) {
+  const a = res.abschrift, m = metaVon(res.zeichen, res.woerter, res.bild);
+  if (!sb || !ich) {
+    const alt = HS.ownExport();
+    await HS.ownSetzen({ abschriften: ziel === "zweite" && alt ? [alsAbschriften(alt)[0], a] : [a] }); schriftSichern();
+    fontsBauen(); statusZeigen(); neuZeichnen(0); return;
+  }
+  if (ziel === "zweite" && aktiveHs()) {
+    const d = await hsHolen(S.schriftId);
+    const r = await sb.from("handschriften").update({ daten: { abschriften: d.ab.slice(0, 1).concat([a]) }, info: { abschriften: d.inf.slice(0, 1).concat([m]) }, geaendert: jetztIso() }).eq("id", S.schriftId);
+    if (r.error) throw r.error;
+    await listeLaden(); await aktiveLaden();
+  } else await hsNeu("Schrift " + (HSL.length + 1), [a], [m]);
+}
+async function abschriftLoeschen(id, idx) {
+  const d = await hsHolen(id);
+  const ab = d.ab.filter((_, i) => i !== idx), inf = d.inf.filter((_, i) => i !== idx);
+  if (!ab.length) return handschriftLoeschen(id);
+  const r = await sb.from("handschriften").update({ daten: { abschriften: ab }, info: { abschriften: inf }, geaendert: jetztIso() }).eq("id", id);
+  if (r.error) throw r.error;
+  await listeLaden(); if (id === S.schriftId) await aktiveLaden();
+}
+async function handschriftLoeschen(id) {
+  const r = await sb.from("handschriften").delete().eq("id", id);
+  if (r.error) throw r.error;
+  await listeLaden(); if (id === S.schriftId) { S.schriftId = ""; await aktiveLaden(); }
+}
+async function hsUmbenennen(id, name) {
+  const r = await sb.from("handschriften").update({ name: name.slice(0, 40) }).eq("id", id);
+  if (r.error) throw r.error;
+  await listeLaden(); statusZeigen();
+}
+async function hsVerwenden(id) { S.schriftId = id; S.font = "own"; speichern(); await aktiveLaden(); }
+
+// Profil: Handschriften mit ihren Abschriften, auswählen, umbenennen, löschen
+function profilMalen(body) {
+  const kurzDatum = t => { if (!t) return ""; const d = new Date(t); return `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.${d.getFullYear()}`; };
+  const name = (ich.user_metadata && ich.user_metadata.name) || "";
+  body.innerHTML = `
+    <div class="hinweis ok"><b>${esc(name || "Angemeldet")}</b>${esc(ich.email || "")}</div>
+    <div class="sec-label">Deine Handschriften (${HSL.length} von ${MAX_HS})</div>
+    ${HSL.length ? "" : '<p class="hint">Noch keine Handschrift. Lies eine im Reiter Schrift ein.</p>'}
+    ${HSL.map(h => {
+      const ab = (h.info && h.info.abschriften) || [], aktiv = h.id === S.schriftId;
+      return `<div class="hs-karte${aktiv ? " aktiv" : ""}" data-hs="${h.id}">
+        <div class="hs-kopf"><b data-name>${esc(h.name)}</b>${aktiv ? '<span class="m-ok">In Gebrauch</span>' : `<button class="btn" data-verwenden="${h.id}">Verwenden</button>`}</div>
+        ${ab.map((a, i) => `<div class="hs-ab">
+          ${a.bild ? `<img src="${a.bild}" alt="Blatt ${i + 1}">` : '<div class="hs-ohne">kein Bild</div>'}
+          <div class="hs-ab-text"><b>${i + 1}. Abschrift</b><small>${kurzDatum(a.datum)}${a.datum ? ", " : ""}${a.zeichen} Zeichen, ${a.woerter} Wörter</small>
+            <span class="reihe" data-zone><button class="btn ghost rot" data-ab-loeschen="${h.id}|${i}">Löschen</button></span></div>
+        </div>`).join("")}
+        ${ab.length < 2 ? '<p class="hint">2. Abschrift fehlt. Mit ihr wechseln sich zwei Fassungen jedes Buchstabens ab.</p>' : ""}
+        <div class="reihe" data-zone><button class="btn ghost" data-umbenennen="${h.id}">Umbenennen</button><button class="btn ghost rot" data-hs-loeschen="${h.id}">Handschrift löschen</button></div>
+      </div>`;
+    }).join("")}
+    ${HSL.length < MAX_HS ? '<button class="btn breit" data-neu-hs>Neue Handschrift einlesen</button>' : '<p class="hint">Du hast 5 Handschriften. Lösch eine, um eine neue anzulegen.</p>'}
     ${istAdmin ? '<button class="btn primary breit" id="testerBtn">Tester ansehen</button>' : ""}
     <button class="btn breit" id="abmeldenBtn">Abmelden</button>
-    <p class="hint">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>`);
-  if (istAdmin) b.querySelector("#testerBtn").onclick = testerListe;
-  b.querySelector("#abmeldenBtn").onclick = async () => {
-    await sb.auth.signOut({ scope: "local" });
-    ich = null; HS.ownLeeren(); LS.del(OWN_KEY); kontoKnopf(); fontsBauen(); statusZeigen(); fensterZu(); torZeigen("login"); toast("Abgemeldet");
+    <p class="hint">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>`;
+  const fehler = e => toast(kontoFehler(e && e.message));
+  const nachfragen = (knopf, text, los) => {
+    const zone = knopf.closest("[data-zone]");
+    zone.innerHTML = `<span class="hint" style="flex-basis:100%">${text}</span><button class="btn danger voll" data-ja>Ja, löschen</button><button class="btn ghost" data-nein>Abbrechen</button>`;
+    zone.querySelector("[data-nein]").onclick = () => profilMalen(body);
+    zone.querySelector("[data-ja]").onclick = async () => { try { await los(); toast("Gelöscht"); } catch (e) { fehler(e); } profilMalen(body); };
   };
+  body.onclick = async e => {
+    const t = e.target.closest("button"); if (!t) return;
+    if (t.dataset.verwenden) { t.disabled = true; try { await hsVerwenden(t.dataset.verwenden); toast("Handschrift gewechselt"); } catch (er) { fehler(er); } profilMalen(body); }
+    else if (t.dataset.abLoeschen) { const [id, i] = t.dataset.abLoeschen.split("|"); nachfragen(t, "Diese Abschrift löschen? Das geht nicht rückgängig.", () => abschriftLoeschen(id, +i)); }
+    else if (t.dataset.hsLoeschen) nachfragen(t, "Die ganze Handschrift mit allen Abschriften löschen?", () => handschriftLoeschen(t.dataset.hsLoeschen));
+    else if (t.dataset.umbenennen) {
+      const karte = t.closest(".hs-karte"), h = HSL.find(x => x.id === t.dataset.umbenennen), zone = t.closest("[data-zone]");
+      zone.innerHTML = `<input type="text" value="${esc(h.name)}" maxlength="40" aria-label="Neuer Name" style="flex:1"><button class="btn primary" data-name-ok>Speichern</button>`;
+      const inp = zone.querySelector("input"); inp.focus(); inp.select();
+      zone.querySelector("[data-name-ok]").onclick = async () => { const n = inp.value.trim(); if (n) { try { await hsUmbenennen(h.id, n); } catch (er) { fehler(er); } } profilMalen(body); };
+      karte.scrollIntoView({ block: "nearest" });
+    }
+    else if (t.hasAttribute("data-neu-hs")) { fensterZu(); tab("schrift"); setTimeout(() => $("anleitung").scrollIntoView({ behavior: "smooth" }), 50); }
+    else if (t.id === "testerBtn") testerListe();
+    else if (t.id === "abmeldenBtn") {
+      await sb.auth.signOut({ scope: "local" });
+      ich = null; HSL = []; HS.ownLeeren(); LS.del(OWN_KEY); kontoKnopf(); fontsBauen(); statusZeigen(); fensterZu(); torZeigen("login"); toast("Abgemeldet");
+    }
+  };
+}
+
+// Angemeldet: Profil mit Handschriften
+async function kontoFenster() {
+  if (!ich) { torZeigen("login"); return; }
+  const body = fensterAuf("Dein Profil", '<p class="hint">Lädt …</p>');
+  await listeLaden();
+  profilMalen(body);
 }
 
 /* Tor: ohne Anmeldung kommt niemand rein. Registrieren nur mit echter, bestätigter E-Mail. */
@@ -2247,8 +2402,15 @@ async function start() {
   $("importInput").addEventListener("change", async e => {
     const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
     const d = parse(await f.text());
-    if (!d || d.app !== "handschrift" || !d.g) { toast("Das ist keine Handschrift-Datei"); return; }
-    await HS.ownSetzen(d); schriftSichern(); schriftHoch(); S.font = "own"; fontsBauen(); statusZeigen(); neuZeichnen(0); fensterZu(); toast("Schrift geladen");
+    if (!d || d.app !== "handschrift" || !(d.g || d.abschriften)) { toast("Das ist keine Handschrift-Datei"); return; }
+    const ab = alsAbschriften(d);
+    try {
+      if (sb && ich) {
+        if (HSL.length >= MAX_HS) { toast("Du hast schon 5 Handschriften. Lösch zuerst eine im Profil."); return; }
+        await hsNeu("Importiert", ab, ab.map(a => Object.assign(metaVon(Object.keys(a.g || {}).length, Object.keys(a.w || {}).length), { datum: null })));
+      } else { await HS.ownSetzen({ abschriften: ab }); schriftSichern(); fontsBauen(); statusZeigen(); neuZeichnen(0); }
+      S.font = "own"; speichern(); fontsBauen(); neuZeichnen(0); fensterZu(); toast("Schrift geladen");
+    } catch (er) { toast(kontoFehler(er && er.message)); }
   });
   // Schriften nachladen und neu zeichnen, sobald sie da sind
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => neuZeichnen(0));
