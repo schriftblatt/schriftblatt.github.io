@@ -1176,9 +1176,20 @@ const HS = (function () {
     let nW = 0;
     for (let i = rows.length - 1; i >= 0 && nW < 4 && rows.length - nW > 1 && wortig(rows[i]); i--) nW++;
     const zz = rows.slice(0, rows.length - nW), wz = rows.slice(rows.length - nW);
-    // Sehr breite Stücke in Zeichenzeilen sind Durchgestrichenes oder Kleckse
+    // Durchgestrichenes und Kleckse: entweder sehr breit, oder fast flächig voll Tinte.
+    // Ein Buchstabe besteht aus dünnen Strichen und füllt seinen Kasten nur zu einem kleinen Teil.
     const mwC = median(zz.flatMap(z => z.grs.map(breite))) || mwAll;
-    zz.forEach(z => z.grs.forEach(g => { g.junk = breite(g) > 2.5 * mwC; }));
+    const hoch = g => g.maxy - g.miny + 1;
+    // Verglichen mit der Strichstärke der Zeile, damit dicke Stifte nicht als Gekritzel gelten
+    const fuell = g => g.area / (breite(g) * hoch(g));
+    rows.forEach(z => { z.fMed = median(z.grs.filter(g => hoch(g) > 0.5 * hZ(z)).map(fuell)) || 0.3; });
+    const sehrDicht = (g, z, faktor) => fuell(g) > Math.max(0.45, faktor * z.fMed) && hoch(g) > 0.5 * hZ(z) && breite(g) > 0.35 * mwC;
+    // In Zeichenzeilen: sehr breit, sehr dicht, oder etwas dichter und dabei breiter als jeder Buchstabe (dünnes Gekritzel)
+    const zeichenMuell = (g, z) => breite(g) > 2.5 * mwC || sehrDicht(g, z, 1.7)
+      || (fuell(g) > Math.max(0.3, 1.25 * z.fMed) && breite(g) > 1.6 * mwC && hoch(g) > 0.6 * hZ(z));
+    zz.forEach(z => z.grs.forEach(g => { g.junk = zeichenMuell(g, z); }));
+    // In Wortzeilen sind Stücke ohnehin breit, dort zählt nur die Dichte
+    wz.forEach(z => z.grs.forEach(g => { g.junk = sehrDicht(g, z, 1.5); }));
     const zaehle = z => z.grs.filter(g => !g.junk).length;
     const SEK = [ZEILEN[0].teile.concat(ZEILEN[1].teile), ZEILEN[2].teile.concat(ZEILEN[3].teile), ZEILEN[4].teile, ZEILEN[5].teile];
     // Zeichenzeilen so auf die 4 Abschnitte verteilen, dass die Anzahlen am besten passen
@@ -1194,7 +1205,7 @@ const HS = (function () {
     const abschnitte = []; let iE = Lz;
     for (let sI = Sn; sI >= 1; sI--) { const j = von[iE][sI]; abschnitte[sI - 1] = zz.slice(j, iE); iE = j; }
     // Anzahl im Abschnitt angleichen: engste Lücke verbinden oder breitestes Stück teilen
-    const anpassen = (zeilen, soll, mitJunk) => {
+    const anpassen = (zeilen, soll, mitJunk, darfTeilen = true) => {
       const ok = g => mitJunk || !g.junk;
       let ist = zeilen.reduce((s, z) => s + z.grs.filter(ok).length, 0);
       while (ist > soll) {
@@ -1203,7 +1214,7 @@ const HS = (function () {
         if (!best) break;
         verschmelzen(best.z.grs[best.i], best.z.grs[best.i + 1]); best.z.grs.splice(best.i + 1, 1); ist--;
       }
-      while (ist < soll) {
+      while (ist < soll && darfTeilen) {
         // Erst schauen, ob ein Buchstabe am Rand eines Kleckses klebt (volle Höhe am Rand, flach in der Mitte)
         let abgetrennt = false;
         for (const z of zeilen) {
@@ -1254,10 +1265,31 @@ const HS = (function () {
     // Wortzeilen: dichte Buchstaben zu Wörtern verbinden, bis es so viele Wörter sind wie verlangt
     if (wz.length) {
       // Fehlt die Reihe mit den Buchstabenpaaren (ältere Blätter), sind es nur die Wortreihen
-      const wReihen = ZEILEN.filter(Z => Z.art === "w"), Wd = wReihen.slice(Math.max(0, wReihen.length - wz.length)).flatMap(Z => Z.teile);
-      anpassen(wz, Wd.length, true);
-      let p = 0;
-      wz.forEach(z => { z.vorschlag = z.grs.map(() => p < Wd.length ? Wd[p++] : "#").join(" "); });
+      // Jede Wortzeile für sich: Fehlt in einer Zeile ein Wort, verschiebt das nicht die Zeilen danach.
+      // Wörter werden nie geteilt, sonst entstehen halbe Wörter. Passt die Anzahl nicht, zeigt der Prüfschritt das orange.
+      const wReihen = ZEILEN.filter(Z => Z.art === "w"), genutzt = wReihen.slice(Math.max(0, wReihen.length - wz.length));
+      wz.forEach((z, i) => {
+        const teile = genutzt[i].teile, h = hZ(z);
+        // Wie viele Wörter stehen wirklich da? Die großen Lücken zwischen Wörtern sind deutlich größer als die in einem Wort
+        const lu = z.grs.slice(1).map((x, k) => (x.minx - z.grs[k].maxx) / h), so = lu.slice().sort((a, b) => a - b);
+        let schw = null, sprung = 0;
+        for (let k = 0; k < so.length - 1; k++) { const sp = so[k + 1] - so[k]; if (so[k + 1] > 0.3 && sp > sprung) { sprung = sp; schw = (so[k] + so[k + 1]) / 2; } }
+        if (schw != null) {
+          const gruppen = [z.grs[0]];
+          for (let k = 1; k < z.grs.length; k++) {
+            if (lu[k - 1] < schw) { const a = gruppen[gruppen.length - 1], b = z.grs[k]; a.junk = a.junk || b.junk; verschmelzen(a, b); } else gruppen.push(z.grs[k]);
+          }
+          const nJ = gruppen.filter(g => !g.junk).length;
+          // Nah an der Vorlage: so übernehmen, wie geschrieben. Weicht es ab, bleibt der Vorschlag die ganze Reihe und die Zeile wird orange.
+          if (Math.abs(nJ - teile.length) <= 2) {
+            z.grs = gruppen;
+            if (nJ !== teile.length) { z.vorschlag = teile.join(" "); return; }
+          }
+        }
+        anpassen([z], teile.length, false, false);
+        let p = 0;
+        z.vorschlag = z.grs.map(g => g.junk ? "#" : (p < teile.length ? teile[p++] : "#")).join(" ");
+      });
     }
 
     // 8. Bild jeder Zeile plus Lage der Kästen, die Beschriftung zeichnet die Oberfläche
@@ -1764,6 +1796,7 @@ function pruefenZeigen(res) {
     ${res.zeilen.map((z, i) => `<div class="zeile-pruef">
       <canvas data-bild="${i}" width="${z.w}" height="${z.h}"></canvas>
       <div class="reihe"><input type="text" data-zeile="${i}" data-n="${z.anzahl}" value="${esc(z.vorschlag)}" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Zeile ${i + 1}"><span class="anz" data-anz="${i}"></span></div>
+      <p class="hint" data-hilfe="${i}" hidden></p>
     </div>`).join("")}
     <div class="field"><span class="lbl">Welche Abschrift ist das?</span><div class="modus" id="abschriftModus"><button type="button" data-v="1">1. Abschrift</button><button type="button" data-v="2">2. Abschrift</button></div><p class="hint" id="abschriftHinweis"></p></div>
     <p class="err" id="pruefFehler"></p>
@@ -1791,6 +1824,9 @@ function pruefenZeigen(res) {
     const n = +inp.dataset.n, t = tokenZahl(inp.value), el = box.querySelector(`[data-anz="${inp.dataset.zeile}"]`);
     el.textContent = t === n ? `${n} passt` : !t ? "wird übersprungen" : `${n} Kästen, ${t} eingetragen`;
     el.className = "anz " + (t === n || !t ? "ok" : "warn");
+    const hilfe = box.querySelector(`[data-hilfe="${inp.dataset.zeile}"]`);
+    hilfe.hidden = !t || t === n;
+    hilfe.textContent = t > n ? `Hier stehen ${t - n} ${t - n === 1 ? "Zeichen" : "Zeichen"} zu viel im Text. Lösch, was du in dieser Zeile nicht geschrieben hast.` : `Im Text fehlen ${n - t}. Ergänze, was in dieser Zeile steht, oder setz # für Durchgestrichenes.`;
     zeichnen(+inp.dataset.zeile);
   };
   box.querySelectorAll("[data-zeile]").forEach(inp => { zaehlen(inp); inp.addEventListener("input", () => zaehlen(inp)); });
