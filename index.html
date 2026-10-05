@@ -787,7 +787,10 @@ const HS = (function () {
     let measure, drawWord;
     // Unordentlich heißt: jeder Buchstabe etwas anders groß, breit, geneigt, versetzt und anders weit vom Nachbarn
     if (useOwn) {
-      const gapPx = (own.gap == null ? 0.16 : own.gap) * xh;
+      // Buchstabenabstand: eingelesener Abstand plus Regler (-60 bis +100 %). Verstellt man ihn deutlich,
+      // werden ganze eingelesene Wörter und Buchstabenpaare nicht benutzt, weil ihr Abstand im Bild feststeht
+      const abst = (o.abstand || 0) / 100, ganze = Math.abs(abst) <= 0.1;
+      const gapPx = (own.gap == null ? 0.16 : own.gap) * xh + abst * 0.35 * xh;
       // Ein Wort besteht aus Stücken: eigene Zeichen, ganze eigene Wörter oder Ersatzschrift
       // Ein Wort besteht aus Stücken: ganzes eigenes Wort, Buchstabenpaar (ch, sch, ei ...), Einzelzeichen oder Ersatzschrift.
       // id ist die laufende Nummer des Worts im Text, damit dasselbe Wort an anderer Stelle andere Fassungen bekommt.
@@ -799,7 +802,7 @@ const HS = (function () {
             let paar = null;
             for (const n of [3, 2]) {
               const st = zs.slice(i, i + n).join("");
-              if (zs.length - i >= n && PAARE.has(st)) { paar = wortFuer(st, hsh(id, off + i, sd + 7)); if (paar) { out.push({ m: paar, s: xh / paar.x, adv: paar.w * xh / paar.x + gapPx, wort: true }); i += n; break; } }
+              if (ganze && zs.length - i >= n && PAARE.has(st)) { paar = wortFuer(st, hsh(id, off + i, sd + 7)); if (paar) { out.push({ m: paar, s: xh / paar.x, adv: paar.w * xh / paar.x + gapPx, wort: true }); i += n; break; } }
             }
             if (paar) continue;
             const gl = glyphFor(zs[i], hsh(id, off + i, sd));
@@ -808,7 +811,7 @@ const HS = (function () {
             i++;
           }
         };
-        const wi = p.core && wortFuer(p.core, hsh(id, 99, sd));
+        const wi = ganze && p.core && wortFuer(p.core, hsh(id, 99, sd));
         if (wi) { chars(p.lead, 0); const s = xh / wi.x; out.push({ m: wi, s, adv: wi.w * s + gapPx, wort: true }); chars(p.trail, 50); }
         else chars(t, 0);
         return out;
@@ -832,7 +835,8 @@ const HS = (function () {
       };
     } else {
       const px = fontPxFor(font.css, xh), fstr = `${px}px "${font.css}"`;
-      measure = w => { mctx.font = fstr; return mctx.measureText(w).width; };
+      const extra = (o.abstand || 0) / 100 * 0.3 * xh;
+      measure = w => { mctx.font = fstr; return mctx.measureText(w).width + extra * Math.max(0, [...w].length - 1); };
       // Strichstärke für fertige Schriften: dünner durch Abtragen am Rand, dicker durch Nachziehen der Kontur
       const st = (o.staerke || 100) / 100, abtragen = st < 1 ? px * 0.065 * (1 - st) : 0, auftragen = st > 1 ? px * 0.07 * (st - 1) : 0;
       const zeichen = (g, ch) => {
@@ -848,15 +852,15 @@ const HS = (function () {
           const cw = g.measureText(ch).width, sx = 1 + r.j() * 0.10 * kk, sy = 1 + r.j() * 0.14 * kk;
           g.save(); g.translate(cx, r.j() * 0.45 * MM * kk); g.rotate(r.j() * 0.02 * kk); g.transform(1, 0, r.j() * 0.18 * kk, 1, 0, 0);
           g.scale(sx, sy); zeichen(g, ch); g.restore();
-          cx += cw * sx + r.j() * 0.1 * xh * kk;
+          cx += cw * sx + r.j() * 0.1 * xh * kk + extra;
         }
-        return cx;
+        return cx - extra;
       };
     }
 
     // Zeilen umbrechen. Jede Zeile bekommt ihren eigenen Anfang und ihr eigenes Ende.
     // Wortabstand: aus den eigenen Wortreihen gelernt, sonst Standard
-    const spaceW = (useOwn && own.space ? own.space : 0.95) * xh, fullW = (geo.right - geo.left) * 0.98, indentW = 8 * MM;
+    const spaceW = (useOwn && own.space ? own.space : 0.95) * xh * (1 + Math.max(0, (o.abstand || 0) / 100) * 0.8), fullW = (geo.right - geo.left) * 0.98, indentW = 8 * MM;
     const lr = rng(((o.seed || 1) ^ 0x9e3779b9) >>> 0), sA = (o.starts || 0) / 100, sE = (o.ends || 0) / 100;
     let walk = 0;
     const neueZeile = indent => {
@@ -1789,7 +1793,7 @@ const UMSCHREIBEN = (function () {
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  staerke: 100, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", schriftId: "", blaetter: [], blattId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
+  staerke: 100, abstand: 0, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", schriftId: "", blaetter: [], blattId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
@@ -1801,6 +1805,7 @@ const stufe = (v, a, b, c, d) => v < 15 ? a : v < 45 ? b : v < 75 ? c : d;
 const REGLER = [
   { grp: "schrift", id: "size", label: "Größe", min: 60, max: 160, step: 5, fmt: v => v + " %" },
   { grp: "schrift", id: "pitch", label: "Zeilenabstand", min: 6, max: 14, step: 0.5, fmt: v => S.paper === "grid" ? Math.max(1, Math.round(v / 5)) + " Kästchen" : fmtZahl(v) + " mm" },
+  { grp: "schrift", id: "abstand", label: "Buchstabenabstand", min: -60, max: 100, step: 5, fmt: v => v === 0 ? "wie geschrieben" : v < 0 ? "enger, " + v + " %" : "weiter, +" + v + " %" },
   { grp: "schrift", id: "staerke", label: "Strichstärke", min: 40, max: 160, step: 5, nurFertig: true, fmt: v => v === 100 ? "wie die Schrift" : v < 100 ? "dünner, " + v + " %" : "dicker, " + v + " %" },
   { grp: "schrift", id: "slant", label: "Schräglage", min: -15, max: 15, step: 1, fmt: v => v === 0 ? "wie geschrieben" : (v > 0 ? "nach rechts " : "nach links ") + Math.abs(v) + "°" },
   { grp: "ordnung", id: "messy", label: "Unordentlich", min: 0, max: 100, step: 5, fmt: v => stufe(v, "sehr sauber", "sauber", "normal", "hingeschmiert") },
@@ -1880,7 +1885,7 @@ function blattMenue() {
 function zeichenOpts(extra) {
   return Object.assign({
     paras: (_plan || FEHLER.plan(S.text, S.errors, S.seed)).paras, font: effFont(), tpl: S.tpl, paper: S.paper, dark: S.ton === "dunkel", ink: S.ink, size: S.size, pitchMM: S.pitch,
-    messy: S.messy, drift: S.drift, slant: S.slant, staerke: S.staerke, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
+    messy: S.messy, drift: S.drift, slant: S.slant, staerke: S.staerke, abstand: S.abstand, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
     titel: S.titel.trim(), datum: S.datum, zeit: S.zeit
   }, extra || {});
 }
