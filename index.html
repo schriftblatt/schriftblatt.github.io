@@ -2621,19 +2621,31 @@ function chatAnsichtMalen() {
       <div class="reihe zwischen"><button class="btn ghost" data-c="einfuegen">${CI.einfuegen}Einfügen</button><button class="btn primary" data-c="senden">${CI.senden}Senden</button></div></div>`;
   if (_nachr.length) { nachrichtenMalen(); zumEnde(); }
 }
+// Nur eine Abfrage zur Zeit, und jede Nachricht nur einmal (vorher doppelten sich Nachrichten nach dem Neuladen,
+// weil zwei Abfragen gleichzeitig liefen und die zweite die ganze Liste noch einmal anhängte)
+let _laedt = null;
 async function nachrichtenLaden(ganz) {
   const id = _chatOffen; if (!id || !ich) return;
-  let r;
-  if (ganz || !_nachr.length) r = await sb.from("nachrichten").select("id,von,von_name,text,titel,pdf,erstellt").eq("chat_id", id).order("erstellt", { ascending: false }).limit(200);
-  else r = await sb.from("nachrichten").select("id,von,von_name,text,titel,pdf,erstellt").eq("chat_id", id).gt("erstellt", _nachr[_nachr.length - 1].erstellt).order("erstellt", { ascending: true });
-  if (id !== _chatOffen || r.error) return;
-  const neu = ganz || !_nachr.length ? (r.data || []).reverse() : (r.data || []);
-  if (!ganz && _nachr.length && !neu.length) return;
-  const unten = nahUnten();
-  _nachr = ganz || !_nachr.length ? neu : _nachr.concat(neu);
-  nachrichtenMalen();
-  if (ganz || unten) zumEnde();
-  if (_nachr.length) sb.from("chat_mitglieder").update({ gelesen_bis: _nachr[_nachr.length - 1].erstellt }).eq("chat_id", id).eq("user_id", ich.id).then(() => {});
+  if (_laedt && _laedt.id === id) { if (ganz) _laedt.nochmal = true; return _laedt.p; }
+  const lauf = { id, nochmal: false };
+  lauf.p = (async () => {
+    const voll = ganz || !_nachr.length;
+    const q = sb.from("nachrichten").select("id,von,von_name,text,titel,pdf,erstellt").eq("chat_id", id);
+    const r = voll ? await q.order("erstellt", { ascending: false }).limit(200)
+                   : await q.gt("erstellt", _nachr[_nachr.length - 1].erstellt).order("erstellt", { ascending: true });
+    if (id !== _chatOffen || r.error) return;
+    const daten = voll ? (r.data || []).reverse() : (r.data || []);
+    if (!voll && !daten.length) return;
+    const unten = nahUnten();
+    const alt = voll ? [] : _nachr, schon = new Set(alt.map(n => n.id));
+    _nachr = alt.concat(daten.filter(n => !schon.has(n.id)));
+    nachrichtenMalen();
+    if (voll || unten) zumEnde();
+    if (_nachr.length) sb.from("chat_mitglieder").update({ gelesen_bis: _nachr[_nachr.length - 1].erstellt }).eq("chat_id", id).eq("user_id", ich.id).then(() => {});
+  })();
+  _laedt = lauf;
+  try { await lauf.p; } finally { if (_laedt === lauf) _laedt = null; }
+  if (lauf.nochmal) return nachrichtenLaden(true);
 }
 // Vorschaubilder holen: signierte Links für alle Bilder auf einmal, gemerkt für eine Stunde
 const _bildUrl = {};
