@@ -71,7 +71,21 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .rechtlinks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:13px;margin:14px 0 0}
 .vorschau-leiste .btn{flex-shrink:0}
 @media (max-width:520px){ #pdfBtn .lbl-txt,#sendenBtn .lbl-txt{display:none} #pdfBtn,#sendenBtn{width:44px;padding:0} }
-/* Meine Blätter */
+/* Deine Blätter */
+.blatt-liste{display:flex;flex-direction:column;gap:6px}
+.blatt-zeile{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--radius);padding:8px 12px;min-height:48px;font:inherit;cursor:pointer}
+.blatt-zeile[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.blatt-zeile .fach{font-size:11.5px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.blatt-name{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blatt-zeit{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.blatt-aktiv{font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.faecher{display:flex;flex-wrap:wrap;gap:8px}
+.fach-knopf{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 14px;min-height:44px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.fach-knopf[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+#einlesenKlapp:not([open]){background:var(--surface)}
+/* Handy: Blatt-Auswahl steht über der Vorschau (wird per Skript vor die Vorschau gehängt) */
+.layout>#blattAuswahl{order:-2;margin-bottom:16px}
+body:not([data-tab="blatt"]) .layout>#blattAuswahl{display:none}
 .blatt-wahl{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .blatt-wahl::-webkit-scrollbar{display:none}
 .blatt-chip{flex:0 0 auto;max-width:180px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:6px 14px;min-height:40px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -384,11 +398,35 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
     <section class="sicht" id="sicht-schrift">
       <div class="sicht-kopf">
         <h2>Deine Schrift</h2>
-        <p class="unter">Einmal das Alphabet und ein paar Wörter abschreiben, Foto hochladen, fertig.</p>
+        <p class="unter">Wie du schreibst: Schriftart, Größe, Abstände, Stift und wie ordentlich. Gilt für jedes Blatt.</p>
       </div>
+      <div id="stilTeil" class="sicht">
+      <div class="block gruppe">
+        <div class="sec-label">Schriftart</div>
+        <div class="schriften" id="fontWahl" role="radiogroup" aria-label="Schriftart"></div>
+        <div class="gruppe" id="grp-schrift"></div>
+        <div class="field"><span class="lbl">Stift</span><div class="modus" id="stiftModus"></div>
+          <p class="hint" id="stiftHinweis" hidden>Auf dunklem Hintergrund schreibt der Stift weiß.</p></div>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Wie ordentlich</div>
+        <div class="gruppe" id="grp-ordnung"></div>
+        <details class="klapp" id="fehlerKlapp" hidden>
+          <summary id="fehlerSumme"></summary>
+          <div class="klapp-in"><ul class="fehlerliste" id="fehlerListe"></ul></div>
+        </details>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Zeilen</div>
+        <div class="gruppe" id="grp-zeilen"></div>
+        <label class="check"><input type="checkbox" id="einzugCheck"><span><b>Absätze einrücken</b>Erste Zeile jedes Absatzes beginnt weiter rechts.</span></label>
+      </div>
+      </div>
+      <div id="einlesenTeil" class="sicht">
+      <div class="sec-label" id="einlesenTitel">Handschrift einlesen</div>
       <div id="schriftStatus"></div>
-
-      <div class="block" id="anleitung">
+      <details class="klapp" id="einlesenKlapp" open><summary>Neues Foto einlesen</summary><div class="klapp-in">
+      <div id="anleitung">
         <ol class="anl">
           <li><b>Papier, Heft oder iPad.</b> Liniert, kariert oder weiß. Auf Papier ein dunkler Kuli oder Fineliner.</li>
           <li><b>Diese Reihen abschreiben.</b> Jede Reihe auf eine eigene Linie, dabei die Regeln unten beachten. Verschrieben? Kein Problem, das korrigierst du gleich danach.</li>
@@ -409,6 +447,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
           <span class="nur-finger">Antippen und aus Fotos oder Dateien wählen</span>
         </div>
       </div>
+      </div></details>
 
       <div class="block" id="ausschnitt" hidden>
         <h3>Ausschnitt wählen</h3>
@@ -431,6 +470,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       </div>
 
       <div id="ergebnis" hidden></div>
+      </div>
       <input type="file" accept="image/*" id="fotoInput" hidden>
     </section>
 
@@ -438,11 +478,14 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
     <section class="sicht" id="sicht-blatt" hidden>
       <div class="sicht-kopf nur-gross">
         <h2>Dein Blatt</h2>
-        <p class="unter">Jede Änderung siehst du sofort rechts.</p>
+        <p class="unter">Blatt wählen oder neu anlegen, Text rein, Vorlage und Papier einstellen.</p>
+      </div>
+      <div class="block gruppe" id="blattAuswahl">
+        <div class="reihe zwischen"><div class="sec-label">Deine Blätter</div><button class="btn primary" id="blattNeuBtn">+ Neues Blatt</button></div>
+        <div class="blatt-liste" id="blattListe"></div>
       </div>
       <div class="block gruppe">
-        <div class="reihe zwischen"><div class="sec-label">Meine Blätter</div><button class="btn ghost klein" id="blattMenue" aria-label="Blatt umbenennen oder löschen">Umbenennen, Löschen</button></div>
-        <div class="blatt-wahl" id="blattWahl" role="tablist" aria-label="Meine Blätter"></div>
+        <div class="reihe zwischen"><b class="blatt-aktiv" id="blattAktiv"></b><button class="btn ghost klein" id="blattMenue">Umbenennen, Löschen</button></div>
         <textarea id="textFeld" spellcheck="false" aria-label="Text" placeholder="Text hier einfügen oder tippen"></textarea>
         <div class="reihe zwischen">
           <span class="hint mono" id="textZahl"></span>
@@ -462,30 +505,10 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
         </div>
       </div>
       <div class="block gruppe">
-        <div class="sec-label">Papier und Stift</div>
+        <div class="sec-label">Papier</div>
         <div class="field"><span class="lbl">Papier</span><div class="modus" id="papierModus"></div></div>
         <div class="field"><span class="lbl">Hintergrund</span><div class="modus" id="tonModus"></div></div>
-        <div class="field"><span class="lbl">Stift</span><div class="modus" id="stiftModus"></div>
-          <p class="hint" id="stiftHinweis" hidden>Auf dunklem Hintergrund schreibt der Stift weiß.</p></div>
         <label class="check"><input type="checkbox" id="randCheck"><span><b>Roter Rand</b>Randlinie rechts, wie im Schulheft.</span></label>
-      </div>
-      <div class="block gruppe">
-        <div class="sec-label">Schrift</div>
-        <div class="schriften" id="fontWahl" role="radiogroup" aria-label="Schriftart"></div>
-        <div class="gruppe" id="grp-schrift"></div>
-      </div>
-      <div class="block gruppe">
-        <div class="sec-label">Wie ordentlich</div>
-        <div class="gruppe" id="grp-ordnung"></div>
-        <details class="klapp" id="fehlerKlapp" hidden>
-          <summary id="fehlerSumme"></summary>
-          <div class="klapp-in"><ul class="fehlerliste" id="fehlerListe"></ul></div>
-        </details>
-      </div>
-      <div class="block gruppe">
-        <div class="sec-label">Zeilen</div>
-        <div class="gruppe" id="grp-zeilen"></div>
-        <label class="check"><input type="checkbox" id="einzugCheck"><span><b>Absätze einrücken</b>Erste Zeile jedes Absatzes beginnt weiter rechts.</span></label>
       </div>
     </section>
     <section class="sicht" id="sicht-chats" hidden>
@@ -1843,22 +1866,31 @@ function tab(t, scroll) {
 
 /* ---------- Blatt neu zeichnen ---------- */
 let _zt = 0, _plan = null;
-/* ---------- Meine Blätter: mehrere Texte, im Konto über die Einstellungen gesichert ---------- */
-const MAX_BLAETTER = 30;
+/* ---------- Deine Blätter: jedes Blatt hat ein Fach, oben im Reiter Blatt die letzten zum Antippen ----------
+   Gespeichert über die Einstellungen im Konto (nur Text, wenige KB pro Blatt). */
+const MAX_BLAETTER = 50, LISTE_KURZ = 6;
+const FAECHER = ["Deutsch", "Mathe", "Englisch", "Bio", "Geschichte", "Erdkunde", "Politik", "Physik", "Chemie", "Französisch", "Spanisch", "Latein", "Religion", "Ethik", "Kunst", "Musik", "Informatik", "Sonstiges"];
+let _listeAlle = false;
 const aktivBlatt = () => (S.blaetter || []).find(b => b.id === S.blattId);
-const blattName = b => b.name || (String(b.text || "").split("\n").find(z => z.trim()) || "Leeres Blatt").trim().slice(0, 28);
+const blattName = b => b.name || (String(b.text || "").split("\n").find(z => z.trim()) || "Neues Blatt").trim().slice(0, 40);
+const blattZeit = t => { if (!t) return ""; const d = new Date(t), h = new Date(), tage = Math.round((new Date(h.toDateString()) - new Date(d.toDateString())) / 864e5);
+  return tage === 0 ? "heute " + zwei(d.getHours()) + ":" + zwei(d.getMinutes()) : tage === 1 ? "gestern" : tage < 7 ? ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()] + ", " + zwei(d.getDate()) + "." + zwei(d.getMonth() + 1) + "." : zwei(d.getDate()) + "." + zwei(d.getMonth() + 1) + "." + d.getFullYear(); };
 function blattMerken() {
   if (!Array.isArray(S.blaetter)) S.blaetter = [];
-  if (!S.blaetter.length) { S.blaetter.push({ id: "b" + Date.now().toString(36), name: "", text: S.text, titel: S.titel }); S.blattId = S.blaetter[0].id; }
+  if (!S.blaetter.length) { S.blaetter.push({ id: "b" + Date.now().toString(36), name: "", fach: "", text: S.text, titel: S.titel, geaendert: Date.now() }); S.blattId = S.blaetter[0].id; }
   let b = aktivBlatt(); if (!b) { b = S.blaetter[0]; S.blattId = b.id; }
   if (b.text !== S.text || b.titel !== S.titel) { b.text = S.text; b.titel = S.titel; b.geaendert = Date.now(); }
 }
 function blaetterBauen() {
   blattMerken();
-  const box = $("blattWahl"); if (!box) return;
-  box.innerHTML = S.blaetter.map(b => `<button type="button" class="blatt-chip" data-blatt="${b.id}" aria-pressed="${b.id === S.blattId}">${esc(blattName(b))}</button>`).join("")
-    + (S.blaetter.length < MAX_BLAETTER ? '<button type="button" class="blatt-chip neu" data-blatt-neu>+ Neues Blatt</button>' : "");
-  const an = box.querySelector('[aria-pressed="true"]'); if (an) an.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const box = $("blattListe"); if (!box) return;
+  const sortiert = S.blaetter.slice().sort((a, b) => (b.geaendert || 0) - (a.geaendert || 0));
+  const zeigen = _listeAlle ? sortiert : sortiert.slice(0, LISTE_KURZ);
+  box.innerHTML = zeigen.map(b => `<button type="button" class="blatt-zeile" data-blatt="${b.id}" aria-pressed="${b.id === S.blattId}">
+      <span class="fach">${esc(b.fach || "Ohne Fach")}</span><span class="blatt-name">${esc(blattName(b))}</span><span class="blatt-zeit mono">${blattZeit(b.geaendert)}</span></button>`).join("")
+    + (sortiert.length > LISTE_KURZ ? `<button type="button" class="link" data-alle>${_listeAlle ? "Weniger zeigen" : "Alle " + sortiert.length + " Blätter zeigen"}</button>` : "");
+  const b = aktivBlatt();
+  $("blattAktiv").textContent = b ? (b.fach ? b.fach + ": " : "") + blattName(b) : "";
 }
 function blattZeigen() {
   const b = aktivBlatt(); if (!b) return;
@@ -1866,24 +1898,46 @@ function blattZeigen() {
   $("textFeld").value = S.text; $("titelFeld").value = S.titel; textZahl(); $("originalBtn").hidden = true; $("nameFeld").placeholder = autoName();
   speichern(); blaetterBauen(); neuZeichnen(0);
 }
-function blattWechseln(id) { speichern(); S.blattId = id; blattZeigen(); }
-function blattNeu(text, name) {
+function blattWechseln(id) { speichern(); S.blattId = id; const b = aktivBlatt(); if (b) b.geaendert = b.geaendert || Date.now(); blattZeigen(); }
+function blattNeu(text, name, fach) {
   speichern();
-  if (S.blaetter.length >= MAX_BLAETTER) { toast("Höchstens 30 Blätter. Lösch zuerst eins."); return false; }
-  const b = { id: "b" + Date.now().toString(36) + ((Math.random() * 1e4) | 0), name: name || "", text: text || "", titel: "" };
+  // Mehr als 50: das am längsten nicht geänderte Blatt fällt weg
+  if (S.blaetter.length >= MAX_BLAETTER) {
+    const alt = S.blaetter.slice().sort((a, b) => (a.geaendert || 0) - (b.geaendert || 0))[0];
+    S.blaetter = S.blaetter.filter(x => x !== alt); toast(`Ältestes Blatt „${blattName(alt)}“ entfernt (höchstens ${MAX_BLAETTER})`);
+  }
+  const b = { id: "b" + Date.now().toString(36) + ((Math.random() * 1e4) | 0), name: name || "", fach: fach || "", text: text || "", titel: "", geaendert: Date.now() };
   S.blaetter.push(b); S.blattId = b.id; blattZeigen();
   return true;
+}
+function fachKnoepfe(aktiv) { return `<div class="faecher">${FAECHER.map(f => `<button type="button" class="fach-knopf" data-fach="${esc(f)}" aria-pressed="${f === aktiv}">${esc(f)}</button>`).join("")}</div>`; }
+function blattNeuFenster() {
+  const body = fensterAuf("Neues Blatt", `
+    <div class="field"><label for="neuThema">Thema (wenn du willst)</label><input type="text" id="neuThema" maxlength="40" placeholder="z. B. Gedichtanalyse"></div>
+    <div class="sec-label">Fach antippen</div>
+    ${fachKnoepfe("")}`);
+  body.onclick = e => {
+    const f = e.target.closest("[data-fach]"); if (!f) return;
+    blattNeu("", body.querySelector("#neuThema").value.trim(), f.dataset.fach);
+    fensterZu(); tab("blatt"); setTimeout(() => $("textFeld").focus(), 60);
+  };
 }
 function blattMenue() {
   const b = aktivBlatt(); if (!b) return;
   const body = fensterAuf("Blatt verwalten", `
     <div class="field"><label for="blattNameFeld">Name</label><input type="text" id="blattNameFeld" maxlength="40" value="${esc(b.name)}" placeholder="${esc(blattName(Object.assign({}, b, { name: "" })))}"><span class="hint">Leer lassen: Das Blatt heißt wie die erste Zeile.</span></div>
+    <div class="sec-label">Fach</div>
+    ${fachKnoepfe(b.fach)}
     <button class="btn primary breit" id="blattNameOk">Speichern</button>
     <div class="reihe" data-zone style="margin-top:18px"><button class="btn ghost rot breit" id="blattWeg"${S.blaetter.length < 2 ? " disabled" : ""}>Blatt löschen</button></div>
     ${S.blaetter.length < 2 ? '<p class="hint">Das letzte Blatt kann nicht gelöscht werden. Leeren geht über den Knopf am Text.</p>' : ""}`);
-  body.querySelector("#blattNameOk").onclick = () => { b.name = body.querySelector("#blattNameFeld").value.trim(); speichern(); blaetterBauen(); fensterZu(); toast("Gespeichert"); };
+  let fach = b.fach || "";
+  body.querySelectorAll("[data-fach]").forEach(k => k.onclick = () => { fach = k.dataset.fach; body.querySelectorAll("[data-fach]").forEach(x => x.setAttribute("aria-pressed", String(x === k))); });
+  body.querySelector("#blattNameOk").onclick = () => { b.name = body.querySelector("#blattNameFeld").value.trim(); b.fach = fach; speichern(); blaetterBauen(); fensterZu(); toast("Gespeichert"); };
   body.querySelector("#blattWeg").onclick = e => zoneFragen(e.target, `„${esc(blattName(b))}“ löschen? Das geht nicht rückgängig.`, "Löschen", async () => {
-    S.blaetter = S.blaetter.filter(x => x !== b); S.blattId = S.blaetter[0].id; fensterZu(); blattZeigen(); toast("Gelöscht");
+    S.blaetter = S.blaetter.filter(x => x !== b);
+    S.blattId = S.blaetter.slice().sort((x, y) => (y.geaendert || 0) - (x.geaendert || 0))[0].id;
+    fensterZu(); blattZeigen(); toast("Gelöscht");
   }, () => { fensterZu(); blattMenue(); });
 }
 // Schriftgröße und notfalls Zeilenabstand so wählen, dass der Text genau die gewünschten Seiten füllt
@@ -1945,7 +1999,18 @@ function miniMalen() {
   const c = document.querySelector("#seiten canvas"), m = $("mini").querySelector("canvas");
   if (c) m.getContext("2d").drawImage(c, 0, 0, m.width, m.height);
 }
-function miniStand() { $("mini").hidden = !(handy() && S.tab === "blatt" && !_vorschauSichtbar && !document.body.classList.contains("gesperrt")); }
+// Auf dem Handy soll man zuerst das Blatt wählen, deshalb steht die Auswahl dort über der Vorschau
+function auswahlPlatzieren() {
+  const a = $("blattAuswahl"), lay = document.querySelector(".layout"), kopf = document.querySelector("#sicht-blatt .sicht-kopf");
+  if (!a || !lay || !kopf) return;
+  if (handy()) { if (a.parentNode !== lay) lay.insertBefore(a, lay.firstChild); }
+  else if (a.parentNode !== kopf.parentNode) kopf.after(a);
+}
+function miniStand() {
+  const zeigen = handy() && !document.body.classList.contains("gesperrt") &&
+    ((S.tab === "blatt" && !_vorschauSichtbar) || (S.tab === "schrift" && $("ausschnitt").hidden && $("ergebnis").hidden));
+  $("mini").hidden = !zeigen;
+}
 
 /* ---------- PDF teilen ----------
    Das PDF entsteht im Speicher und geht direkt ins Teilen-Menü des Handys (WhatsApp, AirDrop, In Dateien sichern ...).
@@ -2025,8 +2090,16 @@ function abschriftBauen() {
 }
 
 /* ---------- Eingelesene Schrift anzeigen ---------- */
+// Ohne eigene Schrift kommt das Einlesen zuerst, mit eigener Schrift die Einstellungen; das Einlesen klappt dann ein
+function schriftOrdnen(hat) {
+  const sec = $("sicht-schrift"), stil = $("stilTeil"), ein = $("einlesenTeil");
+  if (hat) sec.insertBefore(stil, ein); else sec.insertBefore(ein, stil);
+  $("einlesenKlapp").open = !hat;
+  $("einlesenTitel").textContent = hat ? "Deine Handschrift" : "Zuerst: Handschrift einlesen";
+}
 function statusZeigen() {
   const box = $("schriftStatus"), info = HS.ownInfo();
+  schriftOrdnen(!!info.zeichen);
   const ohne = OHNE_SPEICHER ? '<div class="hinweis warn"><b>Vorschau ohne Speichern</b>Dieser Browser erlaubt hier kein Speichern. Deine Schrift ist nach dem Neuladen weg.</div>' : "";
   if (!info.zeichen) {
     box.innerHTML = ohne + '<div class="hinweis"><b>Noch keine Schrift eingelesen</b>Bis dahin schreibt das Blatt mit einer Beispielschrift. So kannst du schon alles ausprobieren.</div>';
@@ -2044,7 +2117,7 @@ function statusZeigen() {
     ${woerter ? `<div class="woerter">${woerter}</div>` : ""}
     <p class="hint">Gestrichelte Kästchen fehlen noch, dort schreibt eine Ersatzschrift. Ein neues Foto ergänzt nur, was erkannt wird.</p>
     ${sb && !ich ? '<div class="hinweis warn"><b>Nur auf diesem Gerät gespeichert</b>Melde dich an, dann ist deine Schrift auf jedem Gerät da und geht nicht verloren.<div class="reihe" style="margin-top:8px"><button class="btn" data-konto>Anmelden oder registrieren</button></div></div>' : ""}
-    <button class="btn primary breit" data-geh="blatt">Weiter zum Blatt</button>
+
   </div>`;
 }
 
@@ -2344,16 +2417,37 @@ async function adminPruefen() {
 const deZeit = t => { if (!t) return "noch nie"; const d = new Date(t); return `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.${d.getFullYear()}, ${zwei(d.getHours())}:${zwei(d.getMinutes())} Uhr`; };
 async function testerListe() {
   const body = fensterAuf("Tester", '<p class="hint">Lädt …</p>', true);
-  const r = await sb.rpc("tester_liste");
-  if (r.error) { body.innerHTML = `<div class="hinweis bad"><b>Liste ging nicht</b>${esc(r.error.message)}</div>`; return; }
-  const l = r.data || [], best = l.filter(x => x.bestaetigt).length, schr = l.filter(x => x.hat_schrift).length;
-  body.innerHTML = `<div class="hint mono">${l.length} Konten, ${best} bestätigt, ${schr} mit eingelesener Schrift</div>
-    <ul class="tester">${l.map(x => `<li>
-      <b>${esc(x.name || "ohne Namen")}</b>
-      <span class="mono">${esc(anzeigeKonto(x.email))}</span>
-      <small>Registriert ${deZeit(x.angelegt)}. Zuletzt angemeldet ${deZeit(x.zuletzt)}.</small>
-      <span class="marken">${x.hat_schrift ? '<span class="m-ok">Schrift eingelesen</span>' : '<span class="m-leer">noch keine Schrift</span>'}</span>
-    </li>`).join("")}</ul>`;
+  const malen = async () => {
+    const r = await sb.rpc("tester_liste");
+    if (r.error) { body.innerHTML = `<div class="hinweis bad"><b>Liste ging nicht</b>${esc(r.error.message)}</div>`; return; }
+    const l = r.data || [], schr = l.filter(x => x.hat_schrift).length, gesp = l.filter(x => x.gesperrt).length;
+    body.innerHTML = `<div class="hint mono">${l.length} Konten, ${schr} mit eingelesener Schrift${gesp ? ", " + gesp + " gesperrt" : ""}</div>
+      <ul class="tester">${l.map(x => `<li>
+        <b>${esc(x.name || "ohne Namen")}</b>
+        <span class="mono">${esc(anzeigeKonto(x.email))}</span>
+        <small>Registriert ${deZeit(x.angelegt)}. Zuletzt angemeldet ${deZeit(x.zuletzt)}.</small>
+        <span class="marken">${x.gesperrt ? '<span class="m-warn">gesperrt</span>' : ""}${x.hat_schrift ? '<span class="m-ok">Schrift eingelesen</span>' : '<span class="m-leer">noch keine Schrift</span>'}</span>
+        ${x.id && x.id !== ich.id ? `<span class="reihe" data-zone><button class="btn ghost klein" data-sperren="${x.id}|${x.gesperrt ? 0 : 1}">${x.gesperrt ? "Entsperren" : "Sperren"}</button><button class="btn ghost klein rot" data-loeschen="${x.id}">Konto löschen</button></span>` : ""}
+      </li>`).join("")}</ul>`;
+  };
+  await malen();
+  body.onclick = e => adminKlick(e, malen);
+}
+// Admin: Konto sperren oder löschen (sql/09-melden-sperren.sql), aus Tester-Liste und Meldungen
+function adminKlick(e, danach) {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.sperren) {
+    const [id, an] = t.dataset.sperren.split("|");
+    zoneFragen(t, an === "1" ? "Konto sperren? Die Person wird abgemeldet und kommt nicht mehr rein." : "Konto wieder freigeben?", an === "1" ? "Sperren" : "Freigeben", async () => {
+      const r = await sb.rpc("admin_sperren", { p_user: id, p_an: an === "1" }); if (r.error) throw r.error;
+      toast(an === "1" ? "Gesperrt" : "Freigegeben"); danach();
+    }, danach);
+  } else if (t.dataset.loeschen) {
+    zoneFragen(t, "Konto mit allen Handschriften, Blättern und Chat-Mitgliedschaften endgültig löschen?", "Löschen", async () => {
+      const r = await sb.rpc("admin_loeschen", { p_user: t.dataset.loeschen }); if (r.error) throw r.error;
+      toast("Konto gelöscht"); danach();
+    }, danach);
+  }
 }
 
 /* ---------- Handschriften verwalten ----------
@@ -2482,7 +2576,7 @@ function profilMalen(body) {
       zone.querySelector("[data-name-ok]").onclick = async () => { const n = inp.value.trim(); if (n) { try { await hsUmbenennen(h.id, n); } catch (er) { fehler(er); } } profilMalen(body); };
       karte.scrollIntoView({ block: "nearest" });
     }
-    else if (t.hasAttribute("data-neu-hs")) { fensterZu(); tab("schrift"); setTimeout(() => $("anleitung").scrollIntoView({ behavior: "smooth" }), 50); }
+    else if (t.hasAttribute("data-neu-hs")) { fensterZu(); tab("schrift"); $("einlesenKlapp").open = true; setTimeout(() => $("anleitung").scrollIntoView({ behavior: "smooth" }), 50); }
     else if (t.id === "testerBtn") testerListe();
     else if (t.id === "nameAendernBtn") {
       const zone = t.closest("[data-zone]");
@@ -2572,6 +2666,12 @@ function zoneFragen(knopf, text, ja, los, zurueck) {
   zone.querySelector("[data-ja]").onclick = async e => { e.stopPropagation(); e.target.disabled = true; try { await los(); } catch (er) { toast(chatFehler(er)); zurueck(); } };
 }
 
+// Meldung speichern; ohne SQL 09 (Spalten betroffen und art fehlen) ohne diese Angaben
+async function melden(m) {
+  let r = await sb.from("meldungen").insert(m);
+  if (r.error && /betroffen|art/.test(r.error.message || "")) { const { betroffen, art, ...rest } = m; r = await sb.from("meldungen").insert(rest); }
+  return r;
+}
 async function chatsLaden() {
   const r = await sb.from("chats").select("id,name,privat,code,erstellt_von,erstellt,chat_mitglieder(user_id,name)").order("erstellt", { ascending: false });
   if (r.error) { CHATS = null; return false; }
@@ -2705,7 +2805,7 @@ async function senden(chatId, text, mitPdf) {
 }
 function insBlatt(text, titel) {
   // Als neues Blatt, damit der eigene Text nicht verloren geht
-  if (!blattNeu(text, titel || "")) return;
+  if (!blattNeu(text, titel || "", "Aus dem Chat")) return;
   tab("blatt");
   toast("Als neues Blatt in deiner Schrift angelegt");
 }
@@ -2776,7 +2876,8 @@ function infoFenster(c) {
       ${!c.privat && chef ? `<div class="field"><label for="gName">Name der Gruppe</label><div class="reihe" style="flex-wrap:nowrap"><input type="text" id="gName" value="${esc(c.name)}" maxlength="60"><button class="btn" id="gNameOk">Speichern</button></div></div>` : ""}
       <div class="sec-label">${c.privat ? "Im Chat" : "Mitglieder (" + ms.length + ")"}</div>
       <ul class="mitglieder">${ms.map(m => `<li><span><b>${esc(m.name)}${m.user_id === ich.id ? " (du)" : ""}</b>${m.user_id === c.erstellt_von && !c.privat ? "<small>hat die Gruppe erstellt</small>" : ""}</span>
-        <span class="reihe" data-zone>${m.user_id !== ich.id && !c.privat ? `<button class="btn ghost klein" data-privat="${m.user_id}">Privat schreiben</button>` : ""}${chef && m.user_id !== ich.id && !c.privat ? `<button class="btn ghost klein rot" data-raus="${m.user_id}">Entfernen</button>` : ""}</span></li>`).join("")}</ul>
+        <span class="reihe" data-zone>${m.user_id !== ich.id && !c.privat ? `<button class="btn ghost klein" data-privat="${m.user_id}">Privat schreiben</button>` : ""}${m.user_id !== ich.id ? `<button class="btn ghost klein" data-name-melden="${m.user_id}">Melden</button>` : ""}${chef && m.user_id !== ich.id && !c.privat ? `<button class="btn ghost klein rot" data-raus="${m.user_id}">Entfernen</button>` : ""}</span></li>`).join("")}</ul>
+      ${!c.privat && !chef ? '<div class="reihe" data-zone><button class="btn ghost klein" id="gruppeMelden">Gruppenname melden</button></div>' : ""}
       <div class="reihe" data-zone style="margin-top:14px">${chef ? `<button class="btn ghost rot breit" id="chatLoeschen">${c.privat ? "Chat löschen" : "Gruppe löschen"}</button>` : '<button class="btn ghost rot breit" id="chatVerlassen">Chat verlassen</button>'}</div>`;
   };
   malen();
@@ -2793,6 +2894,18 @@ function infoFenster(c) {
       const r = await sb.rpc("privat_mit", { p_user: t.dataset.privat });
       if (r.error) { toast(chatFehler(r.error)); t.disabled = false; return; }
       await chatsLaden(); fensterZu(); chatOeffnen(r.data);
+    } else if (t.dataset.nameMelden) {
+      const m = ms.find(x => x.user_id === t.dataset.nameMelden);
+      zoneFragen(t, `Den Namen „${esc(m.name)}“ dem Admin melden?`, "Melden", async () => {
+        const r = await melden({ chat_id: c.id, absender: m.name, text: "Name: " + m.name, betroffen: m.user_id, art: "name" }); if (r.error) throw r.error;
+        toast("Gemeldet, danke"); malen();
+      }, malen);
+    } else if (t.id === "gruppeMelden") {
+      zoneFragen(t, `Den Gruppennamen „${esc(c.name)}“ dem Admin melden?`, "Melden", async () => {
+        const ersteller = ms.find(x => x.user_id === c.erstellt_von);
+        const r = await melden({ chat_id: c.id, absender: ersteller ? ersteller.name : "", text: "Gruppenname: " + c.name, betroffen: c.erstellt_von, art: "gruppe" }); if (r.error) throw r.error;
+        toast("Gemeldet, danke"); malen();
+      }, malen);
     } else if (t.dataset.raus) {
       const m = ms.find(x => x.user_id === t.dataset.raus);
       zoneFragen(t, `${esc(m.name)} aus der Gruppe entfernen?`, "Entfernen", async () => {
@@ -2835,18 +2948,21 @@ async function blattSendenFenster() {
 }
 async function meldungenFenster() {
   const b = fensterAuf("Meldungen", '<p class="hint">Lädt …</p>', true);
+  const ARTEN = { nachricht: "Nachricht", name: "Name", gruppe: "Gruppenname" };
   const malen = async () => {
-    const r = await sb.from("meldungen").select("id,nachricht_id,absender,text,erstellt").order("erstellt", { ascending: false });
+    let r = await sb.from("meldungen").select("id,nachricht_id,absender,text,erstellt,betroffen,art").order("erstellt", { ascending: false });
+    if (r.error) r = await sb.from("meldungen").select("id,nachricht_id,absender,text,erstellt").order("erstellt", { ascending: false });   // SQL 09 noch nicht gelaufen
     if (r.error) { b.innerHTML = `<div class="hinweis bad"><b>Ging nicht</b>${esc(chatFehler(r.error))}</div>`; return; }
-    b.innerHTML = r.data.length ? `<ul class="mitglieder">${r.data.map(m => `<li style="flex-direction:column;align-items:stretch"><span><b>${esc(m.absender || "unbekannt")}</b><small>${deZeit(m.erstellt)}</small></span>
+    b.innerHTML = r.data.length ? `<ul class="mitglieder">${r.data.map(m => `<li style="flex-direction:column;align-items:stretch"><span><b>${esc(ARTEN[m.art] || "Nachricht")} von ${esc(m.absender || "unbekannt")}</b><small>${deZeit(m.erstellt)}</small></span>
       <div class="n-text">${esc(m.text)}</div>
-      <span class="reihe">${m.nachricht_id ? `<button class="btn danger" data-m-weg="${m.nachricht_id}|${m.id}">Nachricht löschen</button>` : '<span class="hint">Nachricht schon gelöscht</span>'}<button class="btn ghost" data-m-ok="${m.id}">Erledigt</button></span></li>`).join("")}</ul>` : '<p class="hint">Keine offenen Meldungen.</p>';
+      <span class="reihe" data-zone>${m.nachricht_id ? `<button class="btn danger" data-m-weg="${m.nachricht_id}|${m.id}">Nachricht löschen</button>` : ""}${m.betroffen ? `<button class="btn" data-sperren="${m.betroffen}|1">Konto sperren</button><button class="btn ghost rot" data-loeschen="${m.betroffen}">Konto löschen</button>` : ""}<button class="btn ghost" data-m-ok="${m.id}">Erledigt</button></span></li>`).join("")}</ul>` : '<p class="hint">Keine offenen Meldungen.</p>';
   };
   await malen();
   b.onclick = async e => {
     const t = e.target.closest("button"); if (!t) return;
     if (t.dataset.mWeg) { const [nid, mid] = t.dataset.mWeg.split("|"); await sb.from("nachrichten").delete().eq("id", nid); await sb.from("meldungen").delete().eq("id", mid); toast("Nachricht gelöscht"); malen(); }
     else if (t.dataset.mOk) { await sb.from("meldungen").delete().eq("id", t.dataset.mOk); malen(); }
+    else adminKlick(e, malen);
   };
 }
 async function chatKlick(e) {
@@ -2882,7 +2998,7 @@ async function chatKlick(e) {
     _nachr = _nachr.filter(x => x !== n); nachrichtenMalen();
   }, nachrichtenMalen);
   else if (t.hasAttribute("data-n-melden")) zoneFragen(t, "Diese Nachricht dem Admin melden? Er sieht dann den Text und den Absender.", "Melden", async () => {
-    const r = await sb.from("meldungen").insert({ nachricht_id: n.id, chat_id: n.chat_id || _chatOffen, absender: n.von_name, text: n.text.slice(0, 5000) }); if (r.error) throw r.error;
+    const r = await melden({ nachricht_id: n.id, chat_id: n.chat_id || _chatOffen, absender: n.von_name, text: n.text.slice(0, 5000), betroffen: n.von, art: "nachricht" }); if (r.error) throw r.error;
     toast("Gemeldet, danke"); nachrichtenMalen();
   }, nachrichtenMalen);
 }
@@ -2932,7 +3048,7 @@ const RECHT = {
     <h4>Angaben nach § 5 DDG</h4>
     <p>${esc(BETREIBER.name)}${adresseDa() ? `<br>${esc(BETREIBER.strasse)}<br>${esc(BETREIBER.ort)}` : "<br>Lemgo"}</p>
     ${/^\[/.test(BETREIBER.email) ? "" : `<h4>Kontakt</h4><p>E-Mail: ${esc(BETREIBER.email)}</p>`}
-    <h4>Verantwortlich für den Inhalt</h4><p>${esc(BETREIBER.name)}, Anschrift wie oben.</p>
+    <h4>Inhalte der Nutzer</h4><p>Für Namen, Gruppennamen, Nachrichten und Blätter, die Nutzer einstellen, sind diese selbst verantwortlich. Hinweise auf Verstöße bitte über „Melden“ in der App oder an die E-Mail oben, sie werden zügig geprüft.</p>
     <p>Schriftblatt ist ein kostenloses, privates Projekt ohne Werbung.</p>`],
   nutzung: ["Regeln", () => `
     <p>Schriftblatt setzt Texte in deiner Handschrift aufs Blatt. Damit das in Ordnung bleibt:</p>
@@ -2940,6 +3056,7 @@ const RECHT = {
       <li><b>Keine Unterschriften</b>, weder deine noch fremde.</li>
       <li><b>Keine Dokumente, die rechtlich zählen</b>: Entschuldigungen, Atteste, Verträge, Formulare, Erklärungen im Namen anderer. Wer so etwas fälscht, macht sich strafbar (Urkundenfälschung, § 267 StGB).</li>
       <li><b>Nur die eigene Handschrift einlesen</b>, nicht die von anderen Personen.</li>
+      <li><b>Keine beleidigenden oder anstößigen Namen</b>, weder für dich noch für Gruppen.</li>
       <li><b>In Chats fair bleiben:</b> kein Mobbing, keine Beleidigungen, nichts Sexuelles, keine Gewalt, keine Daten oder Fotos von anderen ohne deren Erlaubnis. Was dich stört, kannst du mit „Melden“ an den Admin geben.</li>
       <li>Ob du Blätter aus Schriftblatt in der Schule abgeben darfst, entscheidet deine Lehrkraft. Dafür bist du selbst verantwortlich.</li>
     </ul>
@@ -2951,7 +3068,7 @@ const RECHT = {
     <ul>
       <li><b>Konto:</b> Name, Benutzername (bei älteren Konten die E-Mail-Adresse), Passwort nur verschlüsselt, Zeitpunkt von Registrierung und letzter Anmeldung.</li>
       <li><b>Handschriften:</b> die ausgeschnittenen Buchstaben und Wörter aus deinem Foto, ein kleines Vorschaubild des Blatts, Datum und Anzahl der Zeichen. Das Foto selbst wird in deinem Browser ausgewertet und nicht hochgeladen.</li>
-      <li><b>Einstellungen:</b> deine Wahl bei Papier, Stift, Reglern sowie der zuletzt eingegebene Text, damit er auf jedem Gerät da ist.</li>
+      <li><b>Einstellungen:</b> deine Wahl bei Papier, Stift und Reglern sowie deine Blätter (Texte mit Fach und Namen), damit sie auf jedem Gerät da sind.</li>
       <li><b>Chats:</b> die Gruppen und privaten Chats, in denen du bist, dein Name als Mitglied, deine Nachrichten (Texte) und Blätter, die du als PDF mitschickst, mit Zeitpunkt.</li>
     </ul>
     <p>Die PDF-Dateien entstehen in deinem Gerät und werden nicht gespeichert.</p>
@@ -3175,10 +3292,12 @@ async function start() {
   $("teilenBtn").onclick = teilen;
   $("sendenBtn").onclick = blattSendenFenster;
   blaetterBauen();
-  $("blattWahl").addEventListener("click", e => {
+  $("blattListe").addEventListener("click", e => {
     const b = e.target.closest("[data-blatt]"); if (b) { if (b.dataset.blatt !== S.blattId) blattWechseln(b.dataset.blatt); return; }
-    if (e.target.closest("[data-blatt-neu]")) { if (blattNeu("")) $("textFeld").focus(); }
+    if (e.target.closest("[data-alle]")) { _listeAlle = !_listeAlle; blaetterBauen(); }
   });
+  $("blattNeuBtn").onclick = blattNeuFenster;
+  auswahlPlatzieren(); window.addEventListener("resize", auswahlPlatzieren);
   $("blattMenue").onclick = blattMenue;
   document.querySelectorAll("[data-einpassen]").forEach(b => b.onclick = async () => { b.disabled = true; try { await einpassen(+b.dataset.einpassen); } finally { b.disabled = false; } });
   // Name des Blatts folgt der ersten Zeile, solange es keinen eigenen Namen hat
