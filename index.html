@@ -1576,10 +1576,10 @@ const UMSCHREIBEN = (function () {
     ["danach", ["anschließend", "im Anschluss", "später"]], ["anschließend", ["danach", "im Anschluss"]],
     ["dann", ["danach", "anschließend"]], ["später", ["danach"]],
     ["jedoch", ["aber", "allerdings"], true], ["allerdings", ["jedoch", "aber"], true], ["aber", ["jedoch", "allerdings"], true],
-    ["auch", ["ebenfalls"], true], ["sehr", ["ziemlich", "wirklich", "echt"]], ["ziemlich", ["recht", "ganz schön"]],
-    ["viele", ["zahlreiche", "eine Menge"]], ["vielen", ["zahlreichen"]],
+    ["auch", ["ebenfalls"], true], ["sehr", ["ziemlich", "wirklich", "echt", "total", "richtig"]], ["ziemlich", ["recht", "ganz schön"]],
+    ["viele", ["zahlreiche", "eine Menge", "etliche"]], ["vielen", ["zahlreichen"]],
     ["wichtig", ["bedeutend", "entscheidend"]], ["wichtige", ["bedeutende", "entscheidende"]], ["wichtigen", ["bedeutenden", "entscheidenden"]],
-    ["deshalb", ["daher", "darum", "aus diesem Grund"]], ["daher", ["deshalb", "darum"]], ["darum", ["deshalb", "daher"]],
+    ["deshalb", ["daher", "darum", "aus diesem Grund", "deswegen"]], ["deswegen", ["deshalb", "daher"]], ["daher", ["deshalb", "darum"]], ["darum", ["deshalb", "daher"]],
     ["weil", ["da"]], ["obwohl", ["obgleich", "auch wenn"]],
     ["außerdem", ["zudem", "darüber hinaus", "zusätzlich"]], ["zudem", ["außerdem", "darüber hinaus"]], ["zusätzlich", ["außerdem", "zudem"]],
     ["schnell", ["rasch", "zügig"]], ["bekommen", ["erhalten"]], ["bekommt", ["erhält"]], ["bekam", ["erhielt"]],
@@ -1612,11 +1612,32 @@ const UMSCHREIBEN = (function () {
     ["geholt", ["gekauft", "besorgt"]], ["gelernt", ["gebüffelt", "geübt"]], ["geschlafen", ["gepennt"]],
     ["lustig", ["witzig"]], ["witzig", ["lustig"]], ["spannend", ["interessant", "fesselnd"]], ["interessant", ["spannend"]],
     ["toll", ["super", "klasse"]], ["super", ["toll", "klasse"]], ["langweilig", ["öde", "eintönig"]],
-    ["wahrscheinlich", ["vermutlich", "wohl"]], ["vermutlich", ["wahrscheinlich"]], ["manchmal", ["ab und zu", "hin und wieder"]],
+    ["wahrscheinlich", ["vermutlich"]], ["vermutlich", ["wahrscheinlich"]], ["manchmal", ["ab und zu", "hin und wieder"]],
     ["groß", ["riesig"]], ["klein", ["winzig"]], ["meistens", ["meist", "in der Regel"]],
     ["am anfang", ["zu Beginn", "anfangs"]], ["zu beginn", ["am Anfang", "anfangs"]], ["anfangs", ["am Anfang", "zu Beginn"]],
     ["ich denke", ["ich finde", "ich glaube"]], ["ich finde", ["ich denke"]],
-    ["in diesem text", ["in diesem Abschnitt", "hier"]], ["in dem text", ["im Text"]], ["der autor", ["der Verfasser"]], ["die autorin", ["die Verfasserin"]]
+    ["jetzt", ["nun", "inzwischen"]], ["nun", ["jetzt"]], ["bald", ["demnächst", "in Kürze"]], ["plötzlich", ["auf einmal", "unerwartet"]],
+    ["wieder", ["erneut", "noch einmal"]], ["zu hause", ["daheim"]], ["zuhause", ["daheim"]], ["daheim", ["zu Hause"]],
+    ["total", ["völlig", "komplett"]], ["völlig", ["total", "komplett"]], ["komplett", ["völlig", "total"]], ["genau", ["exakt"]],
+    ["schwierig", ["kompliziert", "knifflig"]], ["schwierige", ["komplizierte", "knifflige"]], ["schwierigen", ["komplizierten", "kniffligen"]],
+    ["spannende", ["interessante", "fesselnde"]], ["spannenden", ["interessanten", "fesselnden"]], ["interessante", ["spannende"]], ["interessanten", ["spannenden"]],
+    ["froh", ["glücklich"]], ["glücklich", ["froh"]], ["traurig", ["betrübt", "niedergeschlagen"]], ["müde", ["erschöpft", "k.o."]], ["erschöpft", ["müde", "fertig"]],
+    ["lecker", ["köstlich"]], ["köstlich", ["lecker"]], ["anstrengend", ["mühsam", "kräftezehrend"]], ["aufgeregt", ["nervös", "hibbelig"]],
+    ["echt", ["wirklich", "richtig"]], ["krass", ["heftig"]], ["cool", ["lässig", "super"]], ["irgendwie", ["auf gewisse Weise"]],
+    ["beginnt", ["startet"]], ["begann", ["startete"]], ["sagt", ["meint", "erzählt"]], ["sagte", ["meinte", "erzählte"]], ["gesagt", ["erzählt", "gemeint"]],
+    ["gekauft", ["besorgt"]], ["gegessen", ["verputzt"]], ["angefangen", ["begonnen"]], ["begonnen", ["angefangen"]],
+    ["versucht", ["probiert"]], ["probiert", ["versucht"]], ["verstanden", ["kapiert", "begriffen"]], ["kapiert", ["verstanden"]],
+    ["leute", ["Menschen"]], ["menschen", ["Leute"]], ["freunde", ["Kumpels", "Freundinnen und Freunde"]], ["probleme", ["Schwierigkeiten"]], ["aufgaben", ["Übungen"]],
+    ["und dann", ["und danach", "und anschließend"]], ["als nächstes", ["danach", "im nächsten Schritt"]],
+    ["meiner meinung nach", ["aus meiner Sicht", "für mich"]], ["aus meiner sicht", ["meiner Meinung nach"]],
+    ["auf jeden fall", ["definitiv", "in jedem Fall"]], ["in jedem fall", ["auf jeden Fall"]], ["auf keinen fall", ["keinesfalls", "unter keinen Umständen"]], ["keinesfalls", ["auf keinen Fall"]],
+    ["noch nie", ["bisher nie", "noch kein einziges Mal"]], ["bereits", ["schon"]], ["vorher", ["zuvor"]], ["zuvor", ["vorher"]], ["nachher", ["später", "danach"]],
+    ["nirgendwo", ["nirgends"]], ["nirgends", ["nirgendwo"]], ["jemand", ["irgendwer"]], ["niemand", ["keiner"]],
+    ["in diesem text", ["in diesem Abschnitt", "hier"]],
+    ["nötig", ["notwendig", "erforderlich"]], ["notwendig", ["nötig", "erforderlich"]], ["handelt von", ["erzählt von", "berichtet von"]],
+    ["prozess", ["Vorgang"]], ["entsteht", ["bildet sich"]],
+    ["hatten hunger", ["litten Hunger", "waren hungrig"]], ["hat hunger", ["ist hungrig"]], ["im luxus", ["in Saus und Braus", "im Überfluss"]],
+    ["selten", ["kaum"]], ["gern", ["gerne"]], ["gerne", ["gern"]], ["in dem text", ["im Text"]], ["der autor", ["der Verfasser"]], ["die autorin", ["die Verfasserin"]]
   ];
   const BUCHST = "A-Za-zÄÖÜäöüß";
   const W2 = W.slice().sort((a, b) => b[0].length - a[0].length);
@@ -1668,10 +1689,46 @@ const UMSCHREIBEN = (function () {
   // Zwei Sätze zu einem: "... Stadt. Wir ..." wird "... Stadt, und wir ..."
   function verbinden(a, b, r) {
     if (!b || !/\.\s*$/.test(a)) return null;
+    const erstes = b.trim().split(/\s+/)[0].toLowerCase();
     const w = tauschen(b.trim(), 0.7, r).split(/\s+/);
     if (w.length < 2 || a.trim().split(/\s+/).length + w.length > 30) return null;
-    if (KLEIN.has(w[0].toLowerCase())) w[0] = w[0].toLowerCase();
+    if (KLEIN.has(erstes) || KARTE.has(erstes) || ZEIT.has(erstes) || VORN.has(erstes) || ADV_START.has(erstes)) w[0] = w[0].toLowerCase();
     return a.replace(/\.\s*$/, ", und ") + w.join(" ") + b.match(/\s*$/)[0];
+  }
+  // Satzglied nach vorn: "Er lebt in Berlin." wird "In Berlin lebt er.", "Die Revolution begann 1789." wird "1789 begann die Revolution."
+  const PREP = new Set(["in", "im", "an", "am", "auf", "aus", "bei", "beim", "mit", "nach", "von", "vom", "zu", "zum", "zur", "über", "unter", "vor", "hinter", "neben", "zwischen", "durch", "für", "gegen", "ohne", "um", "seit", "während", "wegen", "trotz", "ins", "ans", "aufs"]);
+  const DET = new Set(["der", "die", "das", "ein", "eine", "mein", "meine", "dein", "deine", "sein", "seine", "ihr", "ihre", "unser", "unsere", "euer", "eure", "dieser", "diese", "dieses", "jeder", "jede", "jedes", "viele", "einige", "alle"]);
+  const ADV_START = new Set(["dabei", "dadurch", "deshalb", "deswegen", "daher", "darum", "dann", "danach", "außerdem", "heute", "gestern", "morgen", "hier", "dort", "damals", "trotzdem", "leider", "zuerst", "später", "jetzt", "nun", "so", "auch", "also", "dafür", "davor", "damit", "plötzlich", "schließlich", "oft", "manchmal"]);
+  const ADV_ENDE = new Set(["häufig", "oft", "selten", "manchmal", "gern", "gerne", "heute", "gestern", "morgen", "jetzt", "damals", "später", "meistens", "täglich", "nie"]);
+  function umbauen(satz) {
+    const vor = satz.match(/^\s*/)[0], nach = satz.match(/\s*$/)[0], ganz = satz.trim();
+    if (/[,;:"„“()?]/.test(ganz)) return satz;
+    const m = ganz.match(/^(.*?)([.!]*)$/), w = m[1].split(/\s+/), pkt = m[2];
+    if (w.length < 3 || w.length > 14) return satz;
+    const k0 = w[0].toLowerCase();
+    // "Dabei entsteht Sauerstoff." wird "Sauerstoff entsteht dabei."
+    if (ADV_START.has(k0)) {
+      const rest = w.slice(2);
+      if (!/^[a-zäöüß]+$/.test(w[1]) || rest.length > 3 || PRON.has(rest[0].toLowerCase()) || !/^[A-ZÄÖÜ]/.test(rest[rest.length - 1])) return satz;
+      rest[0] = gross(rest[0]);
+      return vor + [...rest, w[1], k0].join(" ") + pkt + nach;
+    }
+    let s;
+    if (PRON.has(k0)) s = 1;
+    else if (DET.has(k0)) { s = 1; while (s < 3 && /^[A-ZÄÖÜ]/.test(w[s] || "")) s++; if (s === 1) return satz; }
+    else if (/^[A-ZÄÖÜ][a-zäöüß]+$/.test(w[0]) && !PREP.has(k0) && !VORN.has(k0) && !ZEIT.has(k0) && !KARTE.has(k0)) s = 1;
+    else return satz;
+    const verb = w[s], rest = w.slice(s + 1);
+    if (!verb || !/^[a-zäöüß]+$/.test(verb) || DET.has(verb) || PREP.has(verb) || !rest.length || PRON.has(rest[0].toLowerCase())) return satz;
+    const last = rest[rest.length - 1];
+    let p = -1;
+    if (/^\d{3,4}$/.test(last) || ADV_ENDE.has(last)) p = rest.length - 1;
+    else if (/^[A-ZÄÖÜ0-9]/.test(last)) { for (let i = rest.length - 2; i >= 0 && i >= rest.length - 5; i--) if (PREP.has(rest[i].toLowerCase())) { p = i; break; } }
+    if (p < 0) return satz;
+    const vorne = rest.slice(p), mitte = rest.slice(0, p);
+    const subj = w.slice(0, s); if (PRON.has(k0) || DET.has(k0)) subj[0] = k0;
+    vorne[0] = gross(vorne[0]);
+    return vor + [...vorne, verb, ...subj, ...mitte].join(" ") + pkt + nach;
   }
   // Einen Satz an ", und" oder ", aber" teilen: "..., aber ich ..." wird "... . Aber ich ..."
   function teilen(satz) {
@@ -1679,33 +1736,30 @@ const UMSCHREIBEN = (function () {
     if (!m || !PRON.has(m[3].split(" ")[0]) && !KLEIN.has(m[3].split(" ")[0])) return satz;
     return m[1] + ". " + (m[2] === "aber" ? "Aber " + m[3] : gross(m[3]));
   }
-  // Die ersten 3 Sätze werden immer verändert, weil dort Abgeschriebenes am ehesten auffällt
-  const PFLICHT = 3;
+  // Jeder Satz wird verändert. Aus allen möglichen Fassungen (umstellen, vorziehen, Wörter tauschen, teilen)
+  // wird zufällig eine gewählt, so gibt jeder Klick eine andere Fassung
+  function fassungen(st, r) {
+    const set = new Set(), basis = [...new Set([st, umstellen(st), vorziehen(st), teilen(st), umbauen(st)])];
+    for (const b of basis) {
+      if (b !== st) set.add(b);
+      for (let v = 0; v < 4; v++) set.add(tauschen(b, 0.5 + 0.5 * r(), r));
+    }
+    set.delete(st);
+    return [...set];
+  }
   function text(original, seed) {
     const r = HS.rng(((seed || 1) ^ 0x2545f491) >>> 0);
-    let nr = 0;
     return String(original || "").split("\n").map(absatz => {
       const saetze = absatz.match(/[^.!?]+[.!?]*\s*/g) || [absatz];
       // Überschriften (eine Zeile ohne Satzzeichen) bleiben, wie sie sind
       if (saetze.length === 1 && !/[.!?]\s*$/.test(absatz) && absatz.trim().split(/\s+/).length <= 6) return absatz;
       const out = [];
       for (let i = 0; i < saetze.length; i++) {
-        const st = saetze[i], pflicht = nr++ < PFLICHT && st.trim().split(/\s+/).length >= 3;
-        let neu = st;
-        if (pflicht) {
-          // Umstellen probieren, dann Wendungen tauschen, bis sich etwas ändert
-          const wege = r() < 0.5 ? [umstellen, vorziehen] : [vorziehen, umstellen];
-          for (const w of wege) { if (neu === st) neu = w(st); }
-          if (neu === st || r() < 0.5) neu = tauschen(neu, 0.8, r);
-          for (let v = 0; v < 4 && neu === st; v++) neu = tauschen(st, 1, r);
-          // Immer noch gleich: Satz teilen oder mit dem nächsten verbinden
-          if (neu === st) neu = teilen(st);
-          if (neu === st) { const v = verbinden(st, saetze[i + 1], r); if (v) { neu = v; i++; nr++; } }
-        } else {
-          if (r() < 0.65) { neu = r() < 0.5 ? umstellen(st) : vorziehen(st); if (neu === st) neu = umstellen(st) === st ? vorziehen(st) : umstellen(st); }
-          neu = tauschen(neu, 0.7, r);
-        }
-        out.push(neu);
+        const st = saetze[i], f = fassungen(st, r);
+        const v = verbinden(st, saetze[i + 1], r);
+        // Verbinden, wenn sonst nichts geht, und ab und zu einfach so
+        if (v && (!f.length || r() < 0.18)) { out.push(v); i++; continue; }
+        out.push(f.length ? f[(r() * f.length) | 0] : st);
       }
       return out.join("");
     }).join("\n");
