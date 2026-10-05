@@ -1606,7 +1606,17 @@ const UMSCHREIBEN = (function () {
     ["benutzt", ["verwendet", "nutzt"]], ["benutzen", ["verwenden", "nutzen"]], ["verwendet", ["benutzt", "nutzt"]],
     ["wirkt", ["erscheint"]], ["modern", ["zeitgemäß"]], ["moderne", ["zeitgemäße"]],
     ["einfach formuliert", ["leicht verständlich formuliert", "verständlich geschrieben"]],
-    ["auffällig", ["markant"]], ["auffälliger", ["markanter"]]
+    ["auffällig", ["markant"]], ["auffälliger", ["markanter"]],
+    ["mit meinen freunden", ["mit ein paar Freunden", "mit meinen Kumpels"]], ["mit freunden", ["mit ein paar Freunden"]],
+    ["in der stadt", ["in der Innenstadt", "in der City"]], ["durch die geschäfte", ["durch die Läden"]],
+    ["geholt", ["gekauft", "besorgt"]], ["gelernt", ["gebüffelt", "geübt"]], ["geschlafen", ["gepennt"]],
+    ["lustig", ["witzig"]], ["witzig", ["lustig"]], ["spannend", ["interessant", "fesselnd"]], ["interessant", ["spannend"]],
+    ["toll", ["super", "klasse"]], ["super", ["toll", "klasse"]], ["langweilig", ["öde", "eintönig"]],
+    ["wahrscheinlich", ["vermutlich", "wohl"]], ["vermutlich", ["wahrscheinlich"]], ["manchmal", ["ab und zu", "hin und wieder"]],
+    ["groß", ["riesig"]], ["klein", ["winzig"]], ["meistens", ["meist", "in der Regel"]],
+    ["am anfang", ["zu Beginn", "anfangs"]], ["zu beginn", ["am Anfang", "anfangs"]], ["anfangs", ["am Anfang", "zu Beginn"]],
+    ["ich denke", ["ich finde", "ich glaube"]], ["ich finde", ["ich denke"]],
+    ["in diesem text", ["in diesem Abschnitt", "hier"]], ["in dem text", ["im Text"]], ["der autor", ["der Verfasser"]], ["die autorin", ["die Verfasserin"]]
   ];
   const BUCHST = "A-Za-zÄÖÜäöüß";
   const W2 = W.slice().sort((a, b) => b[0].length - a[0].length);
@@ -1628,23 +1638,76 @@ const UMSCHREIBEN = (function () {
     }
     return satz;
   }
+  // Gegenstück zu umstellen: "Ich war am Samstag ..." wird "Am Samstag war ich ..."
+  const ZEIT = new Set(["heute", "gestern", "morgen", "danach", "dann", "zuerst", "anschließend", "später", "abends", "morgens", "mittags", "nachmittags", "damals", "jetzt", "oft", "manchmal", "meistens", "zunächst", "schließlich"]);
+  function vorziehen(satz) {
+    const vor = satz.match(/^\s*/)[0], nach = satz.match(/\s*$/)[0], t = satz.trim().split(/\s+/);
+    if (t.length < 4 || !PRON.has(t[0].toLowerCase()) || !/^[a-zäöüß]+$/.test(t[1])) return satz;
+    let n = 0;
+    if (ZEIT.has(t[2].toLowerCase())) n = 1;
+    else if (/^(am|im|nach|vor|seit|um)$/i.test(t[2]) && /^[A-ZÄÖÜ0-9][a-zäöüß0-9]*$/.test(t[3] || "")) n = 2;
+    if (!n || t.length - 2 - n < 1 || /[,;:]/.test(t.slice(0, 2 + n).join(" "))) return satz;
+    const adv = t.slice(2, 2 + n); adv[0] = gross(adv[0]);
+    const pron = t[0] === "Ich" ? "ich" : klein(t[0]);
+    return vor + [...adv, t[1], pron, ...t.slice(2 + n)].join(" ") + nach;
+  }
+  // Wendungen in einem Satz tauschen. p = Wahrscheinlichkeit je Treffer
+  function tauschen(satz, p, r) {
+    return satz.replace(muster, (m, pre, wort, off, ganz) => {
+      const e = KARTE.get(wort.toLowerCase()); if (!e || r() > p) return m;
+      const davor = ganz.slice(0, off + pre.length).trim();
+      // "aber", "jedoch" am Satz- oder Teilsatzanfang nicht tauschen, sonst stimmt die Wortstellung nicht
+      if (e[2] && (!davor || /[.!?:,;]$/.test(davor))) return m;
+      let neu = e[1][(r() * e[1].length) | 0];
+      if (wort.charAt(0) !== wort.charAt(0).toLowerCase() || !davor) neu = gross(neu);
+      return pre + neu;
+    });
+  }
+  // Wörter, die nach ", und" klein weitergehen. Alles andere bleibt groß (meist ein Nomen)
+  const KLEIN = new Set([...PRON, "der", "die", "das", "dies", "diese", "dieser", "dieses", "ein", "eine", "einer", "mein", "meine", "dein", "deine", "sein", "seine", "ihre", "unser", "unsere", "dabei", "dadurch", "deshalb", "daher", "dann", "danach", "außerdem", "auch", "so", "hier", "dort", "damit", "trotzdem", "am", "im", "beim", "zum", "zur", "gestern", "heute", "später"]);
+  // Zwei Sätze zu einem: "... Stadt. Wir ..." wird "... Stadt, und wir ..."
+  function verbinden(a, b, r) {
+    if (!b || !/\.\s*$/.test(a)) return null;
+    const w = tauschen(b.trim(), 0.7, r).split(/\s+/);
+    if (w.length < 2 || a.trim().split(/\s+/).length + w.length > 30) return null;
+    if (KLEIN.has(w[0].toLowerCase())) w[0] = w[0].toLowerCase();
+    return a.replace(/\.\s*$/, ", und ") + w.join(" ") + b.match(/\s*$/)[0];
+  }
+  // Einen Satz an ", und" oder ", aber" teilen: "..., aber ich ..." wird "... . Aber ich ..."
+  function teilen(satz) {
+    const m = satz.match(/^(.{12,}?), (und|aber) ([a-zäöüß]+ .{8,})$/);
+    if (!m || !PRON.has(m[3].split(" ")[0]) && !KLEIN.has(m[3].split(" ")[0])) return satz;
+    return m[1] + ". " + (m[2] === "aber" ? "Aber " + m[3] : gross(m[3]));
+  }
+  // Die ersten 3 Sätze werden immer verändert, weil dort Abgeschriebenes am ehesten auffällt
+  const PFLICHT = 3;
   function text(original, seed) {
     const r = HS.rng(((seed || 1) ^ 0x2545f491) >>> 0);
+    let nr = 0;
     return String(original || "").split("\n").map(absatz => {
-      // 1. Sätze umstellen
       const saetze = absatz.match(/[^.!?]+[.!?]*\s*/g) || [absatz];
-      let a = saetze.map(st => r() < 0.65 ? umstellen(st) : st).join("");
-      // 2. Wendungen tauschen
-      a = a.replace(muster, (m, pre, wort, off, ganz) => {
-        const e = KARTE.get(wort.toLowerCase()); if (!e || r() > 0.7) return m;
-        const davor = ganz.slice(0, off + pre.length).trim();
-        // "aber", "jedoch" am Satz- oder Teilsatzanfang nicht tauschen, sonst stimmt die Wortstellung nicht
-        if (e[2] && (!davor || /[.!?:,;]$/.test(davor))) return m;
-        let neu = e[1][(r() * e[1].length) | 0];
-        if (wort.charAt(0) !== wort.charAt(0).toLowerCase()) neu = gross(neu);
-        return pre + neu;
-      });
-      return a;
+      // Überschriften (eine Zeile ohne Satzzeichen) bleiben, wie sie sind
+      if (saetze.length === 1 && !/[.!?]\s*$/.test(absatz) && absatz.trim().split(/\s+/).length <= 6) return absatz;
+      const out = [];
+      for (let i = 0; i < saetze.length; i++) {
+        const st = saetze[i], pflicht = nr++ < PFLICHT && st.trim().split(/\s+/).length >= 3;
+        let neu = st;
+        if (pflicht) {
+          // Umstellen probieren, dann Wendungen tauschen, bis sich etwas ändert
+          const wege = r() < 0.5 ? [umstellen, vorziehen] : [vorziehen, umstellen];
+          for (const w of wege) { if (neu === st) neu = w(st); }
+          if (neu === st || r() < 0.5) neu = tauschen(neu, 0.8, r);
+          for (let v = 0; v < 4 && neu === st; v++) neu = tauschen(st, 1, r);
+          // Immer noch gleich: Satz teilen oder mit dem nächsten verbinden
+          if (neu === st) neu = teilen(st);
+          if (neu === st) { const v = verbinden(st, saetze[i + 1], r); if (v) { neu = v; i++; nr++; } }
+        } else {
+          if (r() < 0.65) { neu = r() < 0.5 ? umstellen(st) : vorziehen(st); if (neu === st) neu = umstellen(st) === st ? vorziehen(st) : umstellen(st); }
+          neu = tauschen(neu, 0.7, r);
+        }
+        out.push(neu);
+      }
+      return out.join("");
     }).join("\n");
   }
   return { text };
