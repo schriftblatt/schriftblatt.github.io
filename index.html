@@ -1674,11 +1674,11 @@ const REGLER = [
   { grp: "zeilen", id: "starts", label: "Zeilenanfänge", min: 0, max: 100, step: 5, fmt: v => stufe(v, "alle gleich", "leicht versetzt", "deutlich versetzt", "stark versetzt") },
   { grp: "zeilen", id: "ends", label: "Zeilenenden", min: 0, max: 100, step: 5, fmt: v => stufe(v, "bis zum Rand", "leicht flatternd", "deutlich flatternd", "stark flatternd") }
 ];
-const VORLAGEN = [["heft", "Heft"], ["onenote", "OneNote"], ["notizen", "Notizen"]];
+const VORLAGEN = [["heft", "Heft"], ["onenote", "Digital"], ["notizen", "Notizen"]];
 const VORLAGE_TEXT = {
   heft: "Wie ein fotografiertes Blatt aus dem Block.",
-  onenote: "Wie eine Seite aus OneNote: Datum und Uhrzeit oben links, gleichmäßige digitale Tinte.",
-  notizen: "Wie eine Notiz aus Apple Notizen: Datum oben in der Mitte, gleichmäßige digitale Tinte."
+  onenote: "Wie eine digitale Notizbuchseite: Datum und Uhrzeit oben links, gleichmäßige digitale Tinte.",
+  notizen: "Wie eine Notiz auf dem Tablet: Datum oben in der Mitte, gleichmäßige digitale Tinte."
 };
 const PAPIERE = [["lined", "Liniert"], ["grid", "Kariert"], ["blank", "Blanko"]];
 const TOENE = [["hell", "Hell"], ["dunkel", "Dunkel"]];
@@ -2370,7 +2370,7 @@ function chatAnsichtMalen() {
     <div class="chat-kopf"><button class="btn ghost knopf-ico" data-c="zurueck" aria-label="Zurück zu den Chats">${CI.zurueck}</button><b>${esc(chatName(c))}</b><span class="spacer"></span>
       ${offen ? `<button class="btn knopf-ico" data-c="einladen" aria-label="Einladen" title="Einladen">${CI.qr}</button>` : ""}<button class="btn knopf-ico" data-c="info" aria-label="Mitglieder" title="Mitglieder">${CI.gruppe}</button></div>
     <div class="nachrichten" id="nachrichten"><p class="hint">Lädt …</p></div>
-    <div class="schreiben"><textarea id="chatText" rows="2" placeholder="Nachricht oder Text aus ChatGPT" aria-label="Nachricht"></textarea>
+    <div class="schreiben"><textarea id="chatText" rows="2" placeholder="Nachricht schreiben oder Text einfügen" aria-label="Nachricht"></textarea>
       <div class="reihe zwischen"><button class="btn ghost" data-c="einfuegen">${CI.einfuegen}Einfügen</button><button class="btn primary" data-c="senden">${CI.senden}Senden</button></div></div>`;
   if (_nachr.length) { nachrichtenMalen(); zumEnde(); }
 }
@@ -2402,7 +2402,7 @@ function nachrichtenMalen() {
         ${n.pdf ? `<button class="btn ghost klein" data-n-pdf>${CI.pdf}PDF</button>` : ""}
         ${meins ? '<button class="btn ghost klein rot" data-n-weg>Löschen</button>' : '<button class="btn ghost klein" data-n-melden>Melden</button>'}
       </div></div>`;
-  }).join("") : '<p class="hint">Noch nichts geschickt. Schreib etwas, füg einen Text aus ChatGPT ein, oder schick ein Blatt aus dem Reiter Blatt.</p>';
+  }).join("") : '<p class="hint">Noch nichts geschickt. Schreib etwas, füg einen kopierten Text ein, oder schick ein Blatt aus dem Reiter Blatt.</p>';
 }
 async function senden(chatId, text, mitPdf) {
   text = (text || "").trim();
@@ -2675,7 +2675,7 @@ const RECHT = {
     <ul>
       <li><b>Supabase</b> (Supabase Inc.) speichert Konto, Handschriften und Einstellungen auf Servern in Frankfurt am Main. Mit Supabase besteht ein Vertrag zur Auftragsverarbeitung.</li>
       <li><b>GitHub Pages</b> (GitHub Inc., USA) liefert die Seite aus. Dabei verarbeitet GitHub technisch nötige Daten wie deine IP-Adresse in Server-Protokollen (Art. 6 Abs. 1 f DSGVO, berechtigtes Interesse an einer funktionierenden Seite). GitHub ist nach dem EU-US Data Privacy Framework zertifiziert.</li>
-      <li>Schriften und Programmteile liegen auf demselben Server, es werden keine Inhalte von Google oder anderen Diensten nachgeladen.</li>
+      <li>Schriften und Programmteile liegen auf demselben Server, es werden keine Inhalte von fremden Diensten nachgeladen.</li>
     </ul>
     <h4>Speicher im Browser</h4>
     <p>Die App merkt sich im Speicher deines Browsers (localStorage) deine Anmeldung, Einstellungen und die gerade verwendete Schrift. Das ist technisch nötig (§ 25 Abs. 2 TDDDG). Werbe- oder Analyse-Cookies gibt es nicht.</p>
