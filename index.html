@@ -83,6 +83,13 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .fach-knopf{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 14px;min-height:44px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .fach-knopf[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 #einlesenKlapp:not([open]){background:var(--surface)}
+/* Reiter Blatt: erst nur die Liste, nach dem Auswählen Text und Einstellungen */
+.blatt-kopf{display:flex;align-items:center;gap:6px}
+.blatt-kopf .blatt-aktiv{flex:1}
+body.bl-liste #sicht-blatt>:not(.sicht-kopf):not(#blattAuswahl){display:none}
+body.bl-edit #blattAuswahl{display:none!important}
+body.bl-edit #sicht-blatt>.sicht-kopf{display:none}
+@media (max-width:899px){ body[data-tab="blatt"].bl-liste .vorschau{display:none!important} }
 /* Handy: Blatt-Auswahl steht über der Vorschau (wird per Skript vor die Vorschau gehängt) */
 .layout>#blattAuswahl{order:-2;margin-bottom:16px}
 body:not([data-tab="blatt"]) .layout>#blattAuswahl{display:none}
@@ -478,14 +485,14 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
     <section class="sicht" id="sicht-blatt" hidden>
       <div class="sicht-kopf nur-gross">
         <h2>Dein Blatt</h2>
-        <p class="unter">Blatt wählen oder neu anlegen, Text rein, Vorlage und Papier einstellen.</p>
+        <p class="unter" id="blattUnter">Wähl ein Blatt oder leg ein neues an.</p>
       </div>
       <div class="block gruppe" id="blattAuswahl">
         <div class="reihe zwischen"><div class="sec-label">Deine Blätter</div><button class="btn primary" id="blattNeuBtn">+ Neues Blatt</button></div>
         <div class="blatt-liste" id="blattListe"></div>
       </div>
       <div class="block gruppe">
-        <div class="reihe zwischen"><b class="blatt-aktiv" id="blattAktiv"></b><button class="btn ghost klein" id="blattMenue">Umbenennen, Löschen</button></div>
+        <div class="blatt-kopf"><button class="btn ghost knopf-ico" id="blattZurueck" aria-label="Zurück zu deinen Blättern" title="Zu deinen Blättern"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><b class="blatt-aktiv" id="blattAktiv"></b><button class="btn ghost klein" id="blattMenue">Umbenennen, Löschen</button></div>
         <textarea id="textFeld" spellcheck="false" aria-label="Text" placeholder="Text hier einfügen oder tippen"></textarea>
         <div class="reihe zwischen">
           <span class="hint mono" id="textZahl"></span>
@@ -1868,7 +1875,13 @@ function tab(t, scroll) {
 let _zt = 0, _plan = null;
 /* ---------- Deine Blätter: jedes Blatt hat ein Fach, oben im Reiter Blatt die letzten zum Antippen ----------
    Gespeichert über die Einstellungen im Konto (nur Text, wenige KB pro Blatt). */
-const MAX_BLAETTER = 50, LISTE_KURZ = 6;
+const MAX_BLAETTER = 50, LISTE_KURZ = 10;
+// Zustand im Reiter Blatt: "liste" (nur Blätter) oder "edit" (Text, Vorlage, Papier)
+function blattModus(m) {
+  document.body.classList.toggle("bl-liste", m === "liste"); document.body.classList.toggle("bl-edit", m !== "liste");
+  if (typeof miniStand === "function" && $("mini")) miniStand();
+  if (S.tab === "blatt") window.scrollTo(0, 0);
+}
 const FAECHER = ["Deutsch", "Mathe", "Englisch", "Bio", "Geschichte", "Erdkunde", "Politik", "Physik", "Chemie", "Französisch", "Spanisch", "Latein", "Religion", "Ethik", "Kunst", "Musik", "Informatik", "Sonstiges"];
 let _listeAlle = false;
 const aktivBlatt = () => (S.blaetter || []).find(b => b.id === S.blattId);
@@ -1919,7 +1932,7 @@ function blattNeuFenster() {
   body.onclick = e => {
     const f = e.target.closest("[data-fach]"); if (!f) return;
     blattNeu("", body.querySelector("#neuThema").value.trim(), f.dataset.fach);
-    fensterZu(); tab("blatt"); setTimeout(() => $("textFeld").focus(), 60);
+    fensterZu(); blattModus("edit"); tab("blatt"); setTimeout(() => $("textFeld").focus(), 60);
   };
 }
 function blattMenue() {
@@ -2008,7 +2021,7 @@ function auswahlPlatzieren() {
 }
 function miniStand() {
   const zeigen = handy() && !document.body.classList.contains("gesperrt") &&
-    ((S.tab === "blatt" && !_vorschauSichtbar) || (S.tab === "schrift" && $("ausschnitt").hidden && $("ergebnis").hidden));
+    ((S.tab === "blatt" && !_vorschauSichtbar && !document.body.classList.contains("bl-liste")) || (S.tab === "schrift" && $("ausschnitt").hidden && $("ergebnis").hidden));
   $("mini").hidden = !zeigen;
 }
 
@@ -2806,7 +2819,7 @@ async function senden(chatId, text, mitPdf) {
 function insBlatt(text, titel) {
   // Als neues Blatt, damit der eigene Text nicht verloren geht
   if (!blattNeu(text, titel || "", "Aus dem Chat")) return;
-  tab("blatt");
+  blattModus("edit"); tab("blatt");
   toast("Als neues Blatt in deiner Schrift angelegt");
 }
 async function pdfOeffnen(pfad) {
@@ -3236,8 +3249,8 @@ async function start() {
   kontoStart();
 
   document.addEventListener("click", e => {
-    const t = e.target.closest("[data-tab-btn]"); if (t) { tab(t.dataset.tabBtn); return; }
-    const g = e.target.closest("[data-geh]"); if (g) { tab(g.dataset.geh); return; }
+    const t = e.target.closest("[data-tab-btn]"); if (t) { if (t.dataset.tabBtn === "blatt") blattModus("liste"); tab(t.dataset.tabBtn); return; }
+    const g = e.target.closest("[data-geh]"); if (g) { if (g.dataset.geh === "blatt") blattModus("liste"); tab(g.dataset.geh); return; }
     if (e.target.closest("[data-nochmal]")) { $("fotoInput").click(); return; }
     if (e.target.closest("[data-konto]")) { kontoFenster("neu"); return; }
     const c = e.target.closest(".seite canvas"); if (c) seiteGross(c);
@@ -3293,10 +3306,12 @@ async function start() {
   $("sendenBtn").onclick = blattSendenFenster;
   blaetterBauen();
   $("blattListe").addEventListener("click", e => {
-    const b = e.target.closest("[data-blatt]"); if (b) { if (b.dataset.blatt !== S.blattId) blattWechseln(b.dataset.blatt); return; }
+    const b = e.target.closest("[data-blatt]"); if (b) { if (b.dataset.blatt !== S.blattId) blattWechseln(b.dataset.blatt); blattModus("edit"); return; }
     if (e.target.closest("[data-alle]")) { _listeAlle = !_listeAlle; blaetterBauen(); }
   });
   $("blattNeuBtn").onclick = blattNeuFenster;
+  $("blattZurueck").onclick = () => { blattModus("liste"); blaetterBauen(); };
+  blattModus("liste");
   auswahlPlatzieren(); window.addEventListener("resize", auswahlPlatzieren);
   $("blattMenue").onclick = blattMenue;
   document.querySelectorAll("[data-einpassen]").forEach(b => b.onclick = async () => { b.disabled = true; try { await einpassen(+b.dataset.einpassen); } finally { b.disabled = false; } });
