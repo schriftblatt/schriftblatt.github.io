@@ -71,6 +71,15 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .rechtlinks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:13px;margin:14px 0 0}
 .vorschau-leiste .btn{flex-shrink:0}
 @media (max-width:520px){ #pdfBtn .lbl-txt,#sendenBtn .lbl-txt{display:none} #pdfBtn,#sendenBtn{width:44px;padding:0} }
+/* Meine Blätter */
+.blatt-wahl{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.blatt-wahl::-webkit-scrollbar{display:none}
+.blatt-chip{flex:0 0 auto;max-width:180px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:6px 14px;min-height:40px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blatt-chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.blatt-chip.neu{color:var(--accent-ink);border-style:dashed}
+.einpassen{gap:6px}
+.n-bild{border:1px solid var(--line);padding:0;background:#fff;border-radius:6px;width:150px;cursor:zoom-in;overflow:hidden;align-self:flex-start}
+.n-bild img{display:block;width:100%;height:auto;min-height:60px}
 /* Chats */
 .chat-liste{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .chat-zeile{width:100%;display:flex;align-items:center;gap:12px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:10px 12px;min-height:58px;cursor:pointer;color:var(--ink);font:inherit}
@@ -427,12 +436,14 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
         <p class="unter">Jede Änderung siehst du sofort rechts.</p>
       </div>
       <div class="block gruppe">
-        <div class="sec-label">Text</div>
+        <div class="reihe zwischen"><div class="sec-label">Meine Blätter</div><button class="btn ghost klein" id="blattMenue" aria-label="Blatt umbenennen oder löschen">Umbenennen, Löschen</button></div>
+        <div class="blatt-wahl" id="blattWahl" role="tablist" aria-label="Meine Blätter"></div>
         <textarea id="textFeld" spellcheck="false" aria-label="Text" placeholder="Text hier einfügen oder tippen"></textarea>
         <div class="reihe zwischen">
           <span class="hint mono" id="textZahl"></span>
           <span class="reihe"><button class="btn ghost" id="originalBtn" hidden>Original zurück</button><button class="btn ghost" id="einfuegenBtn">Einfügen</button><button class="btn ghost" id="leerenBtn">Leeren</button></span>
         </div>
+        <div class="reihe einpassen"><span class="hint">Genau einpassen:</span><button class="btn klein" data-einpassen="1">1 Seite</button><button class="btn klein" data-einpassen="2">2 Seiten</button><button class="btn klein" data-einpassen="3">3 Seiten</button></div>
       </div>
       <div class="block gruppe">
         <div class="sec-label">Vorlage</div>
@@ -871,6 +882,7 @@ const HS = (function () {
     while (lines.length > 1 && !lines[lines.length - 1].words.length) lines.pop();
 
     const per = geo.bases.length, n = Math.max(1, Math.ceil(lines.length / per));
+    if (o.nurMessen) return { pages: n, lines: lines.length, per };
     if (!_layer) _layer = cnv(PW, PH);
     const L = _layer, lg = L.getContext("2d");
     const pg = paper(o, geo);
@@ -1777,11 +1789,11 @@ const UMSCHREIBEN = (function () {
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  staerke: 100, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", schriftId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
+  staerke: 100, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", schriftId: "", blaetter: [], blattId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
-function speichern() { const o = {}; Object.keys(STD).forEach(k => o[k] = S[k]); LS.set(ST_KEY, JSON.stringify(o)); einstHoch(); }
+function speichern() { blattMerken(); const o = {}; Object.keys(STD).forEach(k => o[k] = S[k]); LS.set(ST_KEY, JSON.stringify(o)); einstHoch(); }
 const effFont = () => (S.font === "own" ? HS.hatOwn() : HS.FONTS.some(f => f.id === S.font)) ? S.font : "caveat";
 
 const fmtZahl = v => String(v).replace(".", ",");
@@ -1821,16 +1833,90 @@ function tab(t, scroll) {
 
 /* ---------- Blatt neu zeichnen ---------- */
 let _zt = 0, _plan = null;
+/* ---------- Meine Blätter: mehrere Texte, im Konto über die Einstellungen gesichert ---------- */
+const MAX_BLAETTER = 30;
+const aktivBlatt = () => (S.blaetter || []).find(b => b.id === S.blattId);
+const blattName = b => b.name || (String(b.text || "").split("\n").find(z => z.trim()) || "Leeres Blatt").trim().slice(0, 28);
+function blattMerken() {
+  if (!Array.isArray(S.blaetter)) S.blaetter = [];
+  if (!S.blaetter.length) { S.blaetter.push({ id: "b" + Date.now().toString(36), name: "", text: S.text, titel: S.titel }); S.blattId = S.blaetter[0].id; }
+  let b = aktivBlatt(); if (!b) { b = S.blaetter[0]; S.blattId = b.id; }
+  if (b.text !== S.text || b.titel !== S.titel) { b.text = S.text; b.titel = S.titel; b.geaendert = Date.now(); }
+}
+function blaetterBauen() {
+  blattMerken();
+  const box = $("blattWahl"); if (!box) return;
+  box.innerHTML = S.blaetter.map(b => `<button type="button" class="blatt-chip" data-blatt="${b.id}" aria-pressed="${b.id === S.blattId}">${esc(blattName(b))}</button>`).join("")
+    + (S.blaetter.length < MAX_BLAETTER ? '<button type="button" class="blatt-chip neu" data-blatt-neu>+ Neues Blatt</button>' : "");
+  const an = box.querySelector('[aria-pressed="true"]'); if (an) an.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+function blattZeigen() {
+  const b = aktivBlatt(); if (!b) return;
+  S.text = b.text || ""; S.titel = b.titel || ""; S.urtext = "";
+  $("textFeld").value = S.text; $("titelFeld").value = S.titel; textZahl(); $("originalBtn").hidden = true; $("nameFeld").placeholder = autoName();
+  speichern(); blaetterBauen(); neuZeichnen(0);
+}
+function blattWechseln(id) { speichern(); S.blattId = id; blattZeigen(); }
+function blattNeu(text, name) {
+  speichern();
+  if (S.blaetter.length >= MAX_BLAETTER) { toast("Höchstens 30 Blätter. Lösch zuerst eins."); return false; }
+  const b = { id: "b" + Date.now().toString(36) + ((Math.random() * 1e4) | 0), name: name || "", text: text || "", titel: "" };
+  S.blaetter.push(b); S.blattId = b.id; blattZeigen();
+  return true;
+}
+function blattMenue() {
+  const b = aktivBlatt(); if (!b) return;
+  const body = fensterAuf("Blatt verwalten", `
+    <div class="field"><label for="blattNameFeld">Name</label><input type="text" id="blattNameFeld" maxlength="40" value="${esc(b.name)}" placeholder="${esc(blattName(Object.assign({}, b, { name: "" })))}"><span class="hint">Leer lassen: Das Blatt heißt wie die erste Zeile.</span></div>
+    <button class="btn primary breit" id="blattNameOk">Speichern</button>
+    <div class="reihe" data-zone style="margin-top:18px"><button class="btn ghost rot breit" id="blattWeg"${S.blaetter.length < 2 ? " disabled" : ""}>Blatt löschen</button></div>
+    ${S.blaetter.length < 2 ? '<p class="hint">Das letzte Blatt kann nicht gelöscht werden. Leeren geht über den Knopf am Text.</p>' : ""}`);
+  body.querySelector("#blattNameOk").onclick = () => { b.name = body.querySelector("#blattNameFeld").value.trim(); speichern(); blaetterBauen(); fensterZu(); toast("Gespeichert"); };
+  body.querySelector("#blattWeg").onclick = e => zoneFragen(e.target, `„${esc(blattName(b))}“ löschen? Das geht nicht rückgängig.`, "Löschen", async () => {
+    S.blaetter = S.blaetter.filter(x => x !== b); S.blattId = S.blaetter[0].id; fensterZu(); blattZeigen(); toast("Gelöscht");
+  }, () => { fensterZu(); blattMenue(); });
+}
+// Schriftgröße und notfalls Zeilenabstand so wählen, dass der Text genau die gewünschten Seiten füllt
+function zeichenOpts(extra) {
+  return Object.assign({
+    paras: (_plan || FEHLER.plan(S.text, S.errors, S.seed)).paras, font: effFont(), tpl: S.tpl, paper: S.paper, dark: S.ton === "dunkel", ink: S.ink, size: S.size, pitchMM: S.pitch,
+    messy: S.messy, drift: S.drift, slant: S.slant, staerke: S.staerke, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
+    titel: S.titel.trim(), datum: S.datum, zeit: S.zeit
+  }, extra || {});
+}
+async function einpassen(ziel) {
+  if (!S.text.trim()) { toast("Erst einen Text eingeben"); return; }
+  clearTimeout(_zt);
+  _plan = FEHLER.plan(S.text, S.errors, S.seed);
+  // passt(): Zeilen höchstens so viele, wie auf die Seiten gehen; fuell: wie voll die letzte Seite ist
+  const messen = async (size, pitch) => (await HS.render($("seiten"), zeichenOpts({ size, pitchMM: pitch, nurMessen: true }))) || { lines: 1e9, per: 1 };
+  const R = k => REGLER.find(x => x.id === k);
+  const sMin = R("size").min, sMax = R("size").max, pMin = R("pitch").min, pMax = R("pitch").max;
+  const passt = m => m.lines <= m.per * ziel;
+  // Größte Schrift (5er-Schritte), die noch passt
+  const groesste = async p => { let lo = sMin / 5, hi = sMax / 5, best = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (passt(await messen(m * 5, p))) { best = m; lo = m + 1; } else hi = m - 1; } return best < 0 ? null : best * 5; };
+  let pitch = S.pitch, size = await groesste(pitch), hinweis = "";
+  if (size == null) {
+    // Passt selbst klein nicht: Zeilen enger
+    for (let p = pitch - 0.5; p >= pMin && size == null; p -= 0.5) { size = await groesste(p); if (size != null) pitch = p; }
+    if (size == null) { neuZeichnen(0); toast(`Das passt nicht auf ${ziel === 1 ? "1 Seite" : ziel + " Seiten"}, der Text ist zu lang.`); return; }
+  } else if (size === sMax) {
+    // Text kurz: Zeilen weiter auseinander, solange es noch passt, damit die Seiten voll werden
+    for (let p = pitch + 0.5; p <= pMax; p += 0.5) { if (!passt(await messen(sMax, p))) break; pitch = p; }
+    const m = await messen(sMax, pitch);
+    if (m.lines < m.per * (ziel - 1) + m.per * 0.7) hinweis = " Der Text ist zu kurz, um die Seiten ganz zu füllen.";
+  }
+  S.size = size; S.pitch = pitch;
+  REGLER.forEach(x => { const el = $("r-" + x.id); if (el) { el.value = S[x.id]; wertZeigen(x); } });
+  speichern(); neuZeichnen(0);
+  toast(`Eingepasst: Größe ${size} %, Zeilenabstand ${fmtZahl(pitch)} mm.${hinweis}`);
+}
 function neuZeichnen(ms) {
   clearTimeout(_zt);
   _zt = setTimeout(async () => {
     _plan = FEHLER.plan(S.text, S.errors, S.seed);
     fehlerZeigen(_plan);
-    const r = await HS.render($("seiten"), {
-      paras: _plan.paras, font: effFont(), tpl: S.tpl, paper: S.paper, dark: S.ton === "dunkel", ink: S.ink, size: S.size, pitchMM: S.pitch,
-      messy: S.messy, drift: S.drift, slant: S.slant, staerke: S.staerke, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
-      titel: S.titel.trim(), datum: S.datum, zeit: S.zeit
-    });
+    const r = await HS.render($("seiten"), zeichenOpts());
     if (r) { $("seitenInfo").textContent = r.pages === 1 ? "1 Seite" : r.pages + " Seiten"; pdfVorbereiten(); miniMalen(); }
   }, ms == null ? 60 : ms);
 }
@@ -2211,9 +2297,11 @@ function einstHoch(sofort) {
 function einstAnwenden(e) {
   EINST_SYNC.forEach(k => { if (e[k] !== undefined) S[k] = e[k]; });
   REGLER.forEach(R => { $("r-" + R.id).value = S[R.id]; });
+  // Aktives Blatt aus dem Konto übernehmen (sonst würde der alte Text vom Gerät es überschreiben)
+  const ab = (S.blaetter || []).find(b => b.id === S.blattId); if (ab) { S.text = ab.text || ""; S.titel = ab.titel || ""; }
   $("textFeld").value = S.text; textZahl();
   $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
-  themaAnwenden(); modusStand();
+  themaAnwenden(); modusStand(); blaetterBauen();
   _ohneHoch = true; speichern(); _ohneHoch = false;
 }
 async function ausKontoLaden() {
@@ -2514,13 +2602,26 @@ async function nachrichtenLaden(ganz) {
   if (ganz || unten) zumEnde();
   if (_nachr.length) sb.from("chat_mitglieder").update({ gelesen_bis: _nachr[_nachr.length - 1].erstellt }).eq("chat_id", id).eq("user_id", ich.id).then(() => {});
 }
+// Vorschaubilder holen: signierte Links für alle Bilder auf einmal, gemerkt für eine Stunde
+const _bildUrl = {};
+async function bilderLaden() {
+  const imgs = [...document.querySelectorAll("#nachrichten img[data-bild]")];
+  imgs.forEach(i => { i.onerror = () => i.closest(".n-bild").remove(); if (_bildUrl[i.dataset.bild]) i.src = _bildUrl[i.dataset.bild]; });
+  const fehlt = [...new Set(imgs.filter(i => !_bildUrl[i.dataset.bild]).map(i => i.dataset.bild))];
+  if (!fehlt.length) return;
+  const r = await sb.storage.from("blaetter").createSignedUrls(fehlt, 3600);
+  (r.data || []).forEach(x => { if (x.signedUrl) _bildUrl[x.path] = x.signedUrl; });
+  imgs.forEach(i => { const u = _bildUrl[i.dataset.bild]; if (u) i.src = u; else if (fehlt.includes(i.dataset.bild)) i.closest(".n-bild").remove(); });
+}
 function nachrichtenMalen() {
   const el = $("nachrichten"); if (!el) return;
+  setTimeout(bilderLaden, 0);
   el.innerHTML = _nachr.length ? _nachr.map(n => {
     const meins = n.von === ich.id, lang = n.text.length > 500, blattig = n.text.length > 40 || n.pdf;
     return `<div class="nachricht${meins ? " meins" : ""}" data-n="${n.id}">
       ${meins ? "" : `<small class="von">${esc(n.von_name || "Gelöschtes Konto")}</small>`}
       ${n.titel ? `<b class="n-titel">${CI.blatt}${esc(n.titel)}</b>` : ""}
+      ${n.pdf ? `<button class="n-bild" data-n-pdf aria-label="Blatt ansehen"><img data-bild="${esc(n.pdf.replace(/\.pdf$/, ".jpg"))}" alt="Blatt"></button>` : ""}
       ${n.text ? `<div class="n-text${lang ? " zu" : ""}">${esc(n.text)}</div>` : ""}
       ${lang ? '<button class="link" data-n-mehr>Ganzen Text zeigen</button>' : ""}
       <div class="n-fuss" data-zone><span class="mono">${kurzZeit(n.erstellt)}</span>
@@ -2528,7 +2629,7 @@ function nachrichtenMalen() {
         ${n.pdf ? `<button class="btn ghost klein" data-n-pdf>${CI.pdf}PDF</button>` : ""}
         ${meins ? '<button class="btn ghost klein rot" data-n-weg>Löschen</button>' : '<button class="btn ghost klein" data-n-melden>Melden</button>'}
       </div></div>`;
-  }).join("") : '<p class="hint">Noch nichts geschickt. Schreib etwas, füg einen kopierten Text ein, oder schick ein Blatt aus dem Reiter Blatt.</p>';
+  }).join("") + "" : '<p class="hint">Noch nichts geschickt. Schreib etwas, füg einen kopierten Text ein, oder schick ein Blatt aus dem Reiter Blatt.</p>';
 }
 async function senden(chatId, text, mitPdf) {
   text = (text || "").trim();
@@ -2539,18 +2640,29 @@ async function senden(chatId, text, mitPdf) {
     pfad = `${chatId}/${ich.id}/${crypto.randomUUID()}.pdf`;
     const u = await sb.storage.from("blaetter").upload(pfad, f, { contentType: "application/pdf" });
     if (u.error) throw u.error;
+    // Kleines Bild der ersten Seite für die Vorschau im Chat (fehlt es, zeigt der Chat nur den PDF-Knopf)
+    try {
+      const c0 = document.querySelector("#seiten canvas");
+      if (c0) {
+        const t = document.createElement("canvas"); t.width = 360; t.height = Math.round(360 * c0.height / c0.width);
+        t.getContext("2d").drawImage(c0, 0, 0, t.width, t.height);
+        const bl = await new Promise(res => t.toBlob(res, "image/jpeg", 0.72));
+        if (bl) await sb.storage.from("blaetter").upload(pfad.replace(/\.pdf$/, ".jpg"), bl, { contentType: "image/jpeg" });
+      }
+    } catch (e) {}
     titel = f.name.replace(/\.pdf$/, "");
   }
   if (!text && !pfad) return false;
   if (text.length > 20000) throw new Error("Der Text ist zu lang (höchstens 20.000 Zeichen).");
   const r = await sb.from("nachrichten").insert({ chat_id: chatId, text, titel, pdf: pfad });
-  if (r.error) { if (pfad) sb.storage.from("blaetter").remove([pfad]); throw r.error; }
+  if (r.error) { if (pfad) sb.storage.from("blaetter").remove([pfad, pfad.replace(/\.pdf$/, ".jpg")]); throw r.error; }
   return true;
 }
-function insBlatt(text) {
-  S.text = text; S.urtext = ""; $("textFeld").value = text; textZahl(); $("originalBtn").hidden = true;
-  $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(0); tab("blatt");
-  toast("In deiner Schrift aufs Blatt gesetzt");
+function insBlatt(text, titel) {
+  // Als neues Blatt, damit der eigene Text nicht verloren geht
+  if (!blattNeu(text, titel || "")) return;
+  tab("blatt");
+  toast("Als neues Blatt in deiner Schrift angelegt");
 }
 async function pdfOeffnen(pfad) {
   const w = window.open("", "_blank");   // vor dem Warten öffnen, sonst blockt Safari das Fenster
@@ -2717,11 +2829,11 @@ async function chatKlick(e) {
   const box = t.closest("[data-n]"); if (!box) return;
   const n = _nachr.find(x => x.id === box.dataset.n); if (!n) return;
   if (t.hasAttribute("data-n-mehr")) { box.querySelector(".n-text").classList.remove("zu"); t.remove(); }
-  else if (t.hasAttribute("data-n-blatt")) insBlatt(n.text);
+  else if (t.hasAttribute("data-n-blatt")) insBlatt(n.text, n.titel);
   else if (t.hasAttribute("data-n-pdf")) pdfOeffnen(n.pdf);
   else if (t.hasAttribute("data-n-weg")) zoneFragen(t, "Nachricht für alle löschen?", "Löschen", async () => {
     const r = await sb.from("nachrichten").delete().eq("id", n.id); if (r.error) throw r.error;
-    if (n.pdf) sb.storage.from("blaetter").remove([n.pdf]);
+    if (n.pdf) sb.storage.from("blaetter").remove([n.pdf, n.pdf.replace(/\.pdf$/, ".jpg")]);
     _nachr = _nachr.filter(x => x !== n); nachrichtenMalen();
   }, nachrichtenMalen);
   else if (t.hasAttribute("data-n-melden")) zoneFragen(t, "Diese Nachricht dem Admin melden? Er sieht dann den Text und den Absender.", "Melden", async () => {
@@ -2755,7 +2867,7 @@ async function chatStart() {
     const letzter = LS.get(LETZTER_CHAT);
     if (letzter && CHATS.some(c => c.id === letzter)) _chatOffen = letzter; else LS.del(LETZTER_CHAT);
     // Eigene alte Nachrichten (über 30 Tage) löschen und ihre PDFs wegräumen
-    sb.rpc("aufraeumen").then(r => { const p = (r.data || []).filter(Boolean); if (p.length) sb.storage.from("blaetter").remove(p); });
+    sb.rpc("aufraeumen").then(r => { const p = (r.data || []).filter(Boolean).flatMap(x => [x, x.replace(/\.pdf$/, ".jpg")]); if (p.length) sb.storage.from("blaetter").remove(p); });
     const code = LS.get(BEITRETEN_KEY);
     if (code) { LS.del(BEITRETEN_KEY); await beitreten(code); }
   }
@@ -3017,6 +3129,15 @@ async function start() {
   $("pdfBtn").onclick = async () => { const f = await pdfDatei(); HS.blobLaden(f, f.name); };
   $("teilenBtn").onclick = teilen;
   $("sendenBtn").onclick = blattSendenFenster;
+  blaetterBauen();
+  $("blattWahl").addEventListener("click", e => {
+    const b = e.target.closest("[data-blatt]"); if (b) { if (b.dataset.blatt !== S.blattId) blattWechseln(b.dataset.blatt); return; }
+    if (e.target.closest("[data-blatt-neu]")) { if (blattNeu("")) $("textFeld").focus(); }
+  });
+  $("blattMenue").onclick = blattMenue;
+  document.querySelectorAll("[data-einpassen]").forEach(b => b.onclick = async () => { b.disabled = true; try { await einpassen(+b.dataset.einpassen); } finally { b.disabled = false; } });
+  // Name des Blatts folgt der ersten Zeile, solange es keinen eigenen Namen hat
+  $("textFeld").addEventListener("input", () => { clearTimeout(window._blT); window._blT = setTimeout(() => { const b = aktivBlatt(); if (b && !b.name) blaetterBauen(); }, 600); });
   $("chatInhalt").addEventListener("click", chatKlick);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) chatTakt(); });
   $("einfuegenBtn").onclick = async () => {
