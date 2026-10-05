@@ -2008,8 +2008,8 @@ function kontoKnopf() {
 }
 const kontoFehler = m => {
   m = String(m || "");
-  if (/Invalid login credentials/i.test(m)) return "E-Mail oder Passwort stimmt nicht.";
-  if (/already registered|already been registered/i.test(m)) return "Für diese E-Mail gibt es schon ein Konto. Melde dich an.";
+  if (/Invalid login credentials/i.test(m)) return "Benutzername oder Passwort stimmt nicht.";
+  if (/already registered|already been registered/i.test(m)) return "Diesen Benutzernamen gibt es schon. Nimm einen anderen.";
   if (/at least 6/i.test(m)) return "Das Passwort braucht mindestens 6 Zeichen.";
   if (/invalid format|valid email/i.test(m)) return "Die E-Mail-Adresse stimmt so nicht.";
   if (/not confirmed/i.test(m)) return "Die E-Mail ist noch nicht bestätigt.";
@@ -2077,9 +2077,9 @@ async function testerListe() {
   body.innerHTML = `<div class="hint mono">${l.length} Konten, ${best} bestätigt, ${schr} mit eingelesener Schrift</div>
     <ul class="tester">${l.map(x => `<li>
       <b>${esc(x.name || "ohne Namen")}</b>
-      <span class="mono">${esc(x.email)}</span>
+      <span class="mono">${esc(anzeigeKonto(x.email))}</span>
       <small>Registriert ${deZeit(x.angelegt)}. Zuletzt angemeldet ${deZeit(x.zuletzt)}.</small>
-      <span class="marken"><span class="${x.bestaetigt ? "m-ok" : "m-warn"}">${x.bestaetigt ? "E-Mail bestätigt" : "nicht bestätigt"}</span>${x.hat_schrift ? '<span class="m-ok">Schrift eingelesen</span>' : '<span class="m-leer">noch keine Schrift</span>'}</span>
+      <span class="marken">${x.hat_schrift ? '<span class="m-ok">Schrift eingelesen</span>' : '<span class="m-leer">noch keine Schrift</span>'}</span>
     </li>`).join("")}</ul>`;
 }
 
@@ -2164,7 +2164,7 @@ function profilMalen(body) {
   const kurzDatum = t => { if (!t) return ""; const d = new Date(t); return `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.${d.getFullYear()}`; };
   const name = (ich.user_metadata && ich.user_metadata.name) || "";
   body.innerHTML = `
-    <div class="hinweis ok"><b>${esc(name || "Angemeldet")}</b>${esc(ich.email || "")}</div>
+    <div class="hinweis ok"><b>${esc(name || "Angemeldet")}</b>${esc(anzeigeKonto(ich.email))}</div>
     <div class="sec-label">Deine Handschriften (${HSL.length} von ${MAX_HS})</div>
     ${HSL.length ? "" : '<p class="hint">Noch keine Handschrift. Lies eine im Reiter Schrift ein.</p>'}
     ${HSL.map(h => {
@@ -2220,8 +2220,9 @@ async function kontoFenster() {
   profilMalen(body);
 }
 
-/* Tor: ohne Anmeldung kommt niemand rein. Registrieren nur mit echter, bestätigter E-Mail. */
-const WEGWERF = /@(mailinator|guerrillamail|sharklasers|10minutemail|temp-?mail|tempmail|yopmail|trashmail|getnada|dispostable|maildrop|throwawaymail|mohmal|emailondeck|fakeinbox|mailnesia|spamgourmet|moakt|tmpmail|burnermail)\./i;
+/* Tor: ohne Anmeldung kommt niemand rein. Registrieren mit Name, Benutzername, Passwort. */
+const KONTO_DOMAIN = "schriftblatt.local";
+const anzeigeKonto = m => String(m || "").replace("@" + KONTO_DOMAIN, "");
 const zurueckUrl = () => location.origin + location.pathname;
 function torWeg() { document.body.classList.remove("gesperrt"); $("tor").hidden = true; }
 function torZeigen(modus, info) {
@@ -2269,7 +2270,7 @@ function torZeigen(modus, info) {
   t.innerHTML = `<div class="modus" id="tModus"><button type="button" data-v="login" aria-pressed="${!neu}">Anmelden</button><button type="button" data-v="neu" aria-pressed="${neu}">Registrieren</button></div>
     <form id="tForm" class="gruppe" novalidate>
       ${neu ? '<div class="field"><label for="tName">Name</label><input type="text" id="tName" autocomplete="name" placeholder="Vor- und Nachname"></div>' : ""}
-      <div class="field"><label for="tEmail">E-Mail</label><input type="email" id="tEmail" autocomplete="email" inputmode="email"></div>
+      <div class="field"><label for="tEmail">${neu ? "Benutzername" : "Benutzername (alte Konten: E-Mail)"}</label><input type="text" id="tEmail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="${neu ? "z. B. max.k" : ""}"></div>
       <div class="field"><label for="tPw">Passwort${neu ? " (mindestens 6 Zeichen)" : ""}</label><input type="password" id="tPw" autocomplete="${neu ? "new-password" : "current-password"}"></div>
       <p class="err" id="tFehler"></p>
       <button class="btn primary breit" id="tLos" type="submit">${neu ? "Konto anlegen" : "Anmelden"}</button>
@@ -2279,14 +2280,18 @@ function torZeigen(modus, info) {
   if (!neu) t.querySelector("#tVergessen").onclick = () => torZeigen("vergessen");
   t.querySelector("#tForm").onsubmit = async e => {
     e.preventDefault();
-    const email = t.querySelector("#tEmail").value.trim(), pw = t.querySelector("#tPw").value, f = t.querySelector("#tFehler"), los = t.querySelector("#tLos");
+    const roh = t.querySelector("#tEmail").value.trim(), pw = t.querySelector("#tPw").value, f = t.querySelector("#tFehler"), los = t.querySelector("#tLos");
     const name = neu ? t.querySelector("#tName").value.trim() : "";
     if (neu && name.length < 2) { f.textContent = "Bitte deinen Namen eingeben."; return; }
-    if (!email || !pw) { f.textContent = "Bitte E-Mail und Passwort eingeben."; return; }
-    if (neu && WEGWERF.test(email)) { f.textContent = "Wegwerf-Adressen gehen nicht. Nimm deine echte E-Mail."; return; }
+    if (!roh || !pw) { f.textContent = "Bitte Benutzername und Passwort eingeben."; return; }
+    // Ohne E-Mail: Benutzername wird intern zu name@schriftblatt.local. Alte Konten melden sich weiter mit ihrer E-Mail an.
+    const benutzer = roh.toLowerCase();
+    if (!benutzer.includes("@") && !/^[a-z0-9._-]{3,30}$/.test(benutzer)) { f.textContent = "Benutzername: 3 bis 30 Zeichen, nur Buchstaben ohne Umlaute, Zahlen, Punkt, Strich."; return; }
+    if (neu && benutzer.includes("@")) { f.textContent = "Bitte einen Benutzernamen ohne @ wählen."; return; }
+    const email = benutzer.includes("@") ? benutzer : benutzer + "@" + KONTO_DOMAIN;
     los.disabled = true; f.textContent = "";
     const r = neu
-      ? await sb.auth.signUp({ email, password: pw, options: { emailRedirectTo: zurueckUrl(), data: { name } } })
+      ? await sb.auth.signUp({ email, password: pw, options: { data: { name, benutzer } } })
       : await sb.auth.signInWithPassword({ email, password: pw });
     los.disabled = false;
     if (r.error) {
@@ -2295,7 +2300,7 @@ function torZeigen(modus, info) {
       return;
     }
     // Supabase meldet bei schon bestätigten Adressen keinen Fehler, sondern ein Konto ohne Identität
-    if (neu && r.data.user && Array.isArray(r.data.user.identities) && !r.data.user.identities.length) { f.textContent = "Für diese E-Mail gibt es schon ein Konto. Melde dich an."; return; }
+    if (neu && r.data.user && Array.isArray(r.data.user.identities) && !r.data.user.identities.length) { f.textContent = "Diesen Benutzernamen gibt es schon. Nimm einen anderen."; return; }
     if (!r.data.session) { torZeigen("mail", email); return; }
     angemeldet(r.data.session.user);
     toast(neu ? "Konto angelegt" : "Angemeldet");
