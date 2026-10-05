@@ -111,7 +111,13 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .mitglieder li>span:first-child{display:flex;flex-direction:column;min-width:0}
 .mitglieder small{color:var(--ink-3);font-size:12px}
 @media (max-width:899px){ .schreiben{bottom:calc(61px + env(safe-area-inset-bottom))} }
-@media (min-width:900px){ .chat-kopf{top:-2px} }
+/* Am Rechner: im Reiter Chats kein Blatt, der Chat bekommt die Breite und die Seite scrollt */
+@media (min-width:900px){
+  body[data-tab="chats"] .vorschau{display:none}
+  body[data-tab="chats"] .layout{grid-template-columns:minmax(0,760px);justify-content:center}
+  body[data-tab="chats"] .links{position:static;max-height:none;overflow:visible;padding:2px 0 0}
+  body[data-tab="chats"] .schreiben{padding-bottom:14px}
+}
 .rechtlinks.unten{margin-top:70vh;padding-bottom:10px}
 .rechtlinks a{color:var(--ink-3);text-decoration:underline;text-underline-offset:2px;min-height:44px;display:inline-flex;align-items:center}
 .recht h4{font-size:14px;margin:18px 0 4px;color:var(--ink)}
@@ -2431,7 +2437,8 @@ const chatFehler = e => {
   if (/^[A-ZÄÖÜ][^a-z]*[a-zäöüß ]/.test(m) && /[äöüß]|nicht|schon|voll|gibt/i.test(m)) return m;   // eigene Meldungen aus der Datenbank
   return kontoFehler(m);
 };
-const scroller = () => handy() ? document.scrollingElement : document.querySelector(".links");
+const scroller = () => (handy() || S.tab === "chats") ? document.scrollingElement : document.querySelector(".links");
+const LETZTER_CHAT = "hs2-chat-letzter";
 const nahUnten = () => { const s = scroller(); return !s || s.scrollHeight - s.scrollTop - s.clientHeight < 200; };
 const zumEnde = () => { const s = scroller(); if (s) s.scrollTop = s.scrollHeight; };
 function zahlZeigen() {
@@ -2455,12 +2462,14 @@ async function ungelesenLaden() {
   if (!sb || !ich || CHATS === null) return;
   const r = await sb.rpc("ungelesen");
   if (r.error) return;
-  UNGELESEN = {}; (r.data || []).forEach(x => { if (x.chat_id !== _chatOffen) UNGELESEN[x.chat_id] = x.anzahl; });
+  const offenSichtbar = S.tab === "chats" ? _chatOffen : null;
+  UNGELESEN = {}; (r.data || []).forEach(x => { if (x.chat_id !== offenSichtbar) UNGELESEN[x.chat_id] = x.anzahl; });
   zahlZeigen();
 }
 function chatsZeigen() {
   if (!ich) return;
-  if (_chatOffen) chatAnsichtMalen(); else chatListeMalen();
+  if (_chatOffen) { chatAnsichtMalen(); delete UNGELESEN[_chatOffen]; zahlZeigen(); if (!_nachr.length) nachrichtenLaden(true); }
+  else chatListeMalen();
 }
 function chatListeMalen() {
   const el = $("chatInhalt"); if (!el) return;
@@ -2474,7 +2483,7 @@ function chatListeMalen() {
     }).join("")}</ul>` : '<p class="hint">Noch keine Chats. Leg eine Gruppe an und lass die anderen den QR-Code scannen, oder tritt mit einem Code bei.</p>'}`;
 }
 async function chatOeffnen(id) {
-  _chatOffen = id; _nachr = []; delete UNGELESEN[id]; zahlZeigen();
+  _chatOffen = id; _nachr = []; delete UNGELESEN[id]; zahlZeigen(); LS.set(LETZTER_CHAT, id);
   if (S.tab !== "chats") tab("chats"); else chatAnsichtMalen();
   await nachrichtenLaden(true);
   chatTakt();
@@ -2614,7 +2623,7 @@ function infoFenster(c) {
       <div class="reihe" data-zone style="margin-top:14px">${chef ? `<button class="btn ghost rot breit" id="chatLoeschen">${c.privat ? "Chat löschen" : "Gruppe löschen"}</button>` : '<button class="btn ghost rot breit" id="chatVerlassen">Chat verlassen</button>'}</div>`;
   };
   malen();
-  const weg = async () => { _chatOffen = null; await chatsLaden(); fensterZu(); chatListeMalen(); };
+  const weg = async () => { _chatOffen = null; LS.del(LETZTER_CHAT); await chatsLaden(); fensterZu(); chatListeMalen(); };
   b.onclick = async e => {
     const t = e.target.closest("button"); if (!t) return;
     if (t.id === "gNameOk") {
@@ -2691,7 +2700,7 @@ async function chatKlick(e) {
     case "gruppe": gruppeFenster(); return;
     case "privat": t.disabled = true; await privatNeu(); t.disabled = false; return;
     case "code": codeFenster(); return;
-    case "zurueck": _chatOffen = null; _nachr = []; await chatsLaden(); await ungelesenLaden(); chatListeMalen(); window.scrollTo(0, 0); return;
+    case "zurueck": _chatOffen = null; _nachr = []; LS.del(LETZTER_CHAT); await chatsLaden(); await ungelesenLaden(); chatListeMalen(); window.scrollTo(0, 0); return;
     case "einladen": if (c) einladenFenster(c); return;
     case "info": if (c) infoFenster(c); return;
     case "einfuegen":
@@ -2742,6 +2751,9 @@ async function chatStart() {
   document.querySelectorAll("[data-nur-konto]").forEach(x => x.hidden = false);
   const ok = await chatsLaden();
   if (ok) {
+    // Zuletzt offenen Chat wieder öffnen, sobald man in den Reiter Chats geht
+    const letzter = LS.get(LETZTER_CHAT);
+    if (letzter && CHATS.some(c => c.id === letzter)) _chatOffen = letzter; else LS.del(LETZTER_CHAT);
     // Eigene alte Nachrichten (über 30 Tage) löschen und ihre PDFs wegräumen
     sb.rpc("aufraeumen").then(r => { const p = (r.data || []).filter(Boolean); if (p.length) sb.storage.from("blaetter").remove(p); });
     const code = LS.get(BEITRETEN_KEY);
@@ -2751,7 +2763,7 @@ async function chatStart() {
   chatTakt();
 }
 function chatStop() {
-  clearTimeout(_chatT); CHATS = []; UNGELESEN = {}; _chatOffen = null; _nachr = []; zahlZeigen();
+  clearTimeout(_chatT); CHATS = []; UNGELESEN = {}; _chatOffen = null; _nachr = []; zahlZeigen(); LS.del(LETZTER_CHAT);
   document.querySelectorAll("[data-nur-konto]").forEach(x => x.hidden = true);
   if ($("chatInhalt")) $("chatInhalt").innerHTML = "";
 }
