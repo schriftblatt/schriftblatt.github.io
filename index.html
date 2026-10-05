@@ -120,6 +120,11 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .mitglieder li>span:first-child{display:flex;flex-direction:column;min-width:0}
 .mitglieder small{color:var(--ink-3);font-size:12px}
 @media (max-width:899px){ .schreiben{bottom:calc(61px + env(safe-area-inset-bottom))} }
+/* Offener Chat füllt den Bildschirm, die Schreibleiste sitzt immer unten */
+#sicht-chats.offen .sicht-kopf{display:none}
+#sicht-chats.offen #chatInhalt{display:flex;flex-direction:column;min-height:calc(100dvh - var(--kopfh) - 16px - 61px - env(safe-area-inset-bottom) - 4px)}
+#sicht-chats.offen .nachrichten{flex:1 0 auto}
+@media (min-width:900px){ #sicht-chats.offen #chatInhalt{min-height:calc(100dvh - var(--kopfh) - 16px - 70px)} }
 /* Am Rechner: im Reiter Chats kein Blatt, der Chat bekommt die Breite und die Seite scrollt */
 @media (min-width:900px){
   body[data-tab="chats"] .vorschau{display:none}
@@ -2587,6 +2592,7 @@ function chatsZeigen() {
 }
 function chatListeMalen() {
   const el = $("chatInhalt"); if (!el) return;
+  $("sicht-chats").classList.remove("offen");
   if (CHATS === null) { el.innerHTML = '<div class="hinweis warn"><b>Chats sind noch nicht eingerichtet</b>Die Datenbank muss zuerst ergänzt werden.</div>'; return; }
   _listeSig = JSON.stringify([CHATS.map(c => c.id + mitgliederVon(c).length + c.name), UNGELESEN]);
   el.innerHTML = `
@@ -2605,6 +2611,7 @@ async function chatOeffnen(id) {
 function chatAnsichtMalen() {
   const c = (CHATS || []).find(x => x.id === _chatOffen);
   if (!c) { _chatOffen = null; chatListeMalen(); return; }
+  $("sicht-chats").classList.add("offen");
   const offen = !c.privat || mitgliederVon(c).length < 2;
   $("chatInhalt").innerHTML = `
     <div class="chat-kopf"><button class="btn ghost knopf-ico" data-c="zurueck" aria-label="Zurück zu den Chats">${CI.zurueck}</button><b>${esc(chatName(c))}</b><span class="spacer"></span>
@@ -2892,7 +2899,7 @@ async function chatStart() {
     // Zuletzt offenen Chat wieder öffnen, sobald man in den Reiter Chats geht
     const letzter = LS.get(LETZTER_CHAT);
     if (letzter && CHATS.some(c => c.id === letzter)) _chatOffen = letzter; else LS.del(LETZTER_CHAT);
-    // Eigene alte Nachrichten (über 30 Tage) löschen und ihre PDFs wegräumen
+    // Abgelaufene Nachrichten (über 7 Tage) in den eigenen Chats löschen und ihre PDFs wegräumen
     sb.rpc("aufraeumen").then(r => { const p = (r.data || []).filter(Boolean).flatMap(x => [x, x.replace(/\.pdf$/, ".jpg")]); if (p.length) sb.storage.from("blaetter").remove(p); });
     const code = LS.get(BEITRETEN_KEY);
     if (code) { LS.del(BEITRETEN_KEY); await beitreten(code); }
@@ -2949,7 +2956,7 @@ const RECHT = {
     <h4>Wer die Daten sieht</h4>
     <p>Handschriften und Einstellungen sieht nur du. Nachrichten und mitgeschickte PDFs sehen alle Mitglieder des jeweiligen Chats, dazu deinen Namen. Der Betreiber sieht für die Verwaltung der Testversion eine Liste mit Name, Benutzername, Registrierung, letzter Anmeldung und ob eine Schrift eingelesen wurde. Meldet jemand eine Nachricht, sieht der Betreiber diese Nachricht mit dem Namen des Absenders, um sie zu prüfen und bei Verstößen zu löschen.</p>
     <h4>Wie lange</h4>
-    <p>Bis du sie löschst. Im Profil kannst du einzelne Handschriften oder dein ganzes Konto jederzeit selbst löschen, dann ist alles sofort weg. Nachrichten und PDFs in Chats sind 30 Tage sichtbar und werden danach gelöscht; eigene Nachrichten kannst du vorher jederzeit löschen. Wird die Testversion beendet, werden alle Daten gelöscht.</p>
+    <p>Bis du sie löschst. Im Profil kannst du einzelne Handschriften oder dein ganzes Konto jederzeit selbst löschen, dann ist alles sofort weg. Nachrichten und PDFs in Chats werden nach 7 Tagen gelöscht; eigene Nachrichten kannst du vorher jederzeit löschen. Wird die Testversion beendet, werden alle Daten gelöscht.</p>
     <h4>Deine Rechte</h4>
     <p>Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit (Export als Datei in den Einstellungen) und Widerspruch. Melde dich dafür per E-Mail. Du kannst dich außerdem bei einer Datenschutzbehörde beschweren, zuständig ist die Landesbeauftragte für Datenschutz und Informationsfreiheit Nordrhein-Westfalen.</p>
     <p class="hint">Stand: Oktober 2026</p>`]
