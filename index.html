@@ -2428,6 +2428,7 @@ function profilMalen(body) {
   const name = (ich.user_metadata && ich.user_metadata.name) || "";
   body.innerHTML = `
     <div class="hinweis ok"><b>${esc(name || "Angemeldet")}</b>${esc(anzeigeKonto(ich.email))}</div>
+    <div class="reihe" data-zone><button class="btn ghost klein" id="nameAendernBtn">Namen ändern</button></div>
     <div class="sec-label">Deine Handschriften (${HSL.length} von ${MAX_HS})</div>
     ${HSL.length ? "" : '<p class="hint">Noch keine Handschrift. Lies eine im Reiter Schrift ein.</p>'}
     ${HSL.map(h => {
@@ -2473,6 +2474,26 @@ function profilMalen(body) {
     }
     else if (t.hasAttribute("data-neu-hs")) { fensterZu(); tab("schrift"); setTimeout(() => $("anleitung").scrollIntoView({ behavior: "smooth" }), 50); }
     else if (t.id === "testerBtn") testerListe();
+    else if (t.id === "nameAendernBtn") {
+      const zone = t.closest("[data-zone]");
+      zone.innerHTML = `<input type="text" id="neuerName" maxlength="40" value="${esc(name)}" aria-label="Neuer Name" style="flex:1"><button class="btn primary" id="nameOk">Speichern</button>`;
+      const inp = zone.querySelector("#neuerName"); inp.focus(); inp.select();
+      const los = async () => {
+        const n = inp.value.trim();
+        if (n.length < 2) { toast("Der Name ist zu kurz."); return; }
+        if (n === name) { profilMalen(body); return; }
+        zone.querySelector("#nameOk").disabled = true;
+        const u = await sb.auth.updateUser({ data: { name: n } });
+        if (u.error) { toast(kontoFehler(u.error.message)); profilMalen(body); return; }
+        ich = u.data.user || ich;
+        // In Chats und eigenen Nachrichten nachziehen (fehlt die Funktion noch, bleibt dort der alte Name)
+        const c = await sb.rpc("name_aendern", { p_name: n });
+        if (!c.error) { await chatsLaden(); _nachr = []; if (S.tab === "chats") chatsZeigen(); }
+        kontoKnopf(); toast("Name geändert"); profilMalen(body);
+      };
+      zone.querySelector("#nameOk").onclick = los;
+      inp.onkeydown = e => { if (e.key === "Enter") los(); };
+    }
     else if (t.id === "meldungenBtn") meldungenFenster();
     else if (t.id === "kontoLoeschenBtn") nachfragen(t, "Dein Konto mit allen Handschriften und Einstellungen endgültig löschen? Das geht nicht rückgängig.", async () => {
       const { error } = await sb.rpc("konto_loeschen"); if (error) throw error;
