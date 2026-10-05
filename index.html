@@ -68,6 +68,11 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .sec-label{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:600}
 .block{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .hint{font-size:12.5px;color:var(--ink-3);line-height:1.45}
+.rechtlinks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:13px;margin:14px 0 0}
+.rechtlinks a{color:var(--ink-3);text-decoration:underline;text-underline-offset:2px;min-height:44px;display:inline-flex;align-items:center}
+.recht h4{font-size:14px;margin:18px 0 4px;color:var(--ink)}
+.recht p,.recht li{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:0 0 6px}
+.recht ul{padding-left:18px;margin:0 0 6px}
 .err{font-size:13px;color:var(--bad);font-weight:600}
 body.gesperrt main,body.gesperrt .untenleiste,body.gesperrt #einstBtn,body.gesperrt #kontoBtn{display:none!important}
 .tor{max-width:440px;margin:0 auto;padding:32px 16px 60px;display:flex;flex-direction:column;gap:16px}
@@ -308,6 +313,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
   </div>
   <div class="block" id="torForm"><p class="hint">Einen Moment …</p></div>
   <p class="hint" id="appTipp">Tipp: In Safari auf <b>Teilen</b> und dann <b>Zum Home-Bildschirm</b>. Dann öffnet sich die Seite wie eine App.</p>
+  <p class="rechtlinks"><a href="#" data-recht="nutzung">Regeln</a><a href="#" data-recht="datenschutz">Datenschutz</a><a href="#" data-recht="impressum">Impressum</a></p>
 </section>
 <main>
 <div class="layout">
@@ -1930,7 +1936,8 @@ function einstellungen() {
     <div class="field"><span class="lbl">Deine Schrift</span>
       <p class="hint">Deine Handschriften sind in deinem Konto gespeichert, verwalten kannst du sie im Profil (dein Name oben rechts). Zusätzlich kannst du die gerade verwendete als Datei sichern.</p>
       <div class="reihe"><button class="btn" id="exportBtn">Als Datei sichern</button><button class="btn" id="importBtn">Datei laden</button></div>
-    </div>`);
+    </div>
+    <p class="rechtlinks"><a href="#" data-recht="nutzung">Regeln</a><a href="#" data-recht="datenschutz">Datenschutz</a><a href="#" data-recht="impressum">Impressum</a></p>`);
   const thema = () => b.querySelectorAll("#themaModus button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === S.theme)));
   thema();
   b.querySelector("#themaModus").onclick = e => { const x = e.target.closest("button"); if (!x) return; S.theme = x.dataset.v; themaAnwenden(); thema(); speichern(); };
@@ -2181,7 +2188,8 @@ function profilMalen(body) {
     ${HSL.length < MAX_HS ? '<button class="btn breit" data-neu-hs>Neue Handschrift einlesen</button>' : '<p class="hint">Du hast 5 Handschriften. Lösch eine, um eine neue anzulegen.</p>'}
     ${istAdmin ? '<button class="btn primary breit" id="testerBtn">Tester ansehen</button>' : ""}
     <button class="btn breit" id="abmeldenBtn">Abmelden</button>
-    <p class="hint">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>`;
+    <p class="hint">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>
+    <div class="reihe" data-zone style="margin-top:18px"><button class="btn ghost rot breit" id="kontoLoeschenBtn">Konto löschen</button></div>`;
   const fehler = e => toast(kontoFehler(e && e.message));
   const nachfragen = (knopf, text, los) => {
     const zone = knopf.closest("[data-zone]");
@@ -2203,6 +2211,11 @@ function profilMalen(body) {
     }
     else if (t.hasAttribute("data-neu-hs")) { fensterZu(); tab("schrift"); setTimeout(() => $("anleitung").scrollIntoView({ behavior: "smooth" }), 50); }
     else if (t.id === "testerBtn") testerListe();
+    else if (t.id === "kontoLoeschenBtn") nachfragen(t, "Dein Konto mit allen Handschriften und Einstellungen endgültig löschen? Das geht nicht rückgängig.", async () => {
+      const { error } = await sb.rpc("konto_loeschen"); if (error) throw error;
+      await sb.auth.signOut({ scope: "local" }).catch(() => {});
+      ich = null; HSL = []; HS.ownLeeren(); LS.del(OWN_KEY); kontoKnopf(); fontsBauen(); statusZeigen(); fensterZu(); torZeigen("login");
+    });
     else if (t.id === "abmeldenBtn") {
       await sb.auth.signOut({ scope: "local" });
       ich = null; HSL = []; HS.ownLeeren(); LS.del(OWN_KEY); kontoKnopf(); fontsBauen(); statusZeigen(); fensterZu(); torZeigen("login"); toast("Abgemeldet");
@@ -2216,6 +2229,62 @@ async function kontoFenster() {
   const body = fensterAuf("Dein Profil", '<p class="hint">Lädt …</p>');
   await listeLaden();
   profilMalen(body);
+}
+
+/* Impressum, Datenschutz, Regeln. Angaben zum Betreiber nur hier ändern. */
+const BETREIBER = { name: "Eljakim Penner", strasse: "[Straße Hausnummer]", ort: "[PLZ] Lemgo", email: "[E-Mail]" };
+const RECHT = {
+  impressum: ["Impressum", () => `
+    <h4>Angaben nach § 5 DDG</h4>
+    <p>${esc(BETREIBER.name)}${adresseDa() ? `<br>${esc(BETREIBER.strasse)}<br>${esc(BETREIBER.ort)}` : "<br>Lemgo"}</p>
+    ${/^\[/.test(BETREIBER.email) ? "" : `<h4>Kontakt</h4><p>E-Mail: ${esc(BETREIBER.email)}</p>`}
+    <h4>Verantwortlich für den Inhalt</h4><p>${esc(BETREIBER.name)}, Anschrift wie oben.</p>
+    <p>Schriftblatt ist ein kostenloses, privates Projekt ohne Werbung.</p>`],
+  nutzung: ["Regeln", () => `
+    <p>Schriftblatt setzt Texte in deiner Handschrift aufs Blatt. Damit das in Ordnung bleibt:</p>
+    <ul>
+      <li><b>Keine Unterschriften</b>, weder deine noch fremde.</li>
+      <li><b>Keine Dokumente, die rechtlich zählen</b>: Entschuldigungen, Atteste, Verträge, Formulare, Erklärungen im Namen anderer. Wer so etwas fälscht, macht sich strafbar (Urkundenfälschung, § 267 StGB).</li>
+      <li><b>Nur die eigene Handschrift einlesen</b>, nicht die von anderen Personen.</li>
+      <li>Ob du Blätter aus Schriftblatt in der Schule abgeben darfst, entscheidet deine Lehrkraft. Dafür bist du selbst verantwortlich.</li>
+    </ul>
+    <p>Wer sich nicht daran hält, dessen Konto wird gelöscht. Die App ist eine Testversion und kann sich jederzeit ändern oder abgeschaltet werden.</p>`],
+  datenschutz: ["Datenschutz", () => `
+    <h4>Wer verantwortlich ist</h4>
+    <p>${esc(BETREIBER.name)}, ${adresseDa() ? esc(BETREIBER.strasse + ", " + BETREIBER.ort) : "Lemgo"}${/^\[/.test(BETREIBER.email) ? "" : ", " + esc(BETREIBER.email)}</p>
+    <h4>Was gespeichert wird</h4>
+    <ul>
+      <li><b>Konto:</b> Name, Benutzername (bei älteren Konten die E-Mail-Adresse), Passwort nur verschlüsselt, Zeitpunkt von Registrierung und letzter Anmeldung.</li>
+      <li><b>Handschriften:</b> die ausgeschnittenen Buchstaben und Wörter aus deinem Foto, ein kleines Vorschaubild des Blatts, Datum und Anzahl der Zeichen. Das Foto selbst wird in deinem Browser ausgewertet und nicht hochgeladen.</li>
+      <li><b>Einstellungen:</b> deine Wahl bei Papier, Stift, Reglern sowie der zuletzt eingegebene Text, damit er auf jedem Gerät da ist.</li>
+    </ul>
+    <p>Die PDF-Dateien entstehen in deinem Gerät und werden nicht gespeichert.</p>
+    <h4>Wozu und auf welcher Grundlage</h4>
+    <p>Nur damit die App funktioniert: Anmeldung, Speichern deiner Schrift, gleiche Einstellungen auf allen Geräten (Art. 6 Abs. 1 b DSGVO). Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Weitergabe an andere.</p>
+    <h4>Wo die Daten liegen</h4>
+    <ul>
+      <li><b>Supabase</b> (Supabase Inc.) speichert Konto, Handschriften und Einstellungen auf Servern in Frankfurt am Main. Mit Supabase besteht ein Vertrag zur Auftragsverarbeitung.</li>
+      <li><b>GitHub Pages</b> (GitHub Inc., USA) liefert die Seite aus. Dabei verarbeitet GitHub technisch nötige Daten wie deine IP-Adresse in Server-Protokollen (Art. 6 Abs. 1 f DSGVO, berechtigtes Interesse an einer funktionierenden Seite). GitHub ist nach dem EU-US Data Privacy Framework zertifiziert.</li>
+      <li>Schriften und Programmteile liegen auf demselben Server, es werden keine Inhalte von Google oder anderen Diensten nachgeladen.</li>
+    </ul>
+    <h4>Speicher im Browser</h4>
+    <p>Die App merkt sich im Speicher deines Browsers (localStorage) deine Anmeldung, Einstellungen und die gerade verwendete Schrift. Das ist technisch nötig (§ 25 Abs. 2 TDDDG). Werbe- oder Analyse-Cookies gibt es nicht.</p>
+    <h4>Wer die Daten sieht</h4>
+    <p>Nur du. Der Betreiber sieht für die Verwaltung der Testversion eine Liste mit Name, Benutzername, Registrierung, letzter Anmeldung und ob eine Schrift eingelesen wurde.</p>
+    <h4>Wie lange</h4>
+    <p>Bis du sie löschst. Im Profil kannst du einzelne Handschriften oder dein ganzes Konto jederzeit selbst löschen, dann ist alles sofort weg. Wird die Testversion beendet, werden alle Daten gelöscht.</p>
+    <h4>Deine Rechte</h4>
+    <p>Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit (Export als Datei in den Einstellungen) und Widerspruch. Melde dich dafür per E-Mail. Du kannst dich außerdem bei einer Datenschutzbehörde beschweren, zuständig ist die Landesbeauftragte für Datenschutz und Informationsfreiheit Nordrhein-Westfalen.</p>
+    <h4>Externe Links</h4>
+    <p>Links zu anderen Seiten öffnen sich erst, wenn du sie antippst. Dort gilt deren Datenschutz.</p>
+    <p class="hint">Stand: Oktober 2026</p>`]
+};
+// Solange die Adresse fehlt, steht im Impressum nur der Name und ein Hinweis, keine Platzhalter
+const adresseDa = () => !/^\[/.test(BETREIBER.strasse);
+function rechtFenster(was) {
+  const x = RECHT[was]; if (!x) return;
+  const b = fensterAuf(x[0], `<div class="recht">${x[1]()}</div>`);
+  b.scrollTop = 0;
 }
 
 /* Tor: ohne Anmeldung kommt niemand rein. Registrieren mit Name, Benutzername, Passwort. */
@@ -2270,6 +2339,7 @@ function torZeigen(modus, info) {
       ${neu ? '<div class="field"><label for="tName">Name</label><input type="text" id="tName" autocomplete="name" placeholder="Vor- und Nachname"></div>' : ""}
       <div class="field"><label for="tEmail">${neu ? "Benutzername" : "Benutzername (alte Konten: E-Mail)"}</label><input type="text" id="tEmail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="${neu ? "z. B. max.k" : ""}"></div>
       <div class="field"><label for="tPw">Passwort${neu ? " (mindestens 6 Zeichen)" : ""}</label><input type="password" id="tPw" autocomplete="${neu ? "new-password" : "current-password"}"></div>
+      ${neu ? '<label class="check"><input type="checkbox" id="tRegeln"><span><b>Ich halte mich an die Regeln</b>Keine Unterschriften und keine Dokumente, die rechtlich zählen. <a href="#" data-recht="nutzung">Regeln</a> und <a href="#" data-recht="datenschutz">Datenschutz</a> gelesen.</span></label>' : ""}
       <p class="err" id="tFehler"></p>
       <button class="btn primary breit" id="tLos" type="submit">${neu ? "Konto anlegen" : "Anmelden"}</button>
     </form>
@@ -2282,6 +2352,7 @@ function torZeigen(modus, info) {
     const name = neu ? t.querySelector("#tName").value.trim() : "";
     if (neu && name.length < 2) { f.textContent = "Bitte deinen Namen eingeben."; return; }
     if (!roh || !pw) { f.textContent = "Bitte Benutzername und Passwort eingeben."; return; }
+    if (neu && !t.querySelector("#tRegeln").checked) { f.textContent = "Bitte bestätige die Regeln."; return; }
     // Ohne E-Mail: Benutzername wird intern zu name@schriftblatt.local. Alte Konten melden sich weiter mit ihrer E-Mail an.
     const benutzer = roh.toLowerCase();
     if (!benutzer.includes("@") && !/^[a-z0-9._-]{3,30}$/.test(benutzer)) { f.textContent = "Benutzername: 3 bis 30 Zeichen, nur Buchstaben ohne Umlaute, Zahlen, Punkt, Strich."; return; }
@@ -2355,6 +2426,7 @@ async function start() {
     if (e.target.closest("[data-nochmal]")) { $("fotoInput").click(); return; }
     if (e.target.closest("[data-konto]")) { kontoFenster("neu"); return; }
     const c = e.target.closest(".seite canvas"); if (c) seiteGross(c);
+    const rl = e.target.closest("[data-recht]"); if (rl) { e.preventDefault(); e.stopPropagation(); rechtFenster(rl.dataset.recht); }
   });
   $("einstBtn").onclick = einstellungen;
   $("mini").onclick = () => { const c = document.querySelector("#seiten canvas"); if (c) seiteGross(c); };
