@@ -69,6 +69,7 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .block{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .hint{font-size:12.5px;color:var(--ink-3);line-height:1.45}
 .rechtlinks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:13px;margin:14px 0 0}
+.rechtlinks.unten{margin-top:70vh;padding-bottom:10px}
 .rechtlinks a{color:var(--ink-3);text-decoration:underline;text-underline-offset:2px;min-height:44px;display:inline-flex;align-items:center}
 .recht h4{font-size:14px;margin:18px 0 4px;color:var(--ink)}
 .recht p,.recht li{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:0 0 6px}
@@ -101,11 +102,6 @@ body.gesperrt main,body.gesperrt .untenleiste,body.gesperrt #einstBtn,body.gespe
 .marken{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
 .marken span{font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px}
 .m-ok{background:var(--ok);color:#fff}.m-warn{background:var(--warn);color:#fff}.m-leer{color:var(--ink-3);border:1px solid var(--line)}
-/* Beta-Gag: ehrlich beschriftet, schließt normal */
-.gag{display:flex;align-items:center;gap:10px;border:1px dashed var(--warn);border-radius:var(--radius);background:var(--surface);padding:8px 8px 8px 14px}
-.gag b{font-size:13.5px;flex:1}
-.gag small{display:block;font-weight:400;color:var(--ink-3);font-size:12px}
-.gag .btn{min-height:40px;padding:8px 12px;border-color:var(--warn);color:var(--warn)}
 .tor .block{gap:14px}
 .err:empty{display:none}
 .konto-knopf{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:0 14px 0 11px;height:44px;font-weight:600;font-size:13.5px;color:var(--ink);cursor:pointer;max-width:180px}
@@ -313,7 +309,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
   </div>
   <div class="block" id="torForm"><p class="hint">Einen Moment …</p></div>
   <p class="hint" id="appTipp">Tipp: In Safari auf <b>Teilen</b> und dann <b>Zum Home-Bildschirm</b>. Dann öffnet sich die Seite wie eine App.</p>
-  <p class="rechtlinks"><a href="#" data-recht="nutzung">Regeln</a><a href="#" data-recht="datenschutz">Datenschutz</a><a href="#" data-recht="impressum">Impressum</a></p>
+  <p class="rechtlinks unten"><a href="#" data-recht="nutzung">Regeln</a><a href="#" data-recht="datenschutz">Datenschutz</a><a href="#" data-recht="impressum">Impressum</a></p>
 </section>
 <main>
 <div class="layout">
@@ -382,10 +378,6 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <div class="sicht-kopf nur-gross">
         <h2>Dein Blatt</h2>
         <p class="unter">Jede Änderung siehst du sofort rechts.</p>
-      </div>
-      <div class="gag" id="gag" hidden>
-        <b>Geheimer Beta-Knopf<small>Nur für Tester.</small></b>
-        <button class="btn" id="gagBtn">Klick mich</button>
       </div>
       <div class="block gruppe">
         <div class="sec-label">Text</div>
@@ -1610,7 +1602,7 @@ const UMSCHREIBEN = (function () {
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  staerke: 100, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", gag: false, schriftId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
+  staerke: 100, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", schriftId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
@@ -1937,7 +1929,7 @@ function einstellungen() {
       <p class="hint">Deine Handschriften sind in deinem Konto gespeichert, verwalten kannst du sie im Profil (dein Name oben rechts). Zusätzlich kannst du die gerade verwendete als Datei sichern.</p>
       <div class="reihe"><button class="btn" id="exportBtn">Als Datei sichern</button><button class="btn" id="importBtn">Datei laden</button></div>
     </div>
-    <p class="rechtlinks"><a href="#" data-recht="nutzung">Regeln</a><a href="#" data-recht="datenschutz">Datenschutz</a><a href="#" data-recht="impressum">Impressum</a></p>`);
+    <p class="rechtlinks unten"><a href="#" data-recht="nutzung">Regeln</a><a href="#" data-recht="datenschutz">Datenschutz</a><a href="#" data-recht="impressum">Impressum</a></p>`);
   const thema = () => b.querySelectorAll("#themaModus button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === S.theme)));
   thema();
   b.querySelector("#themaModus").onclick = e => { const x = e.target.closest("button"); if (!x) return; S.theme = x.dataset.v; themaAnwenden(); thema(); speichern(); };
@@ -2037,20 +2029,14 @@ function einstAnwenden(e) {
   REGLER.forEach(R => { $("r-" + R.id).value = S[R.id]; });
   $("textFeld").value = S.text; textZahl();
   $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
-  themaAnwenden(); modusStand(); gagStand();
+  themaAnwenden(); modusStand();
   _ohneHoch = true; speichern(); _ohneHoch = false;
-}
-// Beta-Knopf: einmal geklickt, für dieses Konto für immer weg. Zusätzlich auf dem Gerät gemerkt, falls das Speichern im Konto noch läuft.
-const gagSchluessel = () => ich ? "hs2-gag-" + ich.id : "hs2-gag";
-function gagStand() {
-  if (LS.get(gagSchluessel()) === "1") S.gag = true;
-  $("gag").hidden = !!S.gag;
 }
 async function ausKontoLaden() {
   const { data, error } = await sb.from("schriften").select("schrift,einstellungen").eq("user_id", ich.id).maybeSingle();
   if (error) { toast("Dein Konto ließ sich gerade nicht laden."); return; }
   if (data && data.einstellungen) einstAnwenden(data.einstellungen);
-  else { S.gag = false; gagStand(); einstHoch(); }   // neues Konto: Gag-Stand nicht vom vorherigen Konto erben
+  else einstHoch();
   // Ohne die Tabelle "handschriften" (SQL noch nicht ausgeführt): alte Schrift weiter benutzen, nichts löschen
   if (!(await listeLaden())) {
     if (data && data.schrift && data.schrift.g) await HS.ownSetzen(data.schrift);
@@ -2275,8 +2261,6 @@ const RECHT = {
     <p>Bis du sie löschst. Im Profil kannst du einzelne Handschriften oder dein ganzes Konto jederzeit selbst löschen, dann ist alles sofort weg. Wird die Testversion beendet, werden alle Daten gelöscht.</p>
     <h4>Deine Rechte</h4>
     <p>Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit (Export als Datei in den Einstellungen) und Widerspruch. Melde dich dafür per E-Mail. Du kannst dich außerdem bei einer Datenschutzbehörde beschweren, zuständig ist die Landesbeauftragte für Datenschutz und Informationsfreiheit Nordrhein-Westfalen.</p>
-    <h4>Externe Links</h4>
-    <p>Links zu anderen Seiten öffnen sich erst, wenn du sie antippst. Dort gilt deren Datenschutz.</p>
     <p class="hint">Stand: Oktober 2026</p>`]
 };
 // Solange die Adresse fehlt, steht im Impressum nur der Name und ein Hinweis, keine Platzhalter
@@ -2415,7 +2399,7 @@ async function start() {
   $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("nameFeld").placeholder = autoName(); $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
   const raw = parse(LS.get(OWN_KEY));
   if (raw) await HS.ownSetzen(raw);
-  fontsBauen(); modusStand(); statusZeigen(); gagStand();
+  fontsBauen(); modusStand(); statusZeigen();
   tab(S.tab || (HS.hatOwn() ? "blatt" : "schrift"), false);
   neuZeichnen(0);
   kontoStart();
@@ -2433,13 +2417,6 @@ async function start() {
   if ("IntersectionObserver" in window) new IntersectionObserver(e => { _vorschauSichtbar = e[0].isIntersecting; miniStand(); }, { rootMargin: "-60px 0px 0px 0px" }).observe(document.querySelector(".vorschau"));
   window.addEventListener("resize", miniStand);
   $("kontoBtn").onclick = kontoFenster;
-  // Beta-Gag: bleibt stehen, bis einmal geklickt wurde, gilt pro Konto
-  const GAG_URL = "https://www.flickr.com/photos/ronnyackerman667/6065510171";
-  const gagWeg = () => {
-    S.gag = true; $("gag").hidden = true; LS.set(gagSchluessel(), "1");
-    _ohneHoch = true; speichern(); _ohneHoch = false; einstHoch(true);
-  };
-  $("gagBtn").onclick = () => { window.open(GAG_URL, "_blank", "noopener"); gagWeg(); };
   // Foto: antippen öffnet Fotos oder Dateien, oder ein Bild auf die Fläche ziehen
   const ab = $("ablage");
   ab.onclick = () => $("fotoInput").click();
