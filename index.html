@@ -168,6 +168,8 @@ input[type=range]{width:100%;accent-color:var(--accent);height:32px;margin:0;cur
 .abschrift{background:var(--blatt);color:#1b2533;border:1px solid var(--line);border-radius:8px;padding:6px 14px 10px;overflow-x:auto}
 .abschrift .z{font-family:var(--font-mono);font-size:15px;letter-spacing:.03em;border-bottom:1px solid #b9cbe0;padding:6px 0 2px;white-space:nowrap}
 .abschrift .z.w{font-family:var(--font-body);letter-spacing:0;word-spacing:.5em}
+.regeln{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+.regeln b{display:inline}
 .abschrift .frei{height:20px;border-bottom:1px solid #dbe5f0;position:relative}
 .abschrift .frei::after{content:"frei";position:absolute;right:0;bottom:1px;font-size:10px;color:#9aa8b8}
 ol.anl{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:14px}
@@ -328,10 +330,19 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <div class="block" id="anleitung">
         <ol class="anl">
           <li><b>Papier, Heft oder iPad.</b> Liniert, kariert oder weiß. Auf Papier ein dunkler Kuli oder Fineliner.</li>
-          <li><b>Diese Reihen abschreiben.</b> Jede Reihe auf eine eigene Linie. Zwischen den Zeichen etwas Platz lassen, die Wörter ganz normal schreiben, so wie du sonst auch schreibst. Verschrieben? Kein Problem, das korrigierst du gleich danach.</li>
+          <li><b>Diese Reihen abschreiben.</b> Jede Reihe auf eine eigene Linie, dabei die Regeln unten beachten. Verschrieben? Kein Problem, das korrigierst du gleich danach.</li>
           <li><b>Hochladen.</b> Foto von oben bei hellem Licht, oder auf dem iPad einen Screenshot.</li>
         </ol>
         <div class="abschrift" id="abschrift"></div>
+        <div class="hinweis warn" id="regeln"><b>Damit deine Schrift erkannt wird</b>
+          <ul class="regeln">
+            <li><b>Weit auseinander:</b> zwischen zwei Buchstaben mindestens eine Fingerbreite Platz. Berühren sich zwei Zeichen, werden sie nicht erkannt.</li>
+            <li><b>Eine Linie frei</b> zwischen den Reihen, nichts darf in die Reihe darüber oder darunter ragen.</li>
+            <li><b>Jeden Buchstaben in einem Zug</b>, nicht aus losen Teilen zusammensetzen.</li>
+            <li><b>Wörter normal zusammenschreiben</b>, aber zwischen zwei Wörtern deutlich Platz lassen.</li>
+            <li><b>Nicht zu klein</b>, so groß wie im Heft. Nichts übermalen, keine Kleckse, sonst nichts auf das Blatt.</li>
+          </ul>
+        </div>
         <div class="ablage" id="ablage" role="button" tabindex="0" aria-label="Foto hochladen">
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4"/><path d="M7 9l5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
           <b>Foto hochladen</b>
