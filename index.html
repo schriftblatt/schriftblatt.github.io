@@ -277,7 +277,9 @@ ol.anl b{font-weight:600}
 .schrift-k .probe{font-size:30px;line-height:1.1;color:var(--ink);white-space:nowrap;overflow:hidden;height:34px;display:flex;align-items:flex-end;gap:2px}
 .schrift-k .probe img{height:26px;width:auto;filter:var(--glyph-filter,none)}
 .schrift-k small{font-size:12px;color:var(--ink-3)}
-.schrift-k b{font-size:13px;font-weight:600}
+.schrift-k b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.schrift-k .probe img.blattprobe{height:34px;width:100%;object-fit:cover;object-position:top;border-radius:4px;filter:none}
+.schrift-k.neu{border-style:dashed;justify-content:center}
 .status-kopf{display:flex;align-items:center;gap:8px;font-weight:600}
 .status-kopf .ico{color:var(--ok)}
 .glyphen{display:grid;grid-template-columns:repeat(auto-fill,minmax(36px,1fr));gap:3px}
@@ -2103,11 +2105,26 @@ function modusStand() {
   if ($("nameFeld")) $("nameFeld").placeholder = autoName();
   REGLER.forEach(wertZeigen);
 }
+// Schriftart: jede eigene Handschrift als eigene Kachel, dazu die fertigen Schriften und ein Knopf zum Einlesen
 function fontsBauen() {
   const own = HS.hatOwn(), info = HS.ownInfo(), eff = effFont();
-  const probeOwn = own ? ["A", "b", "c"].map(ch => info.g[ch] ? `<img src="${info.g[ch].url}" alt="">` : "").join("") : '<span style="font-size:15px;color:var(--ink-3)">noch leer</span>';
-  $("fontWahl").innerHTML = `<button type="button" class="schrift-k" role="radio" data-font="own" aria-checked="${eff === "own"}"${own ? "" : " disabled"}><span class="probe">${probeOwn}</span><b>Meine Handschrift</b><small>${own ? "eingelesen" : "erst einlesen"}</small></button>`
-    + HS.FONTS.map(f => `<button type="button" class="schrift-k" role="radio" data-font="${f.id}" aria-checked="${eff === f.id}"><span class="probe" style="font-family:'${f.css}'">Abc äöü</span><b>${esc(f.name)}</b><small>${esc(f.note)}</small></button>`).join("");
+  const probeAktiv = own ? ["A", "b", "c"].map(ch => info.g[ch] ? `<img src="${info.g[ch].url}" alt="">` : "").join("") : "";
+  let eigene;
+  if (sb && ich && HSL.length) {
+    eigene = HSL.map(h => {
+      const aktiv = h.id === S.schriftId && own, an = aktiv && eff === "own";
+      const bild = ((h.info && h.info.abschriften) || []).map(x => x.bild).find(Boolean);
+      const probe = aktiv && probeAktiv ? probeAktiv : bild ? `<img class="blattprobe" src="${bild}" alt="">` : '<span style="font-size:15px;color:var(--ink-3)">eigene</span>';
+      return `<button type="button" class="schrift-k" role="radio" data-hs-font="${h.id}" aria-checked="${an}"><span class="probe">${probe}</span><b>${esc(h.name)}</b><small>${aktiv ? "deine Handschrift" : "antippen zum Laden"}</small></button>`;
+    }).join("");
+  } else {
+    eigene = `<button type="button" class="schrift-k" role="radio" data-font="own" aria-checked="${eff === "own"}"${own ? "" : " disabled"}><span class="probe">${probeAktiv || '<span style="font-size:15px;color:var(--ink-3)">noch leer</span>'}</span><b>Meine Handschrift</b><small>${own ? "eingelesen" : "erst einlesen"}</small></button>`;
+  }
+  const neu = !(sb && ich) || HSL.length < MAX_HS
+    ? '<button type="button" class="schrift-k neu" data-neu-hs-font><span class="probe" style="color:var(--accent-ink)">+</span><b>Handschrift einlesen</b><small>Foto vom Alphabet</small></button>' : "";
+  $("fontWahl").innerHTML = eigene
+    + HS.FONTS.map(f => `<button type="button" class="schrift-k" role="radio" data-font="${f.id}" aria-checked="${eff === f.id}"><span class="probe" style="font-family:'${f.css}'">Abc äöü</span><b>${esc(f.name)}</b><small>${esc(f.note)}</small></button>`).join("")
+    + neu;
   // Strichstärke nur für fertige Schriften, die eigene Handschrift hat ihre echte Strichstärke
   const rs = $("regler-staerke"); if (rs) rs.hidden = eff === "own";
 }
@@ -2490,6 +2507,7 @@ async function listeLaden() {
   const r = await sb.from("handschriften").select("id,name,info,erstellt").order("erstellt");
   if (r.error) { console.error(r.error); return false; }
   HSL = r.data || [];
+  if ($("fontWahl")) fontsBauen();
   return true;
 }
 async function aktiveLaden() {
@@ -3296,7 +3314,17 @@ async function start() {
   $("nameFeld").addEventListener("input", e => { S.dateiname = e.target.value; speichern(); });
   $("datumFeld").addEventListener("change", e => { S.datum = e.target.value; speichern(); neuZeichnen(0); });
   $("zeitFeld").addEventListener("change", e => { S.zeit = e.target.value; speichern(); neuZeichnen(0); });
-  $("fontWahl").addEventListener("click", e => { const b = e.target.closest("[data-font]"); if (!b || b.disabled) return; S.font = b.dataset.font; fontsBauen(); speichern(); neuZeichnen(0); });
+  $("fontWahl").addEventListener("click", async e => {
+    const h = e.target.closest("[data-hs-font]");
+    if (h) {
+      if (h.dataset.hsFont === S.schriftId && HS.hatOwn()) { S.font = "own"; fontsBauen(); speichern(); neuZeichnen(0); return; }
+      h.disabled = true; h.querySelector("small").textContent = "lädt …";
+      try { await hsVerwenden(h.dataset.hsFont); toast("Handschrift gewechselt"); } catch (er) { toast(kontoFehler(er && er.message)); fontsBauen(); }
+      return;
+    }
+    if (e.target.closest("[data-neu-hs-font]")) { tab("schrift"); $("einlesenKlapp").open = true; setTimeout(() => $("anleitung").scrollIntoView({ behavior: "smooth" }), 50); return; }
+    const b = e.target.closest("[data-font]"); if (!b || b.disabled) return; S.font = b.dataset.font; fontsBauen(); speichern(); neuZeichnen(0);
+  });
   $("randCheck").onchange = e => { S.margin = e.target.checked; speichern(); neuZeichnen(); };
   $("einzugCheck").onchange = e => { S.indent = e.target.checked; speichern(); neuZeichnen(); };
   $("wuerfelBtn").onclick = () => { S.seed = (Math.random() * 1e9) | 0; speichern(); neuZeichnen(0); };
