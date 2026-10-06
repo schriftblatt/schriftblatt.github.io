@@ -405,29 +405,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
     <section class="sicht" id="sicht-schrift">
       <div class="sicht-kopf">
         <h2>Deine Schrift</h2>
-        <p class="unter">Wie du schreibst: Schriftart, Größe, Abstände, Stift und wie ordentlich. Gilt für jedes Blatt.</p>
-      </div>
-      <div id="stilTeil" class="sicht">
-      <div class="block gruppe">
-        <div class="sec-label">Schriftart</div>
-        <div class="schriften" id="fontWahl" role="radiogroup" aria-label="Schriftart"></div>
-        <div class="gruppe" id="grp-schrift"></div>
-        <div class="field"><span class="lbl">Stift</span><div class="modus" id="stiftModus"></div>
-          <p class="hint" id="stiftHinweis" hidden>Auf dunklem Hintergrund schreibt der Stift weiß.</p></div>
-      </div>
-      <div class="block gruppe">
-        <div class="sec-label">Wie ordentlich</div>
-        <div class="gruppe" id="grp-ordnung"></div>
-        <details class="klapp" id="fehlerKlapp" hidden>
-          <summary id="fehlerSumme"></summary>
-          <div class="klapp-in"><ul class="fehlerliste" id="fehlerListe"></ul></div>
-        </details>
-      </div>
-      <div class="block gruppe">
-        <div class="sec-label">Zeilen</div>
-        <div class="gruppe" id="grp-zeilen"></div>
-        <label class="check"><input type="checkbox" id="einzugCheck"><span><b>Absätze einrücken</b>Erste Zeile jedes Absatzes beginnt weiter rechts.</span></label>
-      </div>
+        <p class="unter">Einmal das Alphabet und ein paar Wörter abschreiben, Foto hochladen, fertig. Schriftart, Größe und Abstände stellst du beim Blatt ein.</p>
       </div>
       <div id="einlesenTeil" class="sicht">
       <div class="sec-label" id="einlesenTitel">Handschrift einlesen</div>
@@ -516,6 +494,28 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
         <div class="field"><span class="lbl">Papier</span><div class="modus" id="papierModus"></div></div>
         <div class="field"><span class="lbl">Hintergrund</span><div class="modus" id="tonModus"></div></div>
         <label class="check"><input type="checkbox" id="randCheck"><span><b>Roter Rand</b>Randlinie rechts, wie im Schulheft.</span></label>
+      </div>
+      <div id="stilTeil" class="sicht">
+      <div class="block gruppe">
+        <div class="sec-label">Schriftart</div>
+        <div class="schriften" id="fontWahl" role="radiogroup" aria-label="Schriftart"></div>
+        <div class="gruppe" id="grp-schrift"></div>
+        <div class="field"><span class="lbl">Stift</span><div class="modus" id="stiftModus"></div>
+          <p class="hint" id="stiftHinweis" hidden>Auf dunklem Hintergrund schreibt der Stift weiß.</p></div>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Wie ordentlich</div>
+        <div class="gruppe" id="grp-ordnung"></div>
+        <details class="klapp" id="fehlerKlapp" hidden>
+          <summary id="fehlerSumme"></summary>
+          <div class="klapp-in"><ul class="fehlerliste" id="fehlerListe"></ul></div>
+        </details>
+      </div>
+      <div class="block gruppe">
+        <div class="sec-label">Zeilen</div>
+        <div class="gruppe" id="grp-zeilen"></div>
+        <label class="check"><input type="checkbox" id="einzugCheck"><span><b>Absätze einrücken</b>Erste Zeile jedes Absatzes beginnt weiter rechts.</span></label>
+      </div>
       </div>
     </section>
     <section class="sicht" id="sicht-chats" hidden>
@@ -2021,7 +2021,7 @@ function auswahlPlatzieren() {
 }
 function miniStand() {
   const zeigen = handy() && !document.body.classList.contains("gesperrt") &&
-    ((S.tab === "blatt" && !_vorschauSichtbar && !document.body.classList.contains("bl-liste")) || (S.tab === "schrift" && $("ausschnitt").hidden && $("ergebnis").hidden));
+    S.tab === "blatt" && !_vorschauSichtbar && !document.body.classList.contains("bl-liste");
   $("mini").hidden = !zeigen;
 }
 
@@ -2103,10 +2103,8 @@ function abschriftBauen() {
 }
 
 /* ---------- Eingelesene Schrift anzeigen ---------- */
-// Ohne eigene Schrift kommt das Einlesen zuerst, mit eigener Schrift die Einstellungen; das Einlesen klappt dann ein
+// Mit eigener Schrift klappt das Einlesen ein, ohne steht es offen
 function schriftOrdnen(hat) {
-  const sec = $("sicht-schrift"), stil = $("stilTeil"), ein = $("einlesenTeil");
-  if (hat) sec.insertBefore(stil, ein); else sec.insertBefore(ein, stil);
   $("einlesenKlapp").open = !hat;
   $("einlesenTitel").textContent = hat ? "Deine Handschrift" : "Zuerst: Handschrift einlesen";
 }
