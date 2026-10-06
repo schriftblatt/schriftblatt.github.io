@@ -146,14 +146,6 @@ body:not([data-tab="blatt"]) .layout>#blattAuswahl{display:none}
 .mitglieder small{color:var(--ink-3);font-size:12px}
 @media (max-width:899px){ .schreiben{bottom:calc(61px + env(safe-area-inset-bottom))} }
 .chat-rechts{display:none}
-.such-box{display:flex;flex-direction:column;gap:6px}
-.such-box input{font-size:16px}
-.treffer,.chat-liste .einladung{list-style:none}
-.treffer{margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.treffer li,.chat-liste .einladung{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:8px 12px;flex-wrap:wrap}
-.treffer li>span{display:flex;flex-direction:column;min-width:0}
-.treffer small{color:var(--ink-3);font-size:12px}
-.chat-liste .einladung{border-left:3px solid var(--accent)}
 .chat-zeile[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 /* Offener Chat füllt den Bildschirm, die Schreibleiste sitzt immer unten */
 #sicht-chats.offen .sicht-kopf{display:none}
@@ -238,7 +230,7 @@ input[type=email],input[type=password]{border:1px solid var(--line);background:v
 /* Felder */
 .field{display:flex;flex-direction:column;gap:6px}
 .field>label,.lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);font-weight:600}
-select,textarea,input[type=text],input[type=search],input[type=date],input[type=time]{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:10px 11px;width:100%;min-height:44px;min-width:0}
+select,textarea,input[type=text],input[type=date],input[type=time]{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:10px 11px;width:100%;min-height:44px;min-width:0}
 select:focus,textarea:focus,input:focus{background:var(--surface)}
 textarea{min-height:150px;resize:vertical;line-height:1.55}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -2779,9 +2771,8 @@ const scroller = () => handy() ? document.scrollingElement : S.tab === "chats" ?
 const LETZTER_CHAT = "hs2-chat-letzter";
 const nahUnten = () => { const s = scroller(); return !s || s.scrollHeight - s.scrollTop - s.clientHeight < 200; };
 const zumEnde = () => { const s = scroller(); if (s) s.scrollTop = s.scrollHeight; };
-let EINL = [];
 function zahlZeigen() {
-  const n = Object.values(UNGELESEN).reduce((a, b) => a + b, 0) + EINL.length;
+  const n = Object.values(UNGELESEN).reduce((a, b) => a + b, 0);
   document.querySelectorAll("[data-chat-zahl]").forEach(b => { b.textContent = n > 99 ? "99+" : String(n); b.hidden = !n; });
 }
 // Rückfrage direkt an der Stelle, kein Browser-Dialog
@@ -2809,8 +2800,6 @@ async function ungelesenLaden() {
   if (r.error) return;
   const offenSichtbar = S.tab === "chats" ? _chatOffen : null;
   UNGELESEN = {}; (r.data || []).forEach(x => { if (x.chat_id !== offenSichtbar) UNGELESEN[x.chat_id] = x.anzahl; });
-  const e = await sb.rpc("meine_einladungen");   // fehlt SQL 11, bleibt die Liste leer
-  EINL = e.error ? [] : (e.data || []);
   zahlZeigen();
 }
 // Handy: Liste oder offener Chat. Rechner: Liste links immer, offener Chat rechts
@@ -2830,64 +2819,13 @@ function chatListeMalen() {
   const el = $("chatInhalt"); if (!el) return;
   $("sicht-chats").classList.remove("offen");
   if (CHATS === null) { el.innerHTML = '<div class="hinweis warn"><b>Chats sind noch nicht eingerichtet</b>Die Datenbank muss zuerst ergänzt werden.</div>'; return; }
-  // Gerüst nur einmal bauen, damit die Suche beim regelmäßigen Neuzeichnen nicht verschwindet
-  if (!el.querySelector("#chatListeTeil")) {
-    el.innerHTML = `
-      <div class="reihe"><button class="btn primary" data-c="gruppe">${CI.gruppe}Neue Gruppe</button><button class="btn" data-c="privat">${CI.person}Privater Chat</button><button class="btn ghost" data-c="code">Code eingeben</button></div>
-      <div class="such-box"><input type="search" id="nutzerSuche" placeholder="Leute suchen: Benutzername" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Leute über den Benutzernamen suchen"><div id="suchErgebnis"></div></div>
-      <div id="chatListeTeil"></div>`;
-    suchFeld(el.querySelector("#nutzerSuche"), el.querySelector("#suchErgebnis"), p => wohinFenster(p));
-  }
-  _listeSig = JSON.stringify([CHATS.map(c => c.id + mitgliederVon(c).length + c.name), UNGELESEN, EINL.map(x => x.id)]);
-  el.querySelector("#chatListeTeil").innerHTML = `
-    ${EINL.length ? `<div class="sec-label">Einladungen</div><ul class="chat-liste">${EINL.map(x => `<li class="einladung"><span><b>${esc(x.von_name || "Jemand")}</b> lädt dich ${x.privat ? "in einen privaten Chat" : `in „${esc(x.chat_name || "Gruppe")}“`} ein</span>
-      <span class="reihe"><button class="btn primary klein" data-ein-ja="${x.id}">Annehmen</button><button class="btn ghost klein" data-ein-nein="${x.id}">Ablehnen</button></span></li>`).join("")}</ul>` : ""}
-    ${CHATS.length ? `<div class="sec-label">Deine Chats</div><ul class="chat-liste">${CHATS.map(c => {
+  _listeSig = JSON.stringify([CHATS.map(c => c.id + mitgliederVon(c).length + c.name), UNGELESEN]);
+  el.innerHTML = `
+    <div class="reihe"><button class="btn primary" data-c="gruppe">${CI.gruppe}Neue Gruppe</button><button class="btn" data-c="privat">${CI.person}Privater Chat</button><button class="btn ghost" data-c="code">Code eingeben</button></div>
+    ${CHATS.length ? `<ul class="chat-liste">${CHATS.map(c => {
       const n = UNGELESEN[c.id] || 0, name = chatName(c);
       return `<li><button class="chat-zeile" data-chat="${c.id}" aria-pressed="${!handy() && c.id === _chatOffen}"><span class="chat-ava${c.privat ? " p" : ""}">${esc(name.slice(0, 1).toUpperCase())}</span><span class="chat-txt"><b>${esc(name)}</b><small>${c.privat ? "Privat" : mitgliederVon(c).length + (mitgliederVon(c).length === 1 ? " Mitglied" : " Mitglieder")}</small></span>${n ? `<span class="zahl">${n}</span>` : ""}</button></li>`;
-    }).join("")}</ul>` : '<p class="hint">Noch keine Chats. Such oben nach Leuten, leg eine Gruppe an oder tritt mit einem Code bei.</p>'}`;
-}
-// Suche nach Benutzernamen (ab 3 Zeichen), Treffer mit Knopf "Einladen"
-function suchFeld(inp, box, waehlen) {
-  let t = 0, nr = 0;
-  inp.addEventListener("input", () => {
-    clearTimeout(t);
-    const q = inp.value.trim().replace(/^@/, "");
-    if (q.length < 3) { box.innerHTML = q ? '<p class="hint">Mindestens 3 Zeichen.</p>' : ""; return; }
-    t = setTimeout(async () => {
-      const meine = ++nr;
-      const r = await sb.rpc("nutzer_suchen", { p_q: q });
-      if (meine !== nr) return;
-      if (r.error) { box.innerHTML = `<p class="hint">${/does not exist|schema cache/i.test(r.error.message) ? "Suche ist noch nicht eingerichtet." : esc(chatFehler(r.error))}</p>`; return; }
-      const l = r.data || [];
-      box.innerHTML = l.length ? `<ul class="treffer">${l.map(p => `<li><span><b>${esc(p.name)}</b><small class="mono">@${esc(p.benutzer)}</small></span><button class="btn klein" data-person="${p.id}">Einladen</button></li>`).join("")}</ul>` : '<p class="hint">Niemand mit diesem Benutzernamen gefunden.</p>';
-      box.querySelectorAll("[data-person]").forEach(b => b.onclick = () => waehlen(l.find(p => p.id === b.dataset.person), b));
-    }, 300);
-  });
-}
-async function einladenAn(chatId, person) {
-  const r = await sb.rpc("einladen", { p_chat: chatId, p_an: person.id });
-  if (r.error) throw r.error;
-  toast(`Einladung an ${person.name} gesendet`);
-}
-// Person gefunden: in welchen Chat einladen?
-function wohinFenster(p) {
-  const passend = (CHATS || []).filter(c => !mitgliederVon(c).some(m => m.user_id === p.id) && (!c.privat || mitgliederVon(c).length < 2));
-  const body = fensterAuf(`${p.name} einladen`, `
-    <p class="hint">@${esc(p.benutzer)} bekommt eine Einladung und kann sie annehmen oder ablehnen.</p>
-    <ul class="chat-liste">
-      <li><button class="chat-zeile" data-wohin="neu"><span class="chat-ava p">${esc(p.name.slice(0, 1).toUpperCase())}</span><span class="chat-txt"><b>Privater Chat mit ${esc(p.name)}</b><small>neu anlegen</small></span>${CI.senden}</button></li>
-      ${passend.filter(c => !c.privat).map(c => `<li><button class="chat-zeile" data-wohin="${c.id}"><span class="chat-ava">${esc(chatName(c).slice(0, 1).toUpperCase())}</span><span class="chat-txt"><b>${esc(chatName(c))}</b><small>${mitgliederVon(c).length} Mitglieder</small></span>${CI.senden}</button></li>`).join("")}
-    </ul>`);
-  body.onclick = async e => {
-    const x = e.target.closest("[data-wohin]"); if (!x) return;
-    body.querySelectorAll("[data-wohin]").forEach(y => y.disabled = true);
-    try {
-      let id = x.dataset.wohin;
-      if (id === "neu") { const r = await sb.rpc("chat_anlegen", { p_name: "", p_privat: true }); if (r.error) throw r.error; id = r.data; await chatsLaden(); }
-      await einladenAn(id, p); fensterZu(); chatsZeigen();
-    } catch (er) { toast(chatFehler(er)); body.querySelectorAll("[data-wohin]").forEach(y => y.disabled = false); }
-  };
+    }).join("")}</ul>` : '<p class="hint">Noch keine Chats. Leg eine Gruppe an und lass die anderen den QR-Code scannen, oder tritt mit einem Code bei.</p>'}`;
 }
 async function chatOeffnen(id) {
   _chatOffen = id; _nachr = []; delete UNGELESEN[id]; zahlZeigen(); LS.set(LETZTER_CHAT, id);
@@ -3012,13 +2950,7 @@ function einladenFenster(c) {
     <div class="qr">${qr}</div>
     <div class="code-gross mono">${esc(c.code)}</div>
     <p class="hint" style="text-align:center">Code zum Abtippen: Chats, Code eingeben</p>
-    ${c.privat && mitgliederVon(c).length >= 2 ? "" : `<div class="sec-label">Oder per Benutzername einladen</div>
-    <div class="such-box"><input type="search" id="einlSuche" placeholder="Benutzername" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Benutzername suchen"><div id="einlErgebnis"></div></div>`}
     <div class="reihe"><button class="btn primary" id="linkTeilen">${CI.senden}Link teilen</button><button class="btn" id="linkKopieren">Link kopieren</button></div>`);
-  if (b.querySelector("#einlSuche")) suchFeld(b.querySelector("#einlSuche"), b.querySelector("#einlErgebnis"), async (p, knopf) => {
-    knopf.disabled = true;
-    try { await einladenAn(c.id, p); knopf.textContent = "Eingeladen"; } catch (er) { toast(chatFehler(er)); knopf.disabled = false; }
-  });
   b.querySelector("#linkTeilen").onclick = async () => {
     if (navigator.share) { try { await navigator.share({ title: "Schriftblatt", text: c.privat ? "Schreib mir auf Schriftblatt:" : `Komm in die Gruppe „${chatName(c)}“ auf Schriftblatt:`, url: link }); } catch (e) {} }
     else b.querySelector("#linkKopieren").click();
@@ -3163,17 +3095,6 @@ async function chatKlick(e) {
   const t = e.target.closest("button"); if (!t) return;
   const c = (CHATS || []).find(x => x.id === _chatOffen);
   if (t.dataset.chat) { chatOeffnen(t.dataset.chat); return; }
-  if (t.dataset.einJa) {
-    t.disabled = true;
-    const r = await sb.rpc("einladung_annehmen", { p_id: t.dataset.einJa });
-    if (r.error) { toast(chatFehler(r.error)); await ungelesenLaden(); chatListeMalen(); return; }
-    EINL = EINL.filter(x => x.id !== t.dataset.einJa); zahlZeigen();
-    await chatsLaden(); toast("Du bist drin"); chatOeffnen(r.data); return;
-  }
-  if (t.dataset.einNein) {
-    await sb.from("einladungen").delete().eq("id", t.dataset.einNein);
-    EINL = EINL.filter(x => x.id !== t.dataset.einNein); zahlZeigen(); chatListeMalen(); toast("Abgelehnt"); return;
-  }
   switch (t.dataset.c) {
     case "gruppe": gruppeFenster(); return;
     case "privat": t.disabled = true; await privatNeu(); t.disabled = false; return;
@@ -3218,7 +3139,7 @@ function chatTakt() {
       await ungelesenLaden();
       if (S.tab === "chats" && (!_chatOffen || !handy())) {
         await chatsLaden();
-        if (JSON.stringify([CHATS.map(c => c.id + mitgliederVon(c).length + c.name), UNGELESEN, EINL.map(x => x.id)]) !== _listeSig) chatListeMalen();
+        if (JSON.stringify([CHATS.map(c => c.id + mitgliederVon(c).length + c.name), UNGELESEN]) !== _listeSig) chatListeMalen();
       }
     } catch (e) {}
     _chatT = setTimeout(chatTakt, offen ? 4000 : 20000);
@@ -3281,7 +3202,6 @@ const RECHT = {
       <li><b>Konto:</b> Name, Benutzername (bei älteren Konten die E-Mail-Adresse), Passwort nur verschlüsselt, Zeitpunkt von Registrierung und letzter Anmeldung, Stand und Zeitpunkt deiner Zustimmung zu Regeln und Datenschutz.</li>
       <li><b>Handschriften:</b> die ausgeschnittenen Buchstaben und Wörter aus deinem Foto, ein kleines Vorschaubild des Blatts, Datum und Anzahl der Zeichen. Das Foto selbst wird in deinem Browser ausgewertet und nicht hochgeladen.</li>
       <li><b>Einstellungen:</b> deine Wahl bei Papier, Stift und Reglern sowie deine Blätter (Texte mit Fach und Namen), damit sie auf jedem Gerät da sind.</li>
-      <li><b>Auffindbar über den Benutzernamen:</b> Angemeldete können dich über deinen Benutzernamen suchen (ab 3 Zeichen) und sehen dann deinen Namen und Benutzernamen. Sie können dich in einen Chat einladen, beitreten musst du selbst.</li>
       <li><b>Feedback:</b> Nachrichten, die du über „Feedback und Ideen“ schickst, mit deinem Namen. Nur der Betreiber liest sie, er löscht sie, wenn sie erledigt sind.</li>
       <li><b>Chats:</b> die Gruppen und privaten Chats, in denen du bist, dein Name als Mitglied, deine Nachrichten (Texte) und Blätter, die du als PDF mitschickst, mit Zeitpunkt.</li>
     </ul>
