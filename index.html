@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon.png">
 <title>Schriftblatt</title>
-<link rel="stylesheet" href="schriften/schriften.css">
+<link rel="stylesheet" href="schriften/schriften.css?v=2">
 <style>
 /* Farben als Variablen. Der Dunkelmodus überschreibt nur diese Werte. */
 :root{
@@ -608,7 +608,24 @@ const HS = (function () {
     { id: "caveat", name: "Caveat", css: "Caveat", note: "Alltagsschrift" },
     { id: "reenie", name: "Reenie Beanie", css: "Reenie Beanie", note: "krakelig" },
     { id: "shadows", name: "Shadows Into Light", css: "Shadows Into Light Two", note: "locker, rund" },
-    { id: "kalam", name: "Kalam", css: "Kalam", note: "ordentlich" }
+    { id: "kalam", name: "Kalam", css: "Kalam", note: "ordentlich" },
+    // Weitere unter "Mehr Schriften". connected: Wort am Stück zeichnen, sonst reißen die Verbindungen
+    { id: "pw-va", name: "Vereinfachte Ausgangsschrift", css: "Playwrite DE VA", note: "Schreibschrift", mehr: "Schreibschrift", connected: true },
+    { id: "pw-sas", name: "Schulausgangsschrift", css: "Playwrite DE SAS", note: "Schreibschrift", mehr: "Schreibschrift", connected: true },
+    { id: "pw-la", name: "Lateinische Ausgangsschrift", css: "Playwrite DE LA", note: "Schreibschrift", mehr: "Schreibschrift", connected: true },
+    { id: "dancing", name: "Dancing Script", css: "Dancing Script", note: "schwungvoll", mehr: "Schreibschrift", connected: true },
+    { id: "homemade", name: "Homemade Apple", css: "Homemade Apple", note: "flüchtig", mehr: "Schreibschrift", connected: true },
+    { id: "aurore", name: "La Belle Aurore", css: "La Belle Aurore", note: "schräg", mehr: "Schreibschrift", connected: true },
+    { id: "nothing", name: "Nothing You Could Do", css: "Nothing You Could Do", note: "eng, schnell", mehr: "Schreibschrift", connected: true },
+    { id: "pw-grund", name: "Grundschrift", css: "Playwrite DE Grund", note: "wie in der Grundschule", mehr: "Druckschrift" },
+    { id: "patrick", name: "Patrick Hand", css: "Patrick Hand", note: "sauber", mehr: "Druckschrift" },
+    { id: "indie", name: "Indie Flower", css: "Indie Flower", note: "rund, verspielt", mehr: "Druckschrift" },
+    { id: "gochi", name: "Gochi Hand", css: "Gochi Hand", note: "kräftig", mehr: "Druckschrift" },
+    { id: "gloria", name: "Gloria Hallelujah", css: "Gloria Hallelujah", note: "comicartig", mehr: "Druckschrift" },
+    { id: "architects", name: "Architects Daughter", css: "Architects Daughter", note: "Blockschrift", mehr: "Druckschrift" },
+    { id: "handlee", name: "Handlee", css: "Handlee", note: "ruhig", mehr: "Druckschrift" },
+    { id: "schoolbell", name: "Schoolbell", css: "Schoolbell", note: "Tafelschrift", mehr: "Druckschrift" },
+    { id: "covered", name: "Covered By Your Grace", css: "Covered By Your Grace", note: "schmal, hoch", mehr: "Druckschrift" }
   ];
   const FB = FONTS[1]; // Ersatzschrift für fehlende eigene Zeichen
   const INKS = {
@@ -876,7 +893,7 @@ const HS = (function () {
       };
     } else {
       const px = fontPxFor(font.css, xh), fstr = `${px}px "${font.css}"`;
-      const extra = (o.abstand || 0) / 100 * 0.3 * xh;
+      const extra = font.connected ? 0 : (o.abstand || 0) / 100 * 0.3 * xh;
       measure = w => { mctx.font = fstr; return mctx.measureText(w).width + extra * Math.max(0, [...w].length - 1); };
       // Strichstärke für fertige Schriften: dünner durch Abtragen am Rand, dicker durch Nachziehen der Kontur
       const st = (o.staerke || 100) / 100, abtragen = st < 1 ? px * 0.065 * (1 - st) : 0, auftragen = st > 1 ? px * 0.07 * (st - 1) : 0;
@@ -2105,6 +2122,13 @@ function modusStand() {
   if ($("nameFeld")) $("nameFeld").placeholder = autoName();
   REGLER.forEach(wertZeigen);
 }
+// Fenster mit allen weiteren Schriften, nach Schreibschrift und Druckschrift
+function mehrSchriften() {
+  const eff = effFont(), gruppen = ["Schreibschrift", "Druckschrift"];
+  const body = fensterAuf("Mehr Schriften", gruppen.map(g => `<div class="sec-label">${g}</div>
+    <div class="schriften">${HS.FONTS.filter(f => f.mehr === g).map(f => `<button type="button" class="schrift-k" data-font="${f.id}" aria-checked="${eff === f.id}"><span class="probe" style="font-family:'${f.css}'">Abc äöü</span><b>${esc(f.name)}</b><small>${esc(f.note)}</small></button>`).join("")}</div>`).join(""));
+  body.onclick = e => { const b = e.target.closest("[data-font]"); if (!b) return; S.font = b.dataset.font; speichern(); fontsBauen(); neuZeichnen(0); fensterZu(); toast(HS.FONTS.find(f => f.id === S.font).name + " gewählt"); };
+}
 // Schriftart: jede eigene Handschrift als eigene Kachel, dazu die fertigen Schriften und ein Knopf zum Einlesen
 function fontsBauen() {
   const own = HS.hatOwn(), info = HS.ownInfo(), eff = effFont();
@@ -2120,11 +2144,11 @@ function fontsBauen() {
   } else {
     eigene = `<button type="button" class="schrift-k" role="radio" data-font="own" aria-checked="${eff === "own"}"${own ? "" : " disabled"}><span class="probe">${probeAktiv || '<span style="font-size:15px;color:var(--ink-3)">noch leer</span>'}</span><b>Meine Handschrift</b><small>${own ? "eingelesen" : "erst einlesen"}</small></button>`;
   }
-  const neu = !(sb && ich) || HSL.length < MAX_HS
-    ? '<button type="button" class="schrift-k neu" data-neu-hs-font><span class="probe" style="color:var(--accent-ink)">+</span><b>Handschrift einlesen</b><small>Foto vom Alphabet</small></button>' : "";
-  $("fontWahl").innerHTML = eigene
-    + HS.FONTS.map(f => `<button type="button" class="schrift-k" role="radio" data-font="${f.id}" aria-checked="${eff === f.id}"><span class="probe" style="font-family:'${f.css}'">Abc äöü</span><b>${esc(f.name)}</b><small>${esc(f.note)}</small></button>`).join("")
-    + neu;
+  const kachel = f => `<button type="button" class="schrift-k" role="radio" data-font="${f.id}" aria-checked="${eff === f.id}"><span class="probe" style="font-family:'${f.css}'">Abc äöü</span><b>${esc(f.name)}</b><small>${esc(f.note)}</small></button>`;
+  // Die 4 Standardschriften immer, eine gewählte aus "Mehr Schriften" zusätzlich
+  const sichtbar = HS.FONTS.filter(f => !f.mehr || f.id === eff);
+  $("fontWahl").innerHTML = eigene + sichtbar.map(kachel).join("")
+    + `<button type="button" class="schrift-k neu" data-mehr-schriften><span class="probe" style="color:var(--accent-ink)">+${HS.FONTS.filter(f => f.mehr).length}</span><b>Mehr Schriften</b><small>Schreibschrift und Druckschrift</small></button>`;
   // Strichstärke nur für fertige Schriften, die eigene Handschrift hat ihre echte Strichstärke
   const rs = $("regler-staerke"); if (rs) rs.hidden = eff === "own";
 }
@@ -3322,7 +3346,7 @@ async function start() {
       try { await hsVerwenden(h.dataset.hsFont); toast("Handschrift gewechselt"); } catch (er) { toast(kontoFehler(er && er.message)); fontsBauen(); }
       return;
     }
-    if (e.target.closest("[data-neu-hs-font]")) { tab("schrift"); $("einlesenKlapp").open = true; setTimeout(() => $("anleitung").scrollIntoView({ behavior: "smooth" }), 50); return; }
+    if (e.target.closest("[data-mehr-schriften]")) { mehrSchriften(); return; }
     const b = e.target.closest("[data-font]"); if (!b || b.disabled) return; S.font = b.dataset.font; fontsBauen(); speichern(); neuZeichnen(0);
   });
   $("randCheck").onchange = e => { S.margin = e.target.checked; speichern(); neuZeichnen(); };
