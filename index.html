@@ -70,7 +70,7 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .hint{font-size:12.5px;color:var(--ink-3);line-height:1.45}
 .rechtlinks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:13px;margin:14px 0 0}
 .vorschau-leiste .btn{flex-shrink:0}
-@media (max-width:520px){ #pdfBtn .lbl-txt,#sendenBtn .lbl-txt{display:none} #pdfBtn,#sendenBtn{width:44px;padding:0} }
+@media (max-width:520px){ #sendenBtn .lbl-txt{display:none} #sendenBtn{width:44px;padding:0} }
 /* Deine Blätter */
 .blatt-liste{display:flex;flex-direction:column;gap:6px}
 .blatt-zeile{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--radius);padding:8px 12px;min-height:48px;font:inherit;cursor:pointer}
@@ -102,7 +102,6 @@ body:not([data-tab="blatt"]) .layout>#blattAuswahl{display:none}
 .blatt-chip{flex:0 0 auto;max-width:180px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:6px 14px;min-height:40px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .blatt-chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .blatt-chip.neu{color:var(--accent-ink);border-style:dashed}
-.einpassen{gap:6px}
 .n-bild{border:1px solid var(--line);padding:0;background:#fff;border-radius:6px;width:150px;cursor:zoom-in;overflow:hidden;align-self:flex-start}
 .n-bild img{display:block;width:100%;height:auto;min-height:60px}
 /* Chats */
@@ -489,13 +488,11 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
           <span class="hint mono" id="textZahl"></span>
           <span class="reihe"><button class="btn ghost" id="originalBtn" hidden>Original zurück</button><button class="btn ghost" id="einfuegenBtn">Einfügen</button><button class="btn ghost" id="leerenBtn">Leeren</button></span>
         </div>
-        <div class="reihe einpassen"><span class="hint">Genau einpassen:</span><button class="btn klein" data-einpassen="1">1 Seite</button><button class="btn klein" data-einpassen="2">2 Seiten</button><button class="btn klein" data-einpassen="3">3 Seiten</button></div>
       </div>
       <div class="block gruppe">
         <div class="sec-label">Vorlage</div>
         <div class="modus" id="vorlageModus"></div>
         <p class="hint" id="vorlageHinweis"></p>
-        <div class="field"><label for="nameFeld">Dateiname beim Teilen</label><input type="text" id="nameFeld" autocomplete="off"><span class="hint">Leer lassen: Die Datei heißt wie die Überschrift deines Textes.</span></div>
         <div class="field" id="feldTitel"><label for="titelFeld">Seitentitel</label><input type="text" id="titelFeld" placeholder="leer lassen für keinen Titel"></div>
         <div class="two" id="feldDatum">
           <div class="field"><label for="datumFeld">Datum</label><input type="date" id="datumFeld"></div>
@@ -548,9 +545,6 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       </button>
       <span class="spacer"></span>
       <span class="info mono" id="seitenInfo"></span>
-      <button class="btn" id="pdfBtn" title="PDF speichern">
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg><span class="lbl-txt">PDF</span>
-      </button>
       <button class="btn" id="sendenBtn" data-nur-konto hidden title="An einen Chat senden">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"/><path d="M11.5 13.5L20 4"/></svg><span class="lbl-txt">Senden</span>
       </button>
@@ -576,7 +570,6 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 </nav>
 <button class="mini" id="mini" hidden aria-label="Blatt groß ansehen"><canvas width="168" height="238"></canvas></button>
 <div id="fenster"></div>
-<input type="file" accept=".json,application/json" id="importInput" hidden>
 
 <script src="schriften/supabase.js"></script>
 <script src="schriften/qrcode.js"></script><!-- qrcode-generator 1.4.4, MIT --><!-- supabase-js 2.117.2 lokal, keine Anfrage an jsdelivr -->
@@ -952,7 +945,6 @@ const HS = (function () {
     while (lines.length > 1 && !lines[lines.length - 1].words.length) lines.pop();
 
     const per = geo.bases.length, n = Math.max(1, Math.ceil(lines.length / per));
-    if (o.nurMessen) return { pages: n, lines: lines.length, per };
     if (!_layer) _layer = cnv(PW, PH);
     const L = _layer, lg = L.getContext("2d");
     const pg = paper(o, geo);
@@ -1859,7 +1851,7 @@ const UMSCHREIBEN = (function () {
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  staerke: 100, abstand: 0, messy: 40, drift: 30, errors: 2, starts: 25, ends: 30, seed: 7, margin: true, indent: false, titel: "", dateiname: "", schriftId: "", blaetter: [], blattId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
+  staerke: 100, abstand: 0, messy: 40, drift: 30, errors: 2, starts: 25, seed: 7, margin: true, indent: false, titel: "", schriftId: "", blaetter: [], blattId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
@@ -1877,8 +1869,7 @@ const REGLER = [
   { grp: "ordnung", id: "messy", label: "Unordentlich", min: 0, max: 100, step: 5, fmt: v => stufe(v, "sehr sauber", "sauber", "normal", "hingeschmiert") },
   { grp: "ordnung", id: "drift", label: "Abweichung von der Linie", min: 0, max: 100, step: 5, fmt: v => stufe(v, "genau auf der Linie", "leicht", "deutlich", "stark") },
   { grp: "ordnung", id: "errors", label: "Rechtschreibfehler", min: 0, max: 10, step: 1, fmt: v => v === 0 ? "keine" : v + " pro 100 Wörter" },
-  { grp: "zeilen", id: "starts", label: "Zeilenanfänge", min: 0, max: 100, step: 5, fmt: v => stufe(v, "alle gleich", "leicht versetzt", "deutlich versetzt", "stark versetzt") },
-  { grp: "zeilen", id: "ends", label: "Zeilenenden", min: 0, max: 100, step: 5, fmt: v => stufe(v, "bis zum Rand", "leicht flatternd", "deutlich flatternd", "stark flatternd") }
+  { grp: "zeilen", id: "starts", label: "Zeilenränder unruhig", min: 0, max: 100, step: 5, fmt: v => stufe(v, "alles gerade", "leicht", "deutlich", "stark") },
 ];
 const VORLAGEN = [["heft", "Heft"], ["onenote", "Digital"], ["notizen", "Notizen"]];
 const VORLAGE_TEXT = {
@@ -1948,7 +1939,7 @@ function blaetterBauen() {
 function blattZeigen() {
   const b = aktivBlatt(); if (!b) return;
   S.text = b.text || ""; S.titel = b.titel || ""; S.urtext = "";
-  $("textFeld").value = S.text; $("titelFeld").value = S.titel; textZahl(); $("originalBtn").hidden = true; $("nameFeld").placeholder = autoName();
+  $("textFeld").value = S.text; $("titelFeld").value = S.titel; textZahl(); $("originalBtn").hidden = true;
   speichern(); blaetterBauen(); neuZeichnen(0);
 }
 function blattWechseln(id) { speichern(); S.blattId = id; const b = aktivBlatt(); if (b) b.geaendert = b.geaendert || Date.now(); blattZeigen(); }
@@ -1993,40 +1984,12 @@ function blattMenue() {
     fensterZu(); blattZeigen(); toast("Gelöscht");
   }, () => { fensterZu(); blattMenue(); });
 }
-// Schriftgröße und notfalls Zeilenabstand so wählen, dass der Text genau die gewünschten Seiten füllt
 function zeichenOpts(extra) {
   return Object.assign({
     paras: (_plan || FEHLER.plan(S.text, S.errors, S.seed)).paras, font: effFont(), tpl: S.tpl, paper: S.paper, dark: S.ton === "dunkel", ink: S.ink, size: S.size, pitchMM: S.pitch,
-    messy: S.messy, drift: S.drift, slant: S.slant, staerke: S.staerke, abstand: S.abstand, starts: S.starts, ends: S.ends, seed: S.seed, margin: S.margin, indent: S.indent,
+    messy: S.messy, drift: S.drift, slant: S.slant, staerke: S.staerke, abstand: S.abstand, starts: S.starts, ends: S.starts, seed: S.seed, margin: S.margin, indent: S.indent,
     titel: S.titel.trim(), datum: S.datum, zeit: S.zeit
   }, extra || {});
-}
-async function einpassen(ziel) {
-  if (!S.text.trim()) { toast("Erst einen Text eingeben"); return; }
-  clearTimeout(_zt);
-  _plan = FEHLER.plan(S.text, S.errors, S.seed);
-  // passt(): Zeilen höchstens so viele, wie auf die Seiten gehen; fuell: wie voll die letzte Seite ist
-  const messen = async (size, pitch) => (await HS.render($("seiten"), zeichenOpts({ size, pitchMM: pitch, nurMessen: true }))) || { lines: 1e9, per: 1 };
-  const R = k => REGLER.find(x => x.id === k);
-  const sMin = R("size").min, sMax = R("size").max, pMin = R("pitch").min, pMax = R("pitch").max;
-  const passt = m => m.lines <= m.per * ziel;
-  // Größte Schrift (5er-Schritte), die noch passt
-  const groesste = async p => { let lo = sMin / 5, hi = sMax / 5, best = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (passt(await messen(m * 5, p))) { best = m; lo = m + 1; } else hi = m - 1; } return best < 0 ? null : best * 5; };
-  let pitch = S.pitch, size = await groesste(pitch), hinweis = "";
-  if (size == null) {
-    // Passt selbst klein nicht: Zeilen enger
-    for (let p = pitch - 0.5; p >= pMin && size == null; p -= 0.5) { size = await groesste(p); if (size != null) pitch = p; }
-    if (size == null) { neuZeichnen(0); toast(`Das passt nicht auf ${ziel === 1 ? "1 Seite" : ziel + " Seiten"}, der Text ist zu lang.`); return; }
-  } else if (size === sMax) {
-    // Text kurz: Zeilen weiter auseinander, solange es noch passt, damit die Seiten voll werden
-    for (let p = pitch + 0.5; p <= pMax; p += 0.5) { if (!passt(await messen(sMax, p))) break; pitch = p; }
-    const m = await messen(sMax, pitch);
-    if (m.lines < m.per * (ziel - 1) + m.per * 0.7) hinweis = " Der Text ist zu kurz, um die Seiten ganz zu füllen.";
-  }
-  S.size = size; S.pitch = pitch;
-  REGLER.forEach(x => { const el = $("r-" + x.id); if (el) { el.value = S[x.id]; wertZeigen(x); } });
-  speichern(); neuZeichnen(0);
-  toast(`Eingepasst: Größe ${size} %, Zeilenabstand ${fmtZahl(pitch)} mm.${hinweis}`);
 }
 function neuZeichnen(ms) {
   clearTimeout(_zt);
@@ -2075,7 +2038,8 @@ function autoName() {
   const kurz = erste.length > 40 ? erste.slice(0, 40).replace(/\s+\S*$/, "") : erste;
   return (S.tpl === "onenote" && S.titel.trim()) || kurz || (S.tpl === "notizen" ? "Notiz" : "Dokument");
 }
-const pdfName = () => ((S.dateiname.trim() || autoName()).replace(/[\\/:*?"<>|]/g, "").replace(/\.pdf$/i, "").trim() || "Dokument") + ".pdf";
+// Die Datei heißt wie das Blatt (eigener Name), sonst wie die erste Zeile
+const pdfName = () => (((aktivBlatt() && aktivBlatt().name) || autoName()).replace(/[\\/:*?"<>|]/g, "").replace(/\.pdf$/i, "").trim() || "Dokument") + ".pdf";
 function pdfVorbereiten() {
   const st = ++_stand; _pdf = null; clearTimeout(_pdfT);
   _pdfT = setTimeout(async () => {
@@ -2127,7 +2091,6 @@ function modusStand() {
   $("vorlageHinweis").textContent = VORLAGE_TEXT[S.tpl] || "";
   $("feldTitel").hidden = S.tpl !== "onenote";
   $("feldDatum").hidden = S.tpl === "heft";
-  if ($("nameFeld")) $("nameFeld").placeholder = autoName();
   REGLER.forEach(wertZeigen);
 }
 // Fenster mit allen weiteren Schriften, nach Schreibschrift und Druckschrift
@@ -2346,10 +2309,7 @@ function einstHtml() {
     ${alsApp() ? "" : `<div class="field"><span class="lbl">Als App auf den Home-Bildschirm</span>
       <ol class="anl" style="font-size:13.5px"><li>In <b>Safari</b> unten auf <b>Teilen</b> tippen (Viereck mit Pfeil).</li><li>Runterscrollen, <b>Zum Home-Bildschirm</b>, dann <b>Hinzufügen</b>.</li><li>Ab dann über das Symbol öffnen und einmal neu anmelden.</li></ol>
       <p class="hint">Auf Android: in Chrome oben rechts die drei Punkte, dann <b>App installieren</b>.</p></div>`}
-    <div class="field"><span class="lbl">Deine Schrift</span>
-      <p class="hint">Deine Handschriften sind in deinem Konto gespeichert, verwalten kannst du sie oben. Zusätzlich kannst du die gerade verwendete als Datei sichern.</p>
-      <div class="reihe"><button class="btn" id="exportBtn">Als Datei sichern</button><button class="btn" id="importBtn">Datei laden</button></div>
-    </div>
+
     <div class="field"><span class="lbl">App aktualisieren</span>
       <p class="hint">Lädt die neueste Fassung von Schriftblatt. Deine Schrift und deine Chats bleiben.</p>
       <button class="btn" id="updateBtn"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>Neueste Fassung laden</button></div>`;
@@ -2358,12 +2318,6 @@ function einstVerdrahten(b) {
   const thema = () => b.querySelectorAll("#themaModus button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === S.theme)));
   thema();
   b.querySelector("#themaModus").onclick = e => { const x = e.target.closest("button"); if (!x) return; S.theme = x.dataset.v; themaAnwenden(); thema(); speichern(); };
-  b.querySelector("#exportBtn").onclick = () => {
-    const d = HS.ownExport(); if (!d || !HS.hatOwn()) { toast("Noch keine Schrift zum Sichern"); return; }
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(d)], { type: "application/json" })); a.download = "meine-schrift.json";
-    document.body.appendChild(a); a.click(); a.remove(); toast("Datei gesichert");
-  };
-  b.querySelector("#importBtn").onclick = () => $("importInput").click();
   b.querySelector("#updateBtn").onclick = () => { toast("Lädt …"); location.replace(location.pathname + "?v=" + Date.now()); };
 }
 // Große Ansicht einer Seite: zoomen mit zwei Fingern, Doppeltippen oder den Knöpfen
@@ -2435,7 +2389,6 @@ const kontoFehler = m => {
   if (/already registered|already been registered/i.test(m)) return "Diesen Benutzernamen gibt es schon. Nimm einen anderen.";
   if (/at least 6/i.test(m)) return "Das Passwort braucht mindestens 6 Zeichen.";
   if (/invalid format|valid email/i.test(m)) return "Die E-Mail-Adresse stimmt so nicht.";
-  if (/not confirmed/i.test(m)) return "Die E-Mail ist noch nicht bestätigt.";
   if (/rate limit|too many/i.test(m)) return "Zu viele Versuche. Warte kurz und versuch es nochmal.";
   if (/fetch|network/i.test(m)) return "Keine Verbindung. Prüf dein Internet.";
   return "Das hat nicht geklappt: " + m;
@@ -2456,7 +2409,7 @@ function einstAnwenden(e) {
   // Aktives Blatt aus dem Konto übernehmen (sonst würde der alte Text vom Gerät es überschreiben)
   const ab = (S.blaetter || []).find(b => b.id === S.blattId); if (ab) { S.text = ab.text || ""; S.titel = ab.titel || ""; }
   $("textFeld").value = S.text; textZahl();
-  $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
+  $("titelFeld").value = S.titel; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
   themaAnwenden(); modusStand(); blaetterBauen();
   _ohneHoch = true; speichern(); _ohneHoch = false;
 }
@@ -3235,25 +3188,11 @@ function rechtFenster(was) {
 /* Tor: ohne Anmeldung kommt niemand rein. Registrieren mit Name, Benutzername, Passwort. */
 const KONTO_DOMAIN = "schriftblatt.local";
 const anzeigeKonto = m => String(m || "").replace("@" + KONTO_DOMAIN, "");
-const zurueckUrl = () => location.origin + location.pathname;
 function torWeg() { document.body.classList.remove("gesperrt"); $("tor").hidden = true; }
 function torZeigen(modus, info) {
   fensterZu();
   document.body.classList.add("gesperrt"); $("tor").hidden = false; window.scrollTo(0, 0);
   const t = $("torForm");
-  if (modus === "mail") {
-    t.innerHTML = `<div class="hinweis ok"><b>Fast geschafft</b>Wir haben dir eine Mail an ${esc(info)} geschickt. Tipp auf den Link darin, dann bist du drin.</div>
-      <p class="hint">Keine Mail da? Schau im Spam-Ordner nach, oder lass sie dir nochmal schicken.</p>
-      <p class="err" id="tFehler"></p>
-      <button class="btn breit" id="tNochmal">Mail nochmal schicken</button>
-      <button class="btn ghost breit" id="tZurueck">Zurück zur Anmeldung</button>`;
-    t.querySelector("#tNochmal").onclick = async () => {
-      const r = await sb.auth.resend({ type: "signup", email: info, options: { emailRedirectTo: zurueckUrl() } });
-      if (r.error) t.querySelector("#tFehler").textContent = kontoFehler(r.error.message); else toast("Mail ist unterwegs");
-    };
-    t.querySelector("#tZurueck").onclick = () => torZeigen("login");
-    return;
-  }
   if (modus === "vergessen") {
     // Ohne eigenen Mailversand kann Supabase keine Links verschicken. Der Admin setzt das Konto zurück.
     t.innerHTML = `<h2>Passwort vergessen</h2>
@@ -3289,22 +3228,6 @@ function torZeigen(modus, info) {
     }, () => torZeigen("zustimmung"));
     return;
   }
-  if (modus === "neuesPw") {
-    t.innerHTML = `<h2>Neues Passwort</h2>
-      <form id="tForm" class="gruppe" novalidate>
-        <div class="field"><label for="tPw">Neues Passwort (mindestens 6 Zeichen)</label><input type="password" id="tPw" autocomplete="new-password"></div>
-        <p class="err" id="tFehler"></p>
-        <button class="btn primary breit" type="submit">Speichern</button>
-      </form>`;
-    t.querySelector("#tForm").onsubmit = async e => {
-      e.preventDefault();
-      const r = await sb.auth.updateUser({ password: t.querySelector("#tPw").value });
-      if (r.error) { t.querySelector("#tFehler").textContent = kontoFehler(r.error.message); return; }
-      history.replaceState(null, "", zurueckUrl());
-      toast("Passwort geändert"); angemeldet(r.data.user);
-    };
-    return;
-  }
   const neu = modus === "neu";
   t.innerHTML = `<div class="modus" id="tModus"><button type="button" data-v="login" aria-pressed="${!neu}">Anmelden</button><button type="button" data-v="neu" aria-pressed="${neu}">Registrieren</button></div>
     <form id="tForm" class="gruppe" novalidate>
@@ -3337,12 +3260,11 @@ function torZeigen(modus, info) {
     los.disabled = false;
     if (r.error) {
       f.textContent = kontoFehler(r.error.message);
-      if (/not confirmed/i.test(r.error.message)) { f.innerHTML = 'Deine E-Mail ist noch nicht bestätigt. <button type="button" class="btn ghost" id="tBest">Bestätigungsmail nochmal schicken</button>'; t.querySelector("#tBest").onclick = async () => { await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: zurueckUrl() } }); torZeigen("mail", email); }; }
       return;
     }
     // Supabase meldet bei schon bestätigten Adressen keinen Fehler, sondern ein Konto ohne Identität
     if (neu && r.data.user && Array.isArray(r.data.user.identities) && !r.data.user.identities.length) { f.textContent = "Diesen Benutzernamen gibt es schon. Nimm einen anderen."; return; }
-    if (!r.data.session) { torZeigen("mail", email); return; }
+    if (!r.data.session) { f.textContent = "Anmelden ging gerade nicht. Versuch es nochmal."; return; }
     angemeldet(r.data.session.user);
     toast(neu ? "Konto angelegt" : "Angemeldet");
   };
@@ -3359,18 +3281,12 @@ async function kontoStart() {
   kontoKnopf();
   if (alsApp()) $("appTipp").hidden = true;
   if (!sb) { torWeg(); return; }
-  const wiederherstellen = /type=recovery/.test(location.hash + location.search);
-  sb.auth.onAuthStateChange((ev, session) => {
-    if (ev === "PASSWORD_RECOVERY") { setTimeout(() => torZeigen("neuesPw"), 0); return; }
+  sb.auth.onAuthStateChange(ev => {
     if (ev === "SIGNED_OUT") { ich = null; kontoKnopf(); }
   });
   const { data } = await sb.auth.getSession();
   const user = (data && data.session && data.session.user) || null;
-  if (wiederherstellen && user) { ich = user; torZeigen("neuesPw"); return; }
-  if (user) {
-    if (/access_token|type=signup/.test(location.hash)) { history.replaceState(null, "", zurueckUrl()); toast("E-Mail bestätigt, willkommen"); }
-    angemeldet(user);
-  } else torZeigen("login");
+  if (user) angemeldet(user); else torZeigen("login");
 }
 
 
@@ -3390,7 +3306,7 @@ async function start() {
   modusBauen("vorlageModus", VORLAGEN, "tpl"); modusBauen("papierModus", PAPIERE, "paper"); modusBauen("tonModus", TOENE, "ton"); modusBauen("stiftModus", STIFTE, "ink");
   abschriftBauen();
   $("textFeld").value = S.text; textZahl();
-  $("titelFeld").value = S.titel; $("nameFeld").value = S.dateiname; $("nameFeld").placeholder = autoName(); $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
+  $("titelFeld").value = S.titel; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
   const raw = parse(LS.get(OWN_KEY));
   if (raw) await HS.ownSetzen(raw);
   fontsBauen(); modusStand(); statusZeigen();
@@ -3429,10 +3345,9 @@ async function start() {
   $("auslesenBtn").onclick = auslesen;
   $("abbrechenBtn").onclick = () => { $("ausschnitt").hidden = true; crop = null; };
   griffeAktivieren();
-  $("textFeld").addEventListener("input", e => { S.text = e.target.value; S.urtext = ""; $("originalBtn").hidden = true; textZahl(); $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(300); });
+  $("textFeld").addEventListener("input", e => { S.text = e.target.value; S.urtext = ""; $("originalBtn").hidden = true; textZahl(); speichern(); neuZeichnen(300); });
   $("leerenBtn").onclick = () => { S.text = ""; $("textFeld").value = ""; textZahl(); speichern(); neuZeichnen(0); $("textFeld").focus(); };
-  $("titelFeld").addEventListener("input", e => { S.titel = e.target.value; $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(200); });
-  $("nameFeld").addEventListener("input", e => { S.dateiname = e.target.value; speichern(); });
+  $("titelFeld").addEventListener("input", e => { S.titel = e.target.value; speichern(); neuZeichnen(200); });
   $("datumFeld").addEventListener("change", e => { S.datum = e.target.value; speichern(); neuZeichnen(0); });
   $("zeitFeld").addEventListener("change", e => { S.zeit = e.target.value; speichern(); neuZeichnen(0); });
   $("fontWahl").addEventListener("click", async e => {
@@ -3450,7 +3365,7 @@ async function start() {
   $("einzugCheck").onchange = e => { S.indent = e.target.checked; speichern(); neuZeichnen(); };
   $("wuerfelBtn").onclick = () => { S.seed = (Math.random() * 1e9) | 0; speichern(); neuZeichnen(0); };
   // Umschreiben: immer vom Original aus, damit der Text nicht immer weiter abdriftet
-  const textSetzen = t => { S.text = t; $("textFeld").value = t; textZahl(); $("nameFeld").placeholder = autoName(); speichern(); neuZeichnen(0); };
+  const textSetzen = t => { S.text = t; $("textFeld").value = t; textZahl(); speichern(); neuZeichnen(0); };
   $("umschreibenBtn").onclick = () => {
     if (!S.urtext) S.urtext = S.text;
     let neu = S.text;
@@ -3461,7 +3376,6 @@ async function start() {
   };
   $("originalBtn").onclick = () => { if (!S.urtext) return; const t = S.urtext; S.urtext = ""; $("originalBtn").hidden = true; textSetzen(t); toast("Original wiederhergestellt"); };
   $("originalBtn").hidden = !S.urtext;
-  $("pdfBtn").onclick = async () => { const f = await pdfDatei(); HS.blobLaden(f, f.name); };
   $("teilenBtn").onclick = teilen;
   $("sendenBtn").onclick = blattSendenFenster;
   blaetterBauen();
@@ -3474,7 +3388,6 @@ async function start() {
   blattModus("liste");
   auswahlPlatzieren(); window.addEventListener("resize", auswahlPlatzieren);
   $("blattMenue").onclick = blattMenue;
-  document.querySelectorAll("[data-einpassen]").forEach(b => b.onclick = async () => { b.disabled = true; try { await einpassen(+b.dataset.einpassen); } finally { b.disabled = false; } });
   // Name des Blatts folgt der ersten Zeile, solange es keinen eigenen Namen hat
   $("textFeld").addEventListener("input", () => { clearTimeout(window._blT); window._blT = setTimeout(() => { const b = aktivBlatt(); if (b && !b.name) blaetterBauen(); }, 600); });
   $("chatInhalt").addEventListener("click", chatKlick);
@@ -3485,19 +3398,6 @@ async function start() {
     try { const x = await navigator.clipboard.readText(); if (!x) { toast("Die Zwischenablage ist leer"); return; } textSetzen(x); toast("Eingefügt"); }
     catch (e) { toast("Einfügen ging nicht. Lang ins Textfeld tippen und Einfügen wählen."); }
   };
-  $("importInput").addEventListener("change", async e => {
-    const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
-    const d = parse(await f.text());
-    if (!d || d.app !== "handschrift" || !(d.g || d.abschriften)) { toast("Das ist keine Handschrift-Datei"); return; }
-    const ab = alsAbschriften(d);
-    try {
-      if (sb && ich) {
-        if (HSL.length >= MAX_HS) { toast("Du hast schon 5 Handschriften. Lösch zuerst eine im Profil."); return; }
-        await hsNeu("Importiert", ab, ab.map(a => Object.assign(metaVon(Object.keys(a.g || {}).length, Object.keys(a.w || {}).length), { datum: null })));
-      } else { await HS.ownSetzen({ abschriften: ab }); schriftSichern(); fontsBauen(); statusZeigen(); neuZeichnen(0); }
-      S.font = "own"; speichern(); fontsBauen(); neuZeichnen(0); fensterZu(); toast("Schrift geladen");
-    } catch (er) { toast(kontoFehler(er && er.message)); }
-  });
   // Schriften nachladen und neu zeichnen, sobald sie da sind
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => neuZeichnen(0));
 }
