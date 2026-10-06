@@ -2476,6 +2476,46 @@ async function ausKontoLaden() {
   await aktiveLaden();
 }
 /* Admin: Liste aller Tester. Die Datenbank prüft selbst, ob du Admin bist (sql/02-admin.sql). */
+/* ---------- Feedback und Ideen an Eljakim (sql/10-feedback.sql) ---------- */
+const FEEDBACK_ARTEN = ["Idee", "Fehler", "Lob", "Sonstiges"];
+function feedbackFenster() {
+  let art = "Idee";
+  const b = fensterAuf("Feedback und Ideen", `
+    <p class="unter">Nachricht an Eljakim senden: Was fehlt dir, was nervt, was ist dir aufgefallen?</p>
+    <div class="faecher" id="fbArt">${FEEDBACK_ARTEN.map(a => `<button type="button" class="fach-knopf" data-art="${a}" aria-pressed="${a === art}">${a}</button>`).join("")}</div>
+    <div class="field"><label for="fbText">Deine Nachricht</label><textarea id="fbText" rows="6" maxlength="5000" placeholder="Schreib einfach drauflos."></textarea></div>
+    <p class="hint">Eljakim sieht deinen Namen dazu, damit er nachfragen kann.</p>
+    <button class="btn primary breit" id="fbSenden">An Eljakim senden</button>`);
+  b.querySelector("#fbArt").onclick = e => { const x = e.target.closest("[data-art]"); if (!x) return; art = x.dataset.art; b.querySelectorAll("[data-art]").forEach(y => y.setAttribute("aria-pressed", String(y === x))); };
+  b.querySelector("#fbText").focus();
+  b.querySelector("#fbSenden").onclick = async e => {
+    const text = b.querySelector("#fbText").value.trim();
+    if (!text) { toast("Schreib erst etwas"); return; }
+    e.target.disabled = true;
+    const name = (ich.user_metadata && ich.user_metadata.name) || anzeigeKonto(ich.email);
+    const r = await sb.from("feedback").insert({ user_id: ich.id, name, art, text });
+    if (r.error) { e.target.disabled = false; toast(/does not exist|schema cache/i.test(r.error.message) ? "Feedback ist noch nicht eingerichtet." : kontoFehler(r.error.message)); return; }
+    fensterZu(); toast("Danke, ist bei Eljakim angekommen");
+  };
+}
+async function feedbackListe() {
+  const b = fensterAuf("Feedback", '<p class="hint">Lädt …</p>', true);
+  const malen = async () => {
+    const r = await sb.from("feedback").select("id,name,art,text,gelesen,erstellt").order("erstellt", { ascending: false });
+    if (r.error) { b.innerHTML = `<div class="hinweis bad"><b>Ging nicht</b>${esc(r.error.message)}</div>`; return; }
+    const neu = r.data.filter(x => !x.gelesen).length;
+    b.innerHTML = r.data.length ? `<div class="hint mono">${r.data.length} Nachrichten, ${neu} neu</div><ul class="mitglieder">${r.data.map(x => `<li style="flex-direction:column;align-items:stretch">
+      <span><b>${esc(x.art)} von ${esc(x.name || "unbekannt")}${x.gelesen ? "" : ' <span class="zahl">neu</span>'}</b><small>${deZeit(x.erstellt)}</small></span>
+      <div class="n-text">${esc(x.text)}</div>
+      <span class="reihe" data-zone>${x.gelesen ? "" : `<button class="btn" data-fb-gelesen="${x.id}">Gelesen</button>`}<button class="btn ghost rot" data-fb-weg="${x.id}">Löschen</button></span></li>`).join("")}</ul>` : '<p class="hint">Noch kein Feedback.</p>';
+  };
+  await malen();
+  b.onclick = async e => {
+    const t = e.target.closest("button"); if (!t) return;
+    if (t.dataset.fbGelesen) { await sb.from("feedback").update({ gelesen: true }).eq("id", t.dataset.fbGelesen); malen(); }
+    else if (t.dataset.fbWeg) zoneFragen(t, "Dieses Feedback löschen?", "Löschen", async () => { const r = await sb.from("feedback").delete().eq("id", t.dataset.fbWeg); if (r.error) throw r.error; malen(); }, malen);
+  };
+}
 let istAdmin = false;
 async function adminPruefen() {
   const r = await sb.rpc("bin_admin");
@@ -2601,6 +2641,7 @@ function profilMalen(body) {
   body.innerHTML = `
     <div class="hinweis ok"><b>${esc(name || "Angemeldet")}</b>${esc(anzeigeKonto(ich.email))}</div>
     <div class="reihe" data-zone><button class="btn ghost klein" id="nameAendernBtn">Namen ändern</button></div>
+    <button class="btn primary breit" id="feedbackBtn"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>Feedback und Ideen</button>
     <div class="sec-label">Deine Handschriften (${HSL.length} von ${MAX_HS})</div>
     ${HSL.length ? "" : '<p class="hint">Noch keine Handschrift. Lies eine im Reiter Schrift ein.</p>'}
     ${HSL.map(h => {
@@ -2617,7 +2658,7 @@ function profilMalen(body) {
       </div>`;
     }).join("")}
     ${HSL.length < MAX_HS ? '<button class="btn breit" data-neu-hs>Neue Handschrift einlesen</button>' : '<p class="hint">Du hast 5 Handschriften. Lösch eine, um eine neue anzulegen.</p>'}
-    ${istAdmin ? '<button class="btn primary breit" id="testerBtn">Tester ansehen</button><button class="btn breit" id="meldungenBtn">Meldungen ansehen</button>' : ""}
+    ${istAdmin ? '<button class="btn primary breit" id="testerBtn">Tester ansehen</button><button class="btn breit" id="meldungenBtn">Meldungen ansehen</button><button class="btn breit" id="feedbackListeBtn">Feedback ansehen</button>' : ""}
     ${einstHtml()}
     <div class="sec-label" style="margin-top:22px">Konto</div>
     <button class="btn breit" id="abmeldenBtn">Abmelden</button>
@@ -2646,6 +2687,8 @@ function profilMalen(body) {
     }
     else if (t.hasAttribute("data-neu-hs")) { fensterZu(); tab("schrift"); $("einlesenKlapp").open = true; setTimeout(() => $("anleitung").scrollIntoView({ behavior: "smooth" }), 50); }
     else if (t.id === "testerBtn") testerListe();
+    else if (t.id === "feedbackBtn") feedbackFenster();
+    else if (t.id === "feedbackListeBtn") feedbackListe();
     else if (t.id === "nameAendernBtn") {
       const zone = t.closest("[data-zone]");
       zone.innerHTML = `<input type="text" id="neuerName" maxlength="40" value="${esc(name)}" aria-label="Neuer Name" style="flex:1"><button class="btn primary" id="nameOk">Speichern</button>`;
@@ -3144,6 +3187,7 @@ const RECHT = {
       <li><b>Konto:</b> Name, Benutzername (bei älteren Konten die E-Mail-Adresse), Passwort nur verschlüsselt, Zeitpunkt von Registrierung und letzter Anmeldung, Stand und Zeitpunkt deiner Zustimmung zu Regeln und Datenschutz.</li>
       <li><b>Handschriften:</b> die ausgeschnittenen Buchstaben und Wörter aus deinem Foto, ein kleines Vorschaubild des Blatts, Datum und Anzahl der Zeichen. Das Foto selbst wird in deinem Browser ausgewertet und nicht hochgeladen.</li>
       <li><b>Einstellungen:</b> deine Wahl bei Papier, Stift und Reglern sowie deine Blätter (Texte mit Fach und Namen), damit sie auf jedem Gerät da sind.</li>
+      <li><b>Feedback:</b> Nachrichten, die du über „Feedback und Ideen“ schickst, mit deinem Namen. Nur der Betreiber liest sie, er löscht sie, wenn sie erledigt sind.</li>
       <li><b>Chats:</b> die Gruppen und privaten Chats, in denen du bist, dein Name als Mitglied, deine Nachrichten (Texte) und Blätter, die du als PDF mitschickst, mit Zeitpunkt.</li>
     </ul>
     <p>Die PDF-Dateien entstehen in deinem Gerät und werden nicht gespeichert.</p>
