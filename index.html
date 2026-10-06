@@ -81,7 +81,11 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .blatt-aktiv{font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .faecher{display:flex;flex-wrap:wrap;gap:8px}
 .fach-knopf{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 14px;min-height:44px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
-.fach-knopf[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.fach-knopf{display:inline-flex;align-items:center;gap:8px}
+.fach-punkt{width:12px;height:12px;border-radius:50%;flex:0 0 auto;border:1px solid var(--line)}
+.fach-knopf[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.blatt-zeile .fach{border:1px solid transparent}
+:root[data-theme="dunkel"] .blatt-zeile .fach[style*="#111111"]{border-color:#3a3a40!important}
 #einlesenKlapp:not([open]){background:var(--surface)}
 /* Reiter Blatt: erst nur die Liste, nach dem Auswählen Text und Einstellungen */
 .blatt-kopf{display:flex;align-items:center;gap:6px}
@@ -1882,7 +1886,16 @@ function blattModus(m) {
   if (typeof miniStand === "function" && $("mini")) miniStand();
   if (S.tab === "blatt") window.scrollTo(0, 0);
 }
-const FAECHER = ["Deutsch", "Mathe", "Englisch", "Bio", "Geschichte", "Erdkunde", "Politik", "Physik", "Chemie", "Französisch", "Spanisch", "Latein", "Religion", "Ethik", "Kunst", "Musik", "Informatik", "Sonstiges"];
+const FAECHER = ["Deutsch", "Mathe", "Englisch", "BWL", "Bio", "Geschichte", "Erdkunde", "Politik", "Physik", "Chemie", "Französisch", "Spanisch", "Latein", "Religion", "Ethik", "Kunst", "Musik", "Informatik", "Sonstiges"];
+// Farben wie die Hefte in der Schule: [Fläche, Schrift]
+const FACH_FARBE = {
+  Deutsch: ["#C62828", "#fff"], Mathe: ["#1E5BB8", "#fff"], Englisch: ["#F2C230", "#1A1A1A"], BWL: ["#111111", "#fff"],
+  Bio: ["#2E7D32", "#fff"], Geschichte: ["#8D5A2B", "#fff"], Erdkunde: ["#00897B", "#fff"], Politik: ["#E07A1F", "#fff"],
+  Physik: ["#5E35B1", "#fff"], Chemie: ["#00ACC1", "#0E1B2A"], "Französisch": ["#3F8FD8", "#fff"], Spanisch: ["#D84315", "#fff"],
+  Latein: ["#757575", "#fff"], Religion: ["#7B1FA2", "#fff"], Ethik: ["#9575CD", "#fff"], Kunst: ["#D81B60", "#fff"],
+  Musik: ["#455A64", "#fff"], Informatik: ["#546E7A", "#fff"], Sonstiges: ["#9E9E9E", "#fff"]
+};
+const fachStil = f => { const c = FACH_FARBE[f]; return c ? ` style="background:${c[0]};color:${c[1]};border-color:${c[0]}"` : ""; };
 let _listeAlle = false;
 const aktivBlatt = () => (S.blaetter || []).find(b => b.id === S.blattId);
 const blattName = b => b.name || (String(b.text || "").split("\n").find(z => z.trim()) || "Neues Blatt").trim().slice(0, 40);
@@ -1900,7 +1913,7 @@ function blaetterBauen() {
   const sortiert = S.blaetter.slice().sort((a, b) => (b.geaendert || 0) - (a.geaendert || 0));
   const zeigen = _listeAlle ? sortiert : sortiert.slice(0, LISTE_KURZ);
   box.innerHTML = zeigen.map(b => `<button type="button" class="blatt-zeile" data-blatt="${b.id}" aria-pressed="${b.id === S.blattId}">
-      <span class="fach">${esc(b.fach || "Ohne Fach")}</span><span class="blatt-name">${esc(blattName(b))}</span><span class="blatt-zeit mono">${blattZeit(b.geaendert)}</span></button>`).join("")
+      <span class="fach"${fachStil(b.fach)}>${esc(b.fach || "Ohne Fach")}</span><span class="blatt-name">${esc(blattName(b))}</span><span class="blatt-zeit mono">${blattZeit(b.geaendert)}</span></button>`).join("")
     + (sortiert.length > LISTE_KURZ ? `<button type="button" class="link" data-alle>${_listeAlle ? "Weniger zeigen" : "Alle " + sortiert.length + " Blätter zeigen"}</button>` : "");
   const b = aktivBlatt();
   $("blattAktiv").textContent = b ? (b.fach ? b.fach + ": " : "") + blattName(b) : "";
@@ -1923,7 +1936,7 @@ function blattNeu(text, name, fach) {
   S.blaetter.push(b); S.blattId = b.id; blattZeigen();
   return true;
 }
-function fachKnoepfe(aktiv) { return `<div class="faecher">${FAECHER.map(f => `<button type="button" class="fach-knopf" data-fach="${esc(f)}" aria-pressed="${f === aktiv}">${esc(f)}</button>`).join("")}</div>`; }
+function fachKnoepfe(aktiv) { return `<div class="faecher">${FAECHER.map(f => `<button type="button" class="fach-knopf" data-fach="${esc(f)}" aria-pressed="${f === aktiv}"><i class="fach-punkt"${fachStil(f)}></i>${esc(f)}</button>`).join("")}</div>`; }
 function blattNeuFenster() {
   const body = fensterAuf("Neues Blatt", `
     <div class="field"><label for="neuThema">Thema (wenn du willst)</label><input type="text" id="neuThema" maxlength="40" placeholder="z. B. Gedichtanalyse"></div>
