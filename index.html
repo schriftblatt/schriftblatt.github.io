@@ -161,6 +161,10 @@ body:not([data-tab="blatt"]) .layout>#blattAuswahl{display:none}
   .chat-rechts .schreiben{position:static;background:transparent;padding-bottom:14px}
   .chat-leer{margin:auto;text-align:center;color:var(--ink-3);max-width:320px}
 }
+body.ohne-erkl .erkl{display:none!important}
+body.ohne-erkl .schrift-k small{display:none}
+body.ohne-erkl main .check span{font-size:0}
+body.ohne-erkl main .check span b{font-size:14px;margin:0}
 .rechtlinks.unten{margin-top:70vh;padding-bottom:10px}
 .rechtlinks a{color:var(--ink-3);text-decoration:underline;text-underline-offset:2px;min-height:44px;display:inline-flex;align-items:center}
 .zustimmung-text{max-height:46vh;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:4px 14px 12px;background:var(--surface-2);overscroll-behavior:contain}
@@ -417,7 +421,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
     <section class="sicht" id="sicht-schrift">
       <div class="sicht-kopf">
         <h2>Deine Schrift</h2>
-        <p class="unter">Einmal das Alphabet und ein paar Wörter abschreiben, Foto hochladen, fertig. Schriftart, Größe und Abstände stellst du beim Blatt ein.</p>
+        <p class="unter erkl">Einmal das Alphabet und ein paar Wörter abschreiben, Foto hochladen, fertig. Schriftart, Größe und Abstände stellst du beim Blatt ein.</p>
       </div>
       <div id="einlesenTeil" class="sicht">
       <div class="sec-label" id="einlesenTitel">Handschrift einlesen</div>
@@ -475,7 +479,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
     <section class="sicht" id="sicht-blatt" hidden>
       <div class="sicht-kopf nur-gross">
         <h2>Dein Blatt</h2>
-        <p class="unter" id="blattUnter">Wähl ein Blatt oder leg ein neues an.</p>
+        <p class="unter erkl" id="blattUnter">Wähl ein Blatt oder leg ein neues an.</p>
       </div>
       <div class="block gruppe" id="blattAuswahl">
         <div class="reihe zwischen"><div class="sec-label">Deine Blätter</div><button class="btn primary" id="blattNeuBtn">+ Neues Blatt</button></div>
@@ -492,7 +496,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <div class="block gruppe">
         <div class="sec-label">Vorlage</div>
         <div class="modus" id="vorlageModus"></div>
-        <p class="hint" id="vorlageHinweis"></p>
+        <p class="hint erkl" id="vorlageHinweis"></p>
         <div class="field" id="feldTitel"><label for="titelFeld">Seitentitel</label><input type="text" id="titelFeld" placeholder="leer lassen für keinen Titel"></div>
         <div class="two" id="feldDatum">
           <div class="field"><label for="datumFeld">Datum</label><input type="date" id="datumFeld"></div>
@@ -529,7 +533,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       </div>
     </section>
     <section class="sicht" id="sicht-chats" hidden>
-      <div class="sicht-kopf"><h2>Chats</h2><p class="unter">Texte und Blätter an deine Gruppe oder einzelne Leute schicken.</p></div>
+      <div class="sicht-kopf"><h2>Chats</h2><p class="unter erkl">Texte und Blätter an deine Gruppe oder einzelne Leute schicken.</p></div>
       <div id="chatInhalt"></div>
     </section>
   </div>
@@ -1851,7 +1855,7 @@ const UMSCHREIBEN = (function () {
 const BEISPIEL = "Mein Wochenende\n\nAm Samstag war ich mit meinen Freunden in der Stadt. Wir haben uns zuerst ein Eis geholt und sind dann ein bisschen durch die Geschäfte gelaufen. Am Abend haben wir zusammen einen Film geschaut, der war aber nicht so gut, wie alle gesagt haben. Die Atmosphäre im Kino war trotzdem ziemlich gut.\n\nAm Sonntag habe ich lange geschlafen und danach für die Schule gelernt, weil wir am Montag einen Test schreiben. Ich glaube, dass ich gut vorbereitet bin, aber ein bisschen nervös bin ich trotzdem. Wahrscheinlich ist das ganz normal.";
 const ST_KEY = "hs2-einst", OWN_KEY = "hs2-schrift";
 const STD = { tab: "", text: BEISPIEL, font: "own", tpl: "heft", paper: "lined", ton: "hell", ink: "blue", size: 100, pitch: 8.5, slant: 0,
-  staerke: 100, abstand: 0, messy: 40, drift: 30, errors: 2, starts: 25, seed: 7, margin: true, indent: false, titel: "", schriftId: "", blaetter: [], blattId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
+  staerke: 100, abstand: 0, messy: 40, drift: 30, errors: 2, starts: 25, seed: 7, margin: true, indent: false, titel: "", schriftId: "", ohneErkl: false, blaetter: [], blattId: "", urtext: "", datum: "", zeit: "", theme: "hell" };
 const S = Object.assign({}, STD, parse(LS.get(ST_KEY)) || {});
 if (S.paper === "dark") { S.paper = "lined"; S.ton = "dunkel"; }   // alte Einstellung "Dunkel" als Papier
 if (S.tab === "text") S.tab = "blatt";
@@ -2146,12 +2150,12 @@ function statusZeigen() {
   const woerter = Object.keys(info.w).map(w => `<div class="wort"><img src="${info.w[w].url}" alt="${esc(w)}"></div>`).join("");
   box.innerHTML = ohne + `<div class="block">
     <div class="status-kopf">${ICO.ok}<span>${aktiveHs() ? `In Gebrauch: „${esc(aktiveHs().name)}“` : "Deine Schrift ist eingelesen"}</span></div>
-    ${HSL.length > 1 ? '<p class="hint">Andere Handschrift wählen: oben rechts auf deinen Namen.</p>' : ""}
+    ${HSL.length > 1 ? '<p class="hint erkl">Andere Handschrift wählen: oben rechts auf deinen Namen.</p>' : ""}
     <div class="hint mono">${info.zeichen} Zeichen, ${info.woerter} Wörter, ${info.zweite ? "2 Abschriften" : "1 Abschrift"}</div>
     ${info.zweite ? "" : '<div class="hinweis warn"><b>Zweite Abschrift fehlt</b>Schreib das Blatt noch einmal ab und lade es als 2. Abschrift hoch. Dann wechseln sich zwei Fassungen jedes Buchstabens ab, und kein „e“ sieht aus wie das andere.<div class="reihe" style="margin-top:8px"><button class="btn" data-nochmal>2. Abschrift hochladen</button></div></div>'}
     <div class="glyphen">${zellen}</div>
     ${woerter ? `<div class="woerter">${woerter}</div>` : ""}
-    <p class="hint">Gestrichelte Kästchen fehlen noch, dort schreibt eine Ersatzschrift. Ein neues Foto ergänzt nur, was erkannt wird.</p>
+    <p class="hint erkl">Gestrichelte Kästchen fehlen noch, dort schreibt eine Ersatzschrift. Ein neues Foto ergänzt nur, was erkannt wird.</p>
     ${sb && !ich ? '<div class="hinweis warn"><b>Nur auf diesem Gerät gespeichert</b>Melde dich an, dann ist deine Schrift auf jedem Gerät da und geht nicht verloren.<div class="reihe" style="margin-top:8px"><button class="btn" data-konto>Anmelden oder registrieren</button></div></div>' : ""}
 
   </div>`;
@@ -2305,18 +2309,22 @@ const alsApp = () => (window.matchMedia && matchMedia("(display-mode: standalone
 function einstHtml() {
   return `
     <div class="sec-label" style="margin-top:22px">Einstellungen</div>
+    <div class="field"><span class="lbl">Erklärtexte</span><div class="modus" id="erklModus"><button type="button" data-v="an">Anzeigen</button><button type="button" data-v="aus">Ausblenden</button></div></div>
     <div class="field"><span class="lbl">Darstellung der Seite</span><div class="modus" id="themaModus"><button type="button" data-v="hell">Hell</button><button type="button" data-v="dunkel">Dunkel</button></div></div>
     ${alsApp() ? "" : `<div class="field"><span class="lbl">Als App auf den Home-Bildschirm</span>
       <ol class="anl" style="font-size:13.5px"><li>In <b>Safari</b> unten auf <b>Teilen</b> tippen (Viereck mit Pfeil).</li><li>Runterscrollen, <b>Zum Home-Bildschirm</b>, dann <b>Hinzufügen</b>.</li><li>Ab dann über das Symbol öffnen und einmal neu anmelden.</li></ol>
-      <p class="hint">Auf Android: in Chrome oben rechts die drei Punkte, dann <b>App installieren</b>.</p></div>`}
+      <p class="hint erkl">Auf Android: in Chrome oben rechts die drei Punkte, dann <b>App installieren</b>.</p></div>`}
 
     <div class="field"><span class="lbl">App aktualisieren</span>
-      <p class="hint">Lädt die neueste Fassung von Schriftblatt. Deine Schrift und deine Chats bleiben.</p>
+      <p class="hint erkl">Lädt die neueste Fassung von Schriftblatt. Deine Schrift und deine Chats bleiben.</p>
       <button class="btn" id="updateBtn"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>Neueste Fassung laden</button></div>`;
 }
 function einstVerdrahten(b) {
   const thema = () => b.querySelectorAll("#themaModus button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === S.theme)));
   thema();
+  const erklStand = () => b.querySelectorAll("#erklModus button").forEach(x => x.setAttribute("aria-pressed", String((x.dataset.v === "aus") === !!S.ohneErkl)));
+  erklStand();
+  b.querySelector("#erklModus").onclick = e => { const x = e.target.closest("button"); if (!x) return; S.ohneErkl = x.dataset.v === "aus"; erklAnwenden(); erklStand(); speichern(); toast(S.ohneErkl ? "Erklärtexte ausgeblendet" : "Erklärtexte wieder da"); };
   b.querySelector("#themaModus").onclick = e => { const x = e.target.closest("button"); if (!x) return; S.theme = x.dataset.v; themaAnwenden(); thema(); speichern(); };
   b.querySelector("#updateBtn").onclick = () => { toast("Lädt …"); location.replace(location.pathname + "?v=" + Date.now()); };
 }
@@ -2358,6 +2366,8 @@ function seiteGross(c) {
   });
   wrap.addEventListener("wheel", e => { if (!e.ctrlKey) return; e.preventDefault(); const r = wrap.getBoundingClientRect(); setz(z * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
 }
+// Erklärtexte (Klasse erkl, Untertitel, Beschreibungen an Häkchen) ein- oder ausblenden; Warnungen und Fehler bleiben
+function erklAnwenden() { document.body.classList.toggle("ohne-erkl", !!S.ohneErkl); }
 function themaAnwenden() {
   document.documentElement.dataset.theme = S.theme === "dunkel" ? "dunkel" : "";
   document.querySelector('meta[name="theme-color"]').setAttribute("content", S.theme === "dunkel" ? "#0A0A0B" : "#FFFFFF");
@@ -2410,7 +2420,7 @@ function einstAnwenden(e) {
   const ab = (S.blaetter || []).find(b => b.id === S.blattId); if (ab) { S.text = ab.text || ""; S.titel = ab.titel || ""; }
   $("textFeld").value = S.text; textZahl();
   $("titelFeld").value = S.titel; $("datumFeld").value = S.datum; $("zeitFeld").value = S.zeit;
-  themaAnwenden(); modusStand(); blaetterBauen();
+  themaAnwenden(); erklAnwenden(); modusStand(); blaetterBauen();
   _ohneHoch = true; speichern(); _ohneHoch = false;
 }
 async function ausKontoLaden() {
@@ -2443,7 +2453,7 @@ function feedbackFenster() {
     <p class="unter">Nachricht an Eljakim senden: Was fehlt dir, was nervt, was ist dir aufgefallen?</p>
     <div class="faecher" id="fbArt">${FEEDBACK_ARTEN.map(a => `<button type="button" class="fach-knopf" data-art="${a}" aria-pressed="${a === art}">${a}</button>`).join("")}</div>
     <div class="field"><label for="fbText">Deine Nachricht</label><textarea id="fbText" rows="6" maxlength="5000" placeholder="Schreib einfach drauflos."></textarea></div>
-    <p class="hint">Eljakim sieht deinen Namen dazu, damit er nachfragen kann.</p>
+    <p class="hint erkl">Eljakim sieht deinen Namen dazu, damit er nachfragen kann.</p>
     <button class="btn primary breit" id="fbSenden">An Eljakim senden</button>`);
   b.querySelector("#fbArt").onclick = e => { const x = e.target.closest("[data-art]"); if (!x) return; art = x.dataset.art; b.querySelectorAll("[data-art]").forEach(y => y.setAttribute("aria-pressed", String(y === x))); };
   b.querySelector("#fbText").focus();
@@ -2621,7 +2631,7 @@ function profilMalen(body) {
     ${einstHtml()}
     <div class="sec-label" style="margin-top:22px">Konto</div>
     <button class="btn breit" id="abmeldenBtn">Abmelden</button>
-    <p class="hint">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>
+    <p class="hint erkl">Beim Abmelden wird deine Schrift von diesem Gerät entfernt. Im Konto bleibt sie.</p>
     <div class="reihe" data-zone style="margin-top:18px"><button class="btn ghost rot breit" id="kontoLoeschenBtn">Konto löschen</button></div>
     <p class="rechtlinks unten"><a href="#" data-recht="nutzung">Regeln</a><a href="#" data-recht="datenschutz">Datenschutz</a><a href="#" data-recht="impressum">Impressum</a></p>`;
   einstVerdrahten(body);
@@ -2899,10 +2909,10 @@ function einladenFenster(c) {
   let qr = "";
   try { const q = qrcode(0, "M"); q.addData(link); q.make(); qr = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); } catch (e) {}
   const b = fensterAuf(c.privat ? "Privaten Chat teilen" : "Leute einladen", `
-    <p class="hint">${c.privat ? "Lass die Person den Code mit der Kamera scannen oder schick ihr den Link. Sobald sie drin ist, ist der Chat zu." : "Lass die anderen den Code mit der Kamera scannen oder schick den Link. Wer ein Konto hat, ist danach in der Gruppe, alle anderen registrieren sich kurz."}</p>
+    <p class="hint erkl">${c.privat ? "Lass die Person den Code mit der Kamera scannen oder schick ihr den Link. Sobald sie drin ist, ist der Chat zu." : "Lass die anderen den Code mit der Kamera scannen oder schick den Link. Wer ein Konto hat, ist danach in der Gruppe, alle anderen registrieren sich kurz."}</p>
     <div class="qr">${qr}</div>
     <div class="code-gross mono">${esc(c.code)}</div>
-    <p class="hint" style="text-align:center">Code zum Abtippen: Chats, Code eingeben</p>
+    <p class="hint erkl" style="text-align:center">Code zum Abtippen: Chats, Code eingeben</p>
     <div class="reihe"><button class="btn primary" id="linkTeilen">${CI.senden}Link teilen</button><button class="btn" id="linkKopieren">Link kopieren</button></div>`);
   b.querySelector("#linkTeilen").onclick = async () => {
     if (navigator.share) { try { await navigator.share({ title: "Schriftblatt", text: c.privat ? "Schreib mir auf Schriftblatt:" : `Komm in die Gruppe „${chatName(c)}“ auf Schriftblatt:`, url: link }); } catch (e) {} }
@@ -3292,7 +3302,7 @@ async function kontoStart() {
 
 /* ---------- Start ---------- */
 async function start() {
-  themaAnwenden();
+  themaAnwenden(); erklAnwenden();
   // Einladung per QR-Code oder Link: Code merken, nach dem Anmelden beitreten
   const einl = location.hash.match(/beitreten=([A-Za-z0-9]{4,10})/);
   if (einl) { LS.set(BEITRETEN_KEY, einl[1].toUpperCase()); history.replaceState(null, "", location.pathname + location.search); }
