@@ -159,6 +159,8 @@ body:not([data-tab="blatt"]) .layout>#blattAuswahl{display:none}
 }
 .rechtlinks.unten{margin-top:70vh;padding-bottom:10px}
 .rechtlinks a{color:var(--ink-3);text-decoration:underline;text-underline-offset:2px;min-height:44px;display:inline-flex;align-items:center}
+.zustimmung-text{max-height:46vh;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:4px 14px 12px;background:var(--surface-2);overscroll-behavior:contain}
+.zustimmung-text h3{font-size:15px;margin:14px 0 2px}
 .recht h4{font-size:14px;margin:18px 0 4px;color:var(--ink)}
 .recht p,.recht li{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin:0 0 6px}
 .recht ul{padding-left:18px;margin:0 0 6px}
@@ -3107,7 +3109,9 @@ function chatStop() {
   if ($("chatInhalt")) $("chatInhalt").innerHTML = "";
 }
 
-/* Impressum, Datenschutz, Regeln. Angaben zum Betreiber nur hier ändern. */
+/* Impressum, Datenschutz, Regeln. Angaben zum Betreiber nur hier ändern.
+   BEDINGUNGEN_STAND hochsetzen, wenn sich Regeln oder Datenschutz wesentlich ändern: dann muss jeder beim nächsten Anmelden neu zustimmen. */
+const BEDINGUNGEN_STAND = "2026-10-06";
 const BETREIBER = { name: "Eljakim Penner", strasse: "Ferkenfeld 8", ort: "32657 Lemgo", email: "tempjo91@gmail.com" };
 const RECHT = {
   impressum: ["Impressum", () => `
@@ -3117,6 +3121,7 @@ const RECHT = {
     <h4>Inhalte der Nutzer</h4><p>Für Namen, Gruppennamen, Nachrichten und Blätter, die Nutzer einstellen, sind diese selbst verantwortlich. Hinweise auf Verstöße bitte über „Melden“ in der App oder an die E-Mail oben, sie werden zügig geprüft.</p>
     <p>Schriftblatt ist ein kostenloses, privates Projekt ohne Werbung.</p>`],
   nutzung: ["Regeln", () => `
+    <p class="hint">Stand: ${BEDINGUNGEN_STAND.split("-").reverse().join(".")}</p>
     <p>Schriftblatt setzt Texte in deiner Handschrift aufs Blatt. Damit das in Ordnung bleibt:</p>
     <ul>
       <li><b>Keine Unterschriften</b>, weder deine noch fremde.</li>
@@ -3126,13 +3131,17 @@ const RECHT = {
       <li><b>In Chats fair bleiben:</b> kein Mobbing, keine Beleidigungen, nichts Sexuelles, keine Gewalt, keine Daten oder Fotos von anderen ohne deren Erlaubnis. Was dich stört, kannst du mit „Melden“ an den Admin geben.</li>
       <li>Ob du Blätter aus Schriftblatt in der Schule abgeben darfst, entscheidet deine Lehrkraft. Dafür bist du selbst verantwortlich.</li>
     </ul>
-    <p>Wer sich nicht daran hält, dessen Nachrichten und Konto werden gelöscht. Die App ist eine Testversion und kann sich jederzeit ändern oder abgeschaltet werden.</p>`],
+    <h4>Du bist für deine Inhalte selbst verantwortlich</h4>
+    <p>Alles, was du in Schriftblatt einträgst, verantwortest du selbst: deinen Namen und Benutzernamen, Namen von Gruppen, Nachrichten, Texte und Blätter. Der Betreiber stellt nur die Technik bereit, prüft Inhalte nicht vorab und macht sich fremde Inhalte nicht zu eigen.</p>
+    <p>Rassistische, beleidigende, sexuelle oder sonst anstößige Namen und Inhalte sind verboten. Wer so etwas einstellt, haftet selbst für die Folgen, auch gegenüber Betroffenen, und kann sich strafbar machen (zum Beispiel Beleidigung, § 185 StGB, oder Volksverhetzung, § 130 StGB). Werden gegen den Betreiber wegen deiner Inhalte Ansprüche erhoben, musst du ihn davon freistellen, soweit du den Verstoß zu vertreten hast.</p>
+    <p>Gemeldete oder auffällige Inhalte werden geprüft und gelöscht, Konten können ohne Vorwarnung gesperrt oder gelöscht werden. Bei Straftaten können Daten an Behörden weitergegeben werden, wenn das Gesetz es verlangt.</p>
+    <p>Die App ist eine Testversion und kann sich jederzeit ändern oder abgeschaltet werden.</p>`],
   datenschutz: ["Datenschutz", () => `
     <h4>Wer verantwortlich ist</h4>
     <p>${esc(BETREIBER.name)}, ${adresseDa() ? esc(BETREIBER.strasse + ", " + BETREIBER.ort) : "Lemgo"}${/^\[/.test(BETREIBER.email) ? "" : ", " + esc(BETREIBER.email)}</p>
     <h4>Was gespeichert wird</h4>
     <ul>
-      <li><b>Konto:</b> Name, Benutzername (bei älteren Konten die E-Mail-Adresse), Passwort nur verschlüsselt, Zeitpunkt von Registrierung und letzter Anmeldung.</li>
+      <li><b>Konto:</b> Name, Benutzername (bei älteren Konten die E-Mail-Adresse), Passwort nur verschlüsselt, Zeitpunkt von Registrierung und letzter Anmeldung, Stand und Zeitpunkt deiner Zustimmung zu Regeln und Datenschutz.</li>
       <li><b>Handschriften:</b> die ausgeschnittenen Buchstaben und Wörter aus deinem Foto, ein kleines Vorschaubild des Blatts, Datum und Anzahl der Zeichen. Das Foto selbst wird in deinem Browser ausgewertet und nicht hochgeladen.</li>
       <li><b>Einstellungen:</b> deine Wahl bei Papier, Stift und Reglern sowie deine Blätter (Texte mit Fach und Namen), damit sie auf jedem Gerät da sind.</li>
       <li><b>Chats:</b> die Gruppen und privaten Chats, in denen du bist, dein Name als Mitglied, deine Nachrichten (Texte) und Blätter, die du als PDF mitschickst, mit Zeitpunkt.</li>
@@ -3194,6 +3203,27 @@ function torZeigen(modus, info) {
     t.querySelector("#tZurueck").onclick = () => torZeigen("login");
     return;
   }
+  document.querySelector("#tor .sicht-kopf").hidden = modus === "zustimmung";
+  if (modus === "zustimmung") {
+    // Einmal pro Stand der Bedingungen: alles lesen können, ausdrücklich zustimmen, sonst abmelden
+    t.innerHTML = `<h2>Bevor es losgeht</h2>
+      <p class="hint">Bitte lies die Regeln und den Datenschutz. Wichtig: Für deinen Namen, Gruppennamen und alles, was du schreibst, bist du selbst verantwortlich.</p>
+      <div class="zustimmung-text recht"><h3>Regeln</h3>${RECHT.nutzung[1]()}<h3>Datenschutz</h3>${RECHT.datenschutz[1]()}</div>
+      <label class="check"><input type="checkbox" id="zOk"><span><b>Gelesen und einverstanden</b>Ich stimme den Regeln und dem Datenschutz zu und hafte selbst für meine Namen und Inhalte.</span></label>
+      <p class="err" id="tFehler"></p>
+      <button class="btn primary breit" id="zLos">Zustimmen und weiter</button>
+      <button class="btn ghost breit" id="zNein">Ablehnen und abmelden</button>`;
+    t.querySelector("#zLos").onclick = async () => {
+      const f = t.querySelector("#tFehler");
+      if (!t.querySelector("#zOk").checked) { f.textContent = "Bitte setz das Häkchen, um weiterzumachen."; return; }
+      t.querySelector("#zLos").disabled = true;
+      const r = await sb.auth.updateUser({ data: { bedingungen: BEDINGUNGEN_STAND, bedingungen_am: new Date().toISOString() } });
+      if (r.error) { f.textContent = kontoFehler(r.error.message); t.querySelector("#zLos").disabled = false; return; }
+      angemeldet(r.data.user);
+    };
+    t.querySelector("#zNein").onclick = async () => { await sb.auth.signOut({ scope: "local" }).catch(() => {}); ich = null; kontoKnopf(); torZeigen("login"); toast("Abgemeldet"); };
+    return;
+  }
   if (modus === "neuesPw") {
     t.innerHTML = `<h2>Neues Passwort</h2>
       <form id="tForm" class="gruppe" novalidate>
@@ -3216,7 +3246,7 @@ function torZeigen(modus, info) {
       ${neu ? '<div class="field"><label for="tName">Name</label><input type="text" id="tName" autocomplete="name" placeholder="Vor- und Nachname"></div>' : ""}
       <div class="field"><label for="tEmail">${neu ? "Benutzername" : "Benutzername (alte Konten: E-Mail)"}</label><input type="text" id="tEmail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="${neu ? "z. B. max.k" : ""}"></div>
       <div class="field"><label for="tPw">Passwort${neu ? " (mindestens 6 Zeichen)" : ""}</label><input type="password" id="tPw" autocomplete="${neu ? "new-password" : "current-password"}"></div>
-      ${neu ? '<label class="check"><input type="checkbox" id="tRegeln"><span><b>Ich halte mich an die Regeln</b>Keine Unterschriften und keine Dokumente, die rechtlich zählen. <a href="#" data-recht="nutzung">Regeln</a> und <a href="#" data-recht="datenschutz">Datenschutz</a> gelesen.</span></label>' : ""}
+      ${neu ? '<label class="check"><input type="checkbox" id="tRegeln"><span><b>Ich stimme Regeln und Datenschutz zu</b>Ich habe <a href="#" data-recht="nutzung">Regeln</a> und <a href="#" data-recht="datenschutz">Datenschutz</a> gelesen. Für meinen Namen und meine Inhalte bin ich selbst verantwortlich. Keine Unterschriften, keine Dokumente, die rechtlich zählen.</span></label>' : ""}
       <p class="err" id="tFehler"></p>
       <button class="btn primary breit" id="tLos" type="submit">${neu ? "Konto anlegen" : "Anmelden"}</button>
     </form>
@@ -3237,7 +3267,7 @@ function torZeigen(modus, info) {
     const email = benutzer.includes("@") ? benutzer : benutzer + "@" + KONTO_DOMAIN;
     los.disabled = true; f.textContent = "";
     const r = neu
-      ? await sb.auth.signUp({ email, password: pw, options: { data: { name, benutzer } } })
+      ? await sb.auth.signUp({ email, password: pw, options: { data: { name, benutzer, bedingungen: BEDINGUNGEN_STAND, bedingungen_am: new Date().toISOString() } } })
       : await sb.auth.signInWithPassword({ email, password: pw });
     los.disabled = false;
     if (r.error) {
@@ -3253,7 +3283,9 @@ function torZeigen(modus, info) {
   };
 }
 async function angemeldet(user) {
-  ich = user; kontoKnopf(); torWeg();
+  ich = user; kontoKnopf();
+  if (((user.user_metadata || {}).bedingungen || "") !== BEDINGUNGEN_STAND) { torZeigen("zustimmung"); return; }
+  torWeg();
   await ausKontoLaden();
   adminPruefen();
   chatStart();
