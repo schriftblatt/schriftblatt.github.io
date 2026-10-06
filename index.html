@@ -3209,13 +3209,12 @@ function torZeigen(modus, info) {
     t.innerHTML = `<h2>Bevor es losgeht</h2>
       <p class="hint">Bitte lies die Regeln und den Datenschutz. Wichtig: Für deinen Namen, Gruppennamen und alles, was du schreibst, bist du selbst verantwortlich.</p>
       <div class="zustimmung-text recht"><h3>Regeln</h3>${RECHT.nutzung[1]()}<h3>Datenschutz</h3>${RECHT.datenschutz[1]()}</div>
-      <label class="check"><input type="checkbox" id="zOk"><span><b>Gelesen und einverstanden</b>Ich stimme den Regeln und dem Datenschutz zu und hafte selbst für meine Namen und Inhalte.</span></label>
+      <p class="hint">Mit dem Knopf stimmst du den Regeln und dem Datenschutz zu und haftest selbst für deine Namen und Inhalte.</p>
       <p class="err" id="tFehler"></p>
-      <button class="btn primary breit" id="zLos">Zustimmen und weiter</button>
+      <button class="btn primary breit" id="zLos">Gelesen und einverstanden, weiter</button>
       <button class="btn ghost breit" id="zNein">Ablehnen und abmelden</button>`;
     t.querySelector("#zLos").onclick = async () => {
       const f = t.querySelector("#tFehler");
-      if (!t.querySelector("#zOk").checked) { f.textContent = "Bitte setz das Häkchen, um weiterzumachen."; return; }
       t.querySelector("#zLos").disabled = true;
       const r = await sb.auth.updateUser({ data: { bedingungen: BEDINGUNGEN_STAND, bedingungen_am: new Date().toISOString() } });
       if (r.error) { f.textContent = kontoFehler(r.error.message); t.querySelector("#zLos").disabled = false; return; }
