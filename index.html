@@ -3212,7 +3212,8 @@ function torZeigen(modus, info) {
       <p class="hint">Mit dem Knopf stimmst du den Regeln und dem Datenschutz zu und haftest selbst für deine Namen und Inhalte.</p>
       <p class="err" id="tFehler"></p>
       <button class="btn primary breit" id="zLos">Gelesen und einverstanden, weiter</button>
-      <button class="btn ghost breit" id="zNein">Ablehnen und abmelden</button>`;
+      <button class="btn ghost breit" id="zNein">Ablehnen und abmelden</button>
+      <div class="reihe" data-zone><button class="btn ghost rot breit" id="zLoeschen">Nicht einverstanden: Konto löschen</button></div>`;
     t.querySelector("#zLos").onclick = async () => {
       const f = t.querySelector("#tFehler");
       t.querySelector("#zLos").disabled = true;
@@ -3221,6 +3222,12 @@ function torZeigen(modus, info) {
       angemeldet(r.data.user);
     };
     t.querySelector("#zNein").onclick = async () => { await sb.auth.signOut({ scope: "local" }).catch(() => {}); ich = null; kontoKnopf(); torZeigen("login"); toast("Abgemeldet"); };
+    // Wer nicht zustimmt, kann sein Konto hier direkt löschen (samt Handschriften, Blättern, Chats)
+    t.querySelector("#zLoeschen").onclick = e => zoneFragen(e.target, "Dein Konto mit allen Handschriften, Blättern und Einstellungen endgültig löschen?", "Konto löschen", async () => {
+      const { error } = await sb.rpc("konto_loeschen"); if (error) throw error;
+      await sb.auth.signOut({ scope: "local" }).catch(() => {});
+      chatStop(); ich = null; HSL = []; HS.ownLeeren(); LS.del(OWN_KEY); kontoKnopf(); fontsBauen(); statusZeigen(); torZeigen("login"); toast("Konto gelöscht");
+    }, () => torZeigen("zustimmung"));
     return;
   }
   if (modus === "neuesPw") {
