@@ -3138,7 +3138,7 @@ const RECHT = {
     <p>Die App ist eine Testversion und kann sich jederzeit ändern oder abgeschaltet werden.</p>`],
   datenschutz: ["Datenschutz", () => `
     <h4>Wer verantwortlich ist</h4>
-    <p>${esc(BETREIBER.name)}, ${adresseDa() ? esc(BETREIBER.strasse + ", " + BETREIBER.ort) : "Lemgo"}${/^\[/.test(BETREIBER.email) ? "" : ", " + esc(BETREIBER.email)}</p>
+    <p>${esc(BETREIBER.name)}, E-Mail ${esc(BETREIBER.email)}. Die Anschrift steht im <a href="#" data-recht="impressum">Impressum</a>.</p>
     <h4>Was gespeichert wird</h4>
     <ul>
       <li><b>Konto:</b> Name, Benutzername (bei älteren Konten die E-Mail-Adresse), Passwort nur verschlüsselt, Zeitpunkt von Registrierung und letzter Anmeldung, Stand und Zeitpunkt deiner Zustimmung zu Regeln und Datenschutz.</li>
