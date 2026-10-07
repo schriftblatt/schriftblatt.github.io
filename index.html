@@ -71,6 +71,27 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .rechtlinks{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:13px;margin:14px 0 0}
 .vorschau-leiste .btn{flex-shrink:0}
 @media (max-width:520px){ #sendenBtn .lbl-txt{display:none} #sendenBtn{width:44px;padding:0} }
+/* Mit dem Stift schreiben */
+#stiftBlock h3{margin:0;font-size:16px}
+.stift-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
+.stift-zelle{height:56px;border:1px solid var(--line);background:#fff;border-radius:8px;display:grid;place-items:center;cursor:pointer;padding:3px;overflow:hidden}
+.stift-zelle span{font-size:20px;color:#9aa7b8;font-family:var(--font-body)}
+.stift-zelle.pflicht{border-color:var(--warn)}
+.stift-zelle.voll{border-color:var(--ok)}
+.stift-zelle img{max-width:100%;max-height:100%;object-fit:contain}
+.stift-zelle.wort{grid-column:span 2}
+.schreib-feld{position:fixed;inset:0;z-index:70;background:var(--paper);display:flex;flex-direction:column;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 16px calc(12px + env(safe-area-inset-bottom))}
+.schreib-feld[hidden]{display:none}
+body.stift-offen{overflow:hidden}
+.stift-kopf{display:flex;align-items:center;gap:12px}
+.stift-kopf b{font-size:clamp(22px,4vw,34px)}
+.stift-nr{font-size:13px;color:var(--ink-3)}
+.stift-mitte{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+.stift-flaeche{position:relative;flex:none;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#fff;box-shadow:var(--shadow)}
+.stift-flaeche canvas{position:absolute;inset:0;width:100%;height:100%}
+#stiftTinte{touch-action:none;cursor:crosshair}
+.stift-fuss{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stift-fuss .btn{min-height:48px}
 /* Deine Blätter */
 .blatt-liste{display:flex;flex-direction:column;gap:6px}
 .blatt-zeile{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--radius);padding:8px 12px;min-height:48px;font:inherit;cursor:pointer}
@@ -426,12 +447,19 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <div id="einlesenTeil" class="sicht">
       <div class="sec-label" id="einlesenTitel">Handschrift einlesen</div>
       <div id="schriftStatus"></div>
-      <details class="klapp" id="einlesenKlapp" open><summary>Neues Foto einlesen</summary><div class="klapp-in">
+      <div class="block gruppe" id="stiftBlock">
+        <h3>Mit dem Stift schreiben</h3>
+        <p class="hint erkl">Am besten mit dem Apple Pencil: Feld antippen, Zeichen auf die blaue Linie schreiben, weiter. Nichts muss erkannt werden, jedes Feld weiß, was hineingehört.</p>
+        <div id="stiftUebersicht" class="gruppe"></div>
+      </div>
+      <details class="klapp" id="einlesenKlapp"><summary>Lieber auf Papier? Foto hochladen</summary><div class="klapp-in">
       <div id="anleitung">
         <ol class="anl">
-          <li><b>Papier, Heft oder iPad.</b> Liniert, kariert oder weiß. Auf Papier ein dunkler Kuli oder Fineliner.</li>
-          <li><b>Diese Reihen abschreiben.</b> Jede Reihe auf eine eigene Linie, dabei die Regeln unten beachten. Verschrieben? Kein Problem, das korrigierst du gleich danach.</li>
-          <li><b>Hochladen.</b> Foto von oben bei hellem Licht, oder auf dem iPad einen Screenshot.</li>
+          <li><b>Liniertes Papier, schwarzer oder dunkelblauer Stift.</b> Fineliner oder Kuli, kein Bleistift. Nur eine Seite, nichts anderes darauf.</li>
+          <li><b>Jede Reihe unten auf eine eigene Zeile</b>, eine Zeile frei dazwischen. Jeder Buchstabe so groß wie im Heft, alle auf der Linie.</li>
+          <li><b>Zwischen zwei Buchstaben eine Fingerbreite Platz.</b> Wörter normal zusammen, zwischen Wörtern zwei Finger Platz.</li>
+          <li><b>Verschrieben?</b> Nicht durchstreichen, einfach daneben neu schreiben. Im nächsten Schritt korrigierst du die Zuordnung.</li>
+          <li><b>Foto senkrecht von oben</b>, bei Tageslicht, ohne Schatten, das ganze Blatt im Bild.</li>
         </ol>
         <div class="abschrift" id="abschrift"></div>
         <div class="hinweis warn" id="regeln"><b>Damit deine Schrift erkannt wird</b>
@@ -2134,7 +2162,7 @@ function abschriftBauen() {
 /* ---------- Eingelesene Schrift anzeigen ---------- */
 // Mit eigener Schrift klappt das Einlesen ein, ohne steht es offen
 function schriftOrdnen(hat) {
-  $("einlesenKlapp").open = !hat;
+  $("einlesenKlapp").open = false;
   $("einlesenTitel").textContent = hat ? "Deine Handschrift" : "Zuerst: Handschrift einlesen";
 }
 function statusZeigen() {
@@ -2152,7 +2180,7 @@ function statusZeigen() {
     <div class="status-kopf">${ICO.ok}<span>${aktiveHs() ? `In Gebrauch: „${esc(aktiveHs().name)}“` : "Deine Schrift ist eingelesen"}</span></div>
     ${HSL.length > 1 ? '<p class="hint erkl">Andere Handschrift wählen: oben rechts auf deinen Namen.</p>' : ""}
     <div class="hint mono">${info.zeichen} Zeichen, ${info.woerter} Wörter, ${info.zweite ? "2 Abschriften" : "1 Abschrift"}</div>
-    ${info.zweite ? "" : '<div class="hinweis warn"><b>Zweite Abschrift fehlt</b>Schreib das Blatt noch einmal ab und lade es als 2. Abschrift hoch. Dann wechseln sich zwei Fassungen jedes Buchstabens ab, und kein „e“ sieht aus wie das andere.<div class="reihe" style="margin-top:8px"><button class="btn" data-nochmal>2. Abschrift hochladen</button></div></div>'}
+    ${info.zweite ? "" : '<div class="hinweis erkl"><b>Tipp: zweite Fassung</b>Mit einer zweiten Fassung jedes Buchstabens wechseln sich zwei Varianten ab, und kein „e“ sieht aus wie das andere. Beim Stift schreibst du sie vor dem Übernehmen unter „2. Fassung“, beim Foto lädst du ein zweites Blatt hoch.<div class="reihe" style="margin-top:8px"><button class="btn" data-nochmal>2. Abschrift hochladen</button></div></div>'}
     <div class="glyphen">${zellen}</div>
     ${woerter ? `<div class="woerter">${woerter}</div>` : ""}
     <p class="hint erkl">Gestrichelte Kästchen fehlen noch, dort schreibt eine Ersatzschrift. Ein neues Foto ergänzt nur, was erkannt wird.</p>
@@ -3130,6 +3158,195 @@ function chatStop() {
   if ($("chatInhalt")) $("chatInhalt").innerHTML = "";
 }
 
+/* ---------- Mit dem Stift schreiben: jedes Zeichen in sein eigenes Feld (Apple Pencil, Finger, Maus) ----------
+   Keine Erkennung nötig, weil jedes Feld weiß, welches Zeichen hineingehört. Hilfslinien (Ober-, Mittel-, Grund-, Unterlinie)
+   sorgen für gleiche Größe und Lage. Ergebnis im selben Format wie beim Foto: {g, w, gap, space} pro Fassung. */
+const STIFT = (function () {
+  const PFLICHT = [..."abcdefghijklmnopqrstuvwxyz", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ", ..."äöüß"];
+  const FREI = [..."ÄÖÜ", ..."0123456789", ..."., ! ? - : ( )".replace(/ /g, "")];
+  const WOERTER = "ch sch ck ei ie au er en st und die der das ist nicht ein eine mit sich auf auch zu den von".split(" ");
+  const ABSCHNITTE = [
+    { titel: "Kleinbuchstaben", z: PFLICHT.slice(0, 26), pflicht: true },
+    { titel: "Großbuchstaben", z: PFLICHT.slice(26, 52), pflicht: true },
+    { titel: "Umlaute und ß", z: PFLICHT.slice(52), pflicht: true },
+    { titel: "Großumlaute, Ziffern, Zeichen", z: FREI },
+    { titel: "Buchstabenpaare und Wörter", z: WOERTER, wort: true }
+  ];
+  const ALLE = ABSCHNITTE.flatMap(a => a.z.map(z => ({ z, wort: !!a.wort, pflicht: !!a.pflicht })));
+  // Feld innen: Höhe 600, Linien bei 110 (oben), 250 (Mitte), 390 (Grundlinie), 500 (unten). x-Höhe 140, gespeichert halbiert.
+  const H = 600, OBEN = 110, MITTE = 250, GRUND = 390, UNTEN = 500, XH = GRUND - MITTE, ABLAGE = 0.5;
+  const KEY = "hs2-stift";
+  let E = { g: {}, g2: {}, w: {} }, fassung = 1, idx = 0, striche = [], aktiv = null, nurStift = false;
+  try { const x = JSON.parse(LS.get(KEY) || "null"); if (x && x.g) E = Object.assign({ g: {}, g2: {}, w: {} }, x); } catch (e) {}
+  const merken = () => { try { LS.set(KEY, JSON.stringify(E)); } catch (e) { toast("Zu wenig Speicher im Browser für den Entwurf"); } };
+  const ablage = it => it.wort ? E.w : (fassung === 2 ? E.g2 : E.g);
+  const liste = () => fassung === 2 ? ALLE.filter(x => !x.wort) : ALLE;
+  const fehltPflicht = () => PFLICHT.filter(z => !E.g[z]);
+
+  // ---------- Übersicht im Reiter Schrift ----------
+  function uebersicht() {
+    const box = $("stiftUebersicht"); if (!box) return;
+    const f = fehltPflicht(), fertig1 = !f.length, g2n = Object.keys(E.g2).length;
+    const zelle = it => {
+      const m = (it.wort ? E.w : (fassung === 2 ? E.g2 : E.g))[it.z];
+      return `<button type="button" class="stift-zelle${it.wort ? " wort" : ""}${m ? " voll" : ""}${it.pflicht && !m ? " pflicht" : ""}" data-zeichen="${esc(it.z)}" aria-label="${esc(it.z)} schreiben">${m ? `<img src="${m.url}" alt="${esc(it.z)}">` : `<span>${esc(it.z)}</span>`}</button>`;
+    };
+    box.innerHTML = `
+      <div class="modus" id="stiftFassung"><button type="button" data-f="1" aria-pressed="${fassung === 1}">1. Fassung</button><button type="button" data-f="2" aria-pressed="${fassung === 2}"${fertig1 ? "" : " disabled"}>2. Fassung (freiwillig)</button></div>
+      <div class="hint mono">${fassung === 1 ? (fertig1 ? "Alle Pflichtzeichen geschrieben." : `Noch ${f.length} von ${PFLICHT.length} Pflichtzeichen.`) : `${g2n} Zeichen in der 2. Fassung. Mit ihr wechseln sich zwei Fassungen ab.`}</div>
+      <button class="btn primary breit" data-stift-los>${Object.keys(ablage({})).length ? "Weiterschreiben" : "Schreiben starten"}</button>
+      ${ABSCHNITTE.filter(a => fassung === 1 || !a.wort).map(a => `<div class="sec-label">${a.titel}${a.pflicht ? "" : " (freiwillig)"}</div><div class="stift-raster">${a.z.map(z => zelle({ z, wort: !!a.wort, pflicht: !!a.pflicht })).join("")}</div>`).join("")}
+      <div class="field"><label for="stiftName">Name der Handschrift</label><input type="text" id="stiftName" maxlength="40" value="Stift-Schrift"></div>
+      <button class="btn primary breit" data-stift-fertig${fertig1 ? "" : " disabled"}>Schrift übernehmen</button>
+      ${fertig1 ? "" : '<p class="hint erkl">Übernehmen geht, sobald a bis z, A bis Z und äöüß geschrieben sind.</p>'}
+      <div class="reihe" data-zone><button class="btn ghost rot" data-stift-leeren>Alles leeren und neu anfangen</button></div>`;
+  }
+  function klick(e) {
+    const t = e.target.closest("button"); if (!t || t.disabled) return;
+    if (t.closest("#stiftFassung")) { fassung = +t.dataset.f; uebersicht(); return; }
+    if (t.dataset.zeichen != null) { const i = liste().findIndex(x => x.z === t.dataset.zeichen); if (i >= 0) oeffnen(i); return; }
+    if (t.hasAttribute("data-stift-los")) {
+      const l = liste(), i = l.findIndex(x => !ablage(x)[x.z] && (x.pflicht || fassung === 2)); oeffnen(i >= 0 ? i : Math.max(0, l.findIndex(x => !ablage(x)[x.z]))); return;
+    }
+    if (t.hasAttribute("data-stift-fertig")) { uebernehmen(t); return; }
+    if (t.hasAttribute("data-stift-leeren")) {
+      zoneFragen(t, "Alles Geschriebene löschen und neu anfangen?", "Leeren", async () => { E = { g: {}, g2: {}, w: {} }; fassung = 1; merken(); uebersicht(); }, uebersicht);
+    }
+  }
+
+  // ---------- Schreibmodus: großes Feld mit Hilfslinien ----------
+  function oeffnen(i) {
+    idx = Math.max(0, Math.min(liste().length - 1, i));
+    let ov = $("schreibFeld");
+    if (!ov) {
+      ov = document.createElement("div"); ov.id = "schreibFeld"; ov.className = "schreib-feld"; document.body.appendChild(ov);
+      ov.innerHTML = `
+        <div class="stift-kopf"><span class="stift-nr mono" id="stiftNr"></span><b id="stiftZiel"></b><span class="spacer"></span><button class="btn" data-sm="fertig">Fertig</button></div>
+        <p class="hint" id="stiftTipp"></p>
+        <div class="stift-mitte" id="stiftMitte"><div class="stift-flaeche" id="stiftFlaeche"><canvas id="stiftLinien"></canvas><canvas id="stiftTinte"></canvas></div></div>
+        <div class="stift-fuss">
+          <button class="btn" data-sm="zurueck" aria-label="Vorheriges Zeichen">‹ Zurück</button>
+          <button class="btn ghost" data-sm="rueck">Rückgängig</button>
+          <button class="btn ghost" data-sm="leer">Leeren</button>
+          <span class="spacer"></span>
+          <button class="btn primary" data-sm="weiter">Weiter ›</button>
+        </div>`;
+      ov.addEventListener("click", modusKlick);
+      const c = $("stiftTinte");
+      c.addEventListener("pointerdown", runter); c.addEventListener("pointermove", ziehen);
+      ["pointerup", "pointercancel", "pointerleave"].forEach(ev => c.addEventListener(ev, hoch));
+      window.addEventListener("resize", () => { if (!$("schreibFeld").hidden) feldBauen(); });
+    }
+    ov.hidden = false; document.body.classList.add("stift-offen");
+    feldBauen();
+  }
+  function feldBauen() {
+    const it = liste()[idx], W = it.wort ? 1500 : 480;
+    const lin = $("stiftLinien"), tin = $("stiftTinte"), fl = $("stiftFlaeche");
+    [lin, tin].forEach(c => { c.width = W; c.height = H; });
+    // So groß wie möglich, aber nie verzerrt
+    const mitte = $("stiftMitte").getBoundingClientRect(), f = Math.min(mitte.width / W, mitte.height / H);
+    fl.style.width = Math.floor(W * f) + "px"; fl.style.height = Math.floor(H * f) + "px";
+    const g = lin.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+    const linie = (y, farbe, dick, strich) => { g.beginPath(); g.setLineDash(strich ? [14, 12] : []); g.strokeStyle = farbe; g.lineWidth = dick; g.moveTo(0, y); g.lineTo(W, y); g.stroke(); };
+    linie(OBEN, "#c9d3e0", 2, true); linie(MITTE, "#9fb3cc", 2, true); linie(GRUND, "#3b6cc0", 3, false); linie(UNTEN, "#c9d3e0", 2, true);
+    $("stiftZiel").textContent = it.wort ? `Schreib: ${it.z}` : `Schreib: ${it.z}`;
+    $("stiftNr").textContent = `${idx + 1}/${liste().length}${fassung === 2 ? " · 2. Fassung" : ""}`;
+    $("stiftTipp").textContent = it.wort ? "Normal zusammen schreiben, auf der blauen Grundlinie." : /[a-zäöüß]/.test(it.z) && !/[bdfhklt]/.test(it.z) ? "Kleiner Buchstabe: von der Grundlinie bis zur Mittellinie, Unterlängen nach unten." : "Auf der blauen Grundlinie, bis zur oberen Linie.";
+    striche = []; aktiv = null;
+    malen();
+    // Schon geschrieben: zeigen, Neu-Schreiben ersetzt es
+    const m = ablage(it)[it.z];
+    if (m) { const img = new Image(); img.onload = () => { const s = 1 / ABLAGE; tin.getContext("2d").drawImage(img, m.links / ABLAGE, GRUND + m.top / ABLAGE, m.w * s, m.h * s); }; img.src = m.url; }
+    $("schreibFeld").querySelector('[data-sm="zurueck"]').disabled = idx === 0;
+    $("schreibFeld").querySelector('[data-sm="weiter"]').textContent = idx === liste().length - 1 ? "Fertig" : "Weiter ›";
+  }
+  const dicke = p => XH * 0.085 * (p.t === "pen" ? 0.55 + Math.min(1, p.d || 0.5) : 1);
+  function punkt(e) { const c = $("stiftTinte"), r = c.getBoundingClientRect(); return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height, d: e.pressure, t: e.pointerType }; }
+  function runter(e) {
+    if (e.pointerType === "pen") nurStift = true;
+    if (nurStift && e.pointerType === "touch") return;   // Handballen ignorieren, sobald ein Stift benutzt wurde
+    e.preventDefault(); try { $("stiftTinte").setPointerCapture(e.pointerId); } catch (er) {}
+    aktiv = [punkt(e)]; striche.push(aktiv); malen();
+  }
+  function ziehen(e) {
+    if (!aktiv) return; e.preventDefault();
+    let ev = e.getCoalescedEvents ? e.getCoalescedEvents() : []; if (!ev.length) ev = [e];   // feinere Punkte vom Pencil, wenn vorhanden
+    ev.forEach(x => aktiv.push(punkt(x))); malen();
+  }
+  function hoch() { if (!aktiv) return; aktiv = null; sichern(); }
+  function malen() {
+    const c = $("stiftTinte"), g = c.getContext("2d");
+    g.clearRect(0, 0, c.width, c.height); g.fillStyle = g.strokeStyle = "#141a2a"; g.lineCap = g.lineJoin = "round";
+    striche.forEach(s => {
+      if (s.length === 1) { g.beginPath(); g.arc(s[0].x, s[0].y, dicke(s[0]) / 2, 0, 7); g.fill(); return; }
+      for (let i = 1; i < s.length; i++) { const a = s[i - 1], b = s[i]; g.beginPath(); g.lineWidth = (dicke(a) + dicke(b)) / 2; g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+    });
+  }
+  // Tinte ausschneiden und als Zeichen speichern (halbe Größe, Lage zur Grundlinie)
+  function sichern() {
+    const it = liste()[idx], c = $("stiftTinte"), W = c.width, d = c.getContext("2d").getImageData(0, 0, W, H).data;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const ziel = ablage(it);
+    if (x1 < 0) { delete ziel[it.z]; merken(); return; }
+    x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(W - 1, x1 + 2); y1 = Math.min(H - 1, y1 + 2);
+    const w = Math.max(1, Math.round((x1 - x0 + 1) * ABLAGE)), h = Math.max(1, Math.round((y1 - y0 + 1) * ABLAGE)), k = document.createElement("canvas");
+    k.width = w; k.height = h; k.getContext("2d").drawImage(c, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 0, 0, w, h);
+    ziel[it.z] = { w, h, top: Math.round((y0 - GRUND) * ABLAGE), x: Math.round(XH * ABLAGE), links: Math.round(x0 * ABLAGE), url: k.toDataURL("image/png") };
+    merken();
+  }
+  function modusKlick(e) {
+    const t = e.target.closest("[data-sm]"); if (!t || t.disabled) return;
+    const a = t.dataset.sm;
+    if (a === "rueck") { striche.pop(); malen(); if (!striche.length) { const it = liste()[idx]; delete ablage(it)[it.z]; merken(); } else sichern(); }
+    else if (a === "leer") { striche = []; malen(); const it = liste()[idx]; delete ablage(it)[it.z]; merken(); }
+    else if (a === "zurueck") { idx--; feldBauen(); }
+    else if (a === "weiter") { if (idx >= liste().length - 1) schliessen(); else { idx++; feldBauen(); } }
+    else if (a === "fertig") schliessen();
+  }
+  function schliessen() { $("schreibFeld").hidden = true; document.body.classList.remove("stift-offen"); uebersicht(); }
+
+  // ---------- Übernehmen: als neue Handschrift speichern ----------
+  const flach = o => { const r = {}; Object.keys(o).forEach(k => { const m = o[k]; r[k] = { w: m.w, h: m.h, top: m.top, x: m.x, url: m.url }; }); return r; };
+  function lueckeAusWoertern() {
+    // Abstand zwischen Buchstaben aus den geschriebenen Wörtern lernen, in x-Höhen
+    const xh = XH * ABLAGE, v = [];
+    Object.keys(E.w).forEach(wt => { const zs = [...wt]; if (zs.length < 2 || !zs.every(z => E.g[z])) return; v.push((E.w[wt].w - zs.reduce((s, z) => s + E.g[z].w, 0)) / (zs.length - 1) / xh); });
+    if (!v.length) return null;
+    v.sort((a, b) => a - b); return Math.max(-0.35, Math.min(0.6, v[v.length >> 1]));
+  }
+  function vorschau() {
+    const c = document.createElement("canvas"); c.width = 360; c.height = 90; const g = c.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, 360, 90);
+    let x = 10; const s = 0.55;
+    [..."Abcdefgh"].forEach(z => { const m = E.g[z]; if (!m || !m.img) return; g.drawImage(m.img, x, 62 + m.top * s, m.w * s, m.h * s); x += m.w * s + 6; });
+    return c.toDataURL("image/jpeg", 0.7);
+  }
+  async function uebernehmen(knopf) {
+    if (fehltPflicht().length) { toast("Es fehlen noch Pflichtzeichen"); return; }
+    knopf.disabled = true;
+    try {
+      // Bilder laden für die Vorschau
+      await Promise.all(Object.values(E.g).map(m => new Promise(res => { const i = new Image(); i.onload = () => { m.img = i; res(); }; i.onerror = res; i.src = m.url; })));
+      const a1 = { g: flach(E.g), w: flach(E.w), gap: lueckeAusWoertern(), space: null };
+      const ab = Object.keys(E.g2).length ? [a1, { g: flach(E.g2), w: {}, gap: a1.gap, space: null }] : [a1];
+      const bild = vorschau(); Object.values(E.g).forEach(m => delete m.img);
+      const meta = ab.map((a, i) => metaVon(Object.keys(a.g).length, Object.keys(a.w).length, i === 0 ? bild : null));
+      const name = ($("stiftName").value || "").trim() || "Stift-Schrift";
+      if (sb && ich) {
+        if (HSL.length >= MAX_HS) { toast("Du hast schon 5 Handschriften. Lösch zuerst eine im Profil."); knopf.disabled = false; return; }
+        await hsNeu(name, ab, meta);
+      } else { await HS.ownSetzen({ abschriften: ab }); schriftSichern(); fontsBauen(); statusZeigen(); neuZeichnen(0); }
+      S.font = "own"; speichern(); fontsBauen(); neuZeichnen(0);
+      E = { g: {}, g2: {}, w: {} }; fassung = 1; merken(); uebersicht();
+      toast("Deine Handschrift ist übernommen");
+    } catch (er) { toast(kontoFehler(er && er.message)); knopf.disabled = false; }
+  }
+  return { uebersicht, klick };
+})();
+
 /* Impressum, Datenschutz, Regeln. Angaben zum Betreiber nur hier ändern.
    BEDINGUNGEN_STAND hochsetzen, wenn sich Regeln oder Datenschutz wesentlich ändern: dann muss jeder beim nächsten Anmelden neu zustimmen. */
 const BEDINGUNGEN_STAND = "2026-10-06";
@@ -3388,6 +3605,7 @@ async function start() {
   $("originalBtn").hidden = !S.urtext;
   $("teilenBtn").onclick = teilen;
   $("sendenBtn").onclick = blattSendenFenster;
+  STIFT.uebersicht(); $("stiftUebersicht").addEventListener("click", STIFT.klick);
   blaetterBauen();
   $("blattListe").addEventListener("click", e => {
     const b = e.target.closest("[data-blatt]"); if (b) { if (b.dataset.blatt !== S.blattId) blattWechseln(b.dataset.blatt); blattModus("edit"); return; }
