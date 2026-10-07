@@ -78,7 +78,7 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .sb-kopf{display:flex;flex-direction:column;gap:2px}
 .sb-kopf b{font-size:16px}
 .sb-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:0;border-top:1px solid #1a1f2b;border-left:1px solid #1a1f2b}
-.sb-raster.sb-woerter{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
+.sb-raster.sb-woerter{grid-template-columns:repeat(2,minmax(0,1fr))}
 .sb-zelle{position:relative;aspect-ratio:4/5;border-right:1px solid #1a1f2b;border-bottom:1px solid #1a1f2b;overflow:hidden;
   background:
     linear-gradient(#e6ebf2,#e6ebf2) 0 18.3%/100% 1px no-repeat,
@@ -624,7 +624,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 (function(){
 "use strict";
 // Wird beim Veröffentlichen gestempelt (veroeffentlichen.sh). "dev" = lokale Datei, dann keine Update-Meldung.
-const VERSION = "2026-10-07-163710";
+const VERSION = "2026-10-07-164446";
 
 /* ================= Helfer ================= */
 const $ = id => document.getElementById(id);
@@ -1940,6 +1940,7 @@ function tab(t, scroll) {
   speichern();
   if ($("mini")) miniStand();
   if (t === "chats") { chatsZeigen(); chatTakt(); }
+  if (t === "schrift" && typeof STIFT !== "undefined") requestAnimationFrame(STIFT.vorlageReihe);
 }
 
 /* ---------- Blatt neu zeichnen ---------- */
@@ -3217,8 +3218,9 @@ const STIFT = (function () {
   // Kästchen innen 192 x 240 (Wörter 600 x 240). Linien: oben 44, Mitte 100, Grundlinie 156, unten 200. x-Höhe 56.
   const H = 240, BZ = 192, BW = 600, GRUND = 156, XH = 56;
   const KEY = "hs2-stift";
-  // Nur in den ersten paar Kästchen eine blasse Vorlage, damit man die Größe sieht. Bei allen würden Leute nachmalen.
-  const VORLAGE = new Set(["a", "b", "g", "A"]);
+  // Blasse Vorlage nur am Anfang, damit man die Größe sieht: die ganze erste Reihe der Kleinbuchstaben,
+  // danach in jedem Abschnitt die ersten 3. Bei allen würden Leute nachmalen statt in eigener Schrift zu schreiben.
+  const mitVorlage = (ai, i) => fassung === 1 && (ai === 0 ? i < 12 : i < 3);
   let E = { g: {}, g2: {}, w: {} }, fassung = 1, nurStift = false, strich = null;
   try { const x = JSON.parse(LS.get(KEY) || "null"); if (x && x.g) E = Object.assign({ g: {}, g2: {}, w: {} }, x); } catch (e) {}
   const merken = () => { try { LS.set(KEY, JSON.stringify(E)); } catch (e) { toast("Zu wenig Speicher im Browser für den Entwurf"); } };
@@ -3251,8 +3253,8 @@ const STIFT = (function () {
   function blattBauen() {
     const b = $("schreibBlatt"); if (!b) return;
     b.innerHTML = `<div class="sb-kopf"><b>${fassung === 2 ? "2. Fassung" : "Dein Schreibblatt"}</b></div>`
-      + ABSCHNITTE.filter(a => fassung === 1 || !a.wort).map(a => `<div class="sec-label">${a.titel}</div><div class="sb-raster${a.wort ? " sb-woerter" : ""}">${a.z.map(z =>
-        `<div class="sb-zelle${a.wort ? " sb-wort" : ""}${a.pflicht ? " pflicht" : ""}" data-z="${esc(z)}" data-wort="${a.wort ? 1 : ""}"><span class="sb-lab">${esc(z)}</span>${fassung === 1 && VORLAGE.has(z) ? `<canvas class="sb-vorlage" width="${BZ}" height="${H}"></canvas>` : ""}<canvas class="sb-tinte" width="${a.wort ? BW : BZ}" height="${H}"></canvas><button type="button" class="sb-weg" aria-label="${esc(z)} löschen">×</button></div>`).join("")}</div>`).join("");
+      + ABSCHNITTE.filter(a => fassung === 1 || !a.wort).map((a, ai) => `<div class="sec-label">${a.titel}</div><div class="sb-raster${a.wort ? " sb-woerter" : ""}${ai === 0 ? " erster" : ""}">${a.z.map((z, i) =>
+        `<div class="sb-zelle${a.wort ? " sb-wort" : ""}${a.pflicht ? " pflicht" : ""}" data-z="${esc(z)}" data-wort="${a.wort ? 1 : ""}"><span class="sb-lab">${esc(z)}</span>${mitVorlage(ai, i) ? `<canvas class="sb-vorlage" width="${a.wort ? BW : BZ}" height="${H}"></canvas>` : ""}<canvas class="sb-tinte" width="${a.wort ? BW : BZ}" height="${H}"></canvas><button type="button" class="sb-weg" aria-label="${esc(z)} löschen">×</button></div>`).join("")}</div>`).join("");
     b.querySelectorAll(".sb-zelle").forEach(zelle => {
       const m = fach(!!zelle.dataset.wort)[zelle.dataset.z];
       zelle.classList.toggle("voll", !!m);
@@ -3271,6 +3273,13 @@ const STIFT = (function () {
       g.font = `${XH * 100 / asc}px "${f}"`; g.textAlign = "center"; g.textBaseline = "alphabetic"; g.fillStyle = "rgba(59,108,192,.2)";
       g.fillText(z, c.width / 2, GRUND);
     });
+    vorlageReihe();
+  }
+  // In den Kleinbuchstaben nur die erste sichtbare Reihe (hängt von der Bildschirmbreite ab)
+  function vorlageReihe() {
+    const r = document.querySelector("#schreibBlatt .sb-raster.erster"); if (!r || !r.offsetParent) return;   // unsichtbar: später
+    const zs = [...r.children], top = zs.length ? zs[0].offsetTop : 0;
+    zs.forEach(z => { const v = z.querySelector(".sb-vorlage"); if (v) v.hidden = z.offsetTop !== top; });
   }
   const zelleVon = el => el && el.closest(".sb-zelle");
   function punkt(c, e) { const r = c.getBoundingClientRect(); return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height, d: e.pointerType === "pen" ? 0.55 + Math.min(1, e.pressure || 0.5) : 1 }; }
@@ -3323,7 +3332,7 @@ const STIFT = (function () {
   }
   function start() {
     steuerung(); blattBauen(); platzieren();
-    window.addEventListener("resize", platzieren);
+    window.addEventListener("resize", () => { platzieren(); vorlageReihe(); });
     const b = $("schreibBlatt");
     b.addEventListener("pointerdown", runter); b.addEventListener("pointermove", ziehen);
     ["pointerup", "pointercancel"].forEach(ev => b.addEventListener(ev, hoch));
@@ -3373,7 +3382,7 @@ const STIFT = (function () {
       toast("Deine Handschrift ist übernommen");
     } catch (er) { toast(kontoFehler(er && er.message)); knopf.disabled = false; }
   }
-  return { start };
+  return { start, vorlageReihe };
 })();
 
 /* ---------- Neue Fassung: Meldung mit "Jetzt laden" (wie Setterboard) ----------
