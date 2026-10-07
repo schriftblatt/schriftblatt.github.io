@@ -89,6 +89,8 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .sb-zelle.voll{background-color:#e3f2ea}
 .sb-zelle.voll .sb-lab{color:#0f7355;font-weight:700}
 .sb-zelle canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:pan-y}
+.sb-vorlage{pointer-events:none}
+.sb-zelle.voll .sb-vorlage{display:none}
 body.finger-schreiben .sb-zelle canvas{touch-action:none}
 .sb-lab{position:absolute;left:5px;top:2px;font-size:13px;color:#8a96a8;font-family:var(--font-body);pointer-events:none}
 .sb-weg{position:absolute;right:0;top:0;width:28px;height:28px;border:0;border-left:1px solid #1a1f2b;border-bottom:1px solid #1a1f2b;border-radius:0;background:#fff;color:#1a1f2b;font-size:16px;line-height:1;cursor:pointer;display:none}
@@ -622,7 +624,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 (function(){
 "use strict";
 // Wird beim Veröffentlichen gestempelt (veroeffentlichen.sh). "dev" = lokale Datei, dann keine Update-Meldung.
-const VERSION = "2026-10-07-162952";
+const VERSION = "2026-10-07-163710";
 
 /* ================= Helfer ================= */
 const $ = id => document.getElementById(id);
@@ -3215,6 +3217,8 @@ const STIFT = (function () {
   // Kästchen innen 192 x 240 (Wörter 600 x 240). Linien: oben 44, Mitte 100, Grundlinie 156, unten 200. x-Höhe 56.
   const H = 240, BZ = 192, BW = 600, GRUND = 156, XH = 56;
   const KEY = "hs2-stift";
+  // Nur in den ersten paar Kästchen eine blasse Vorlage, damit man die Größe sieht. Bei allen würden Leute nachmalen.
+  const VORLAGE = new Set(["a", "b", "g", "A"]);
   let E = { g: {}, g2: {}, w: {} }, fassung = 1, nurStift = false, strich = null;
   try { const x = JSON.parse(LS.get(KEY) || "null"); if (x && x.g) E = Object.assign({ g: {}, g2: {}, w: {} }, x); } catch (e) {}
   const merken = () => { try { LS.set(KEY, JSON.stringify(E)); } catch (e) { toast("Zu wenig Speicher im Browser für den Entwurf"); } };
@@ -3248,17 +3252,30 @@ const STIFT = (function () {
     const b = $("schreibBlatt"); if (!b) return;
     b.innerHTML = `<div class="sb-kopf"><b>${fassung === 2 ? "2. Fassung" : "Dein Schreibblatt"}</b></div>`
       + ABSCHNITTE.filter(a => fassung === 1 || !a.wort).map(a => `<div class="sec-label">${a.titel}</div><div class="sb-raster${a.wort ? " sb-woerter" : ""}">${a.z.map(z =>
-        `<div class="sb-zelle${a.wort ? " sb-wort" : ""}${a.pflicht ? " pflicht" : ""}" data-z="${esc(z)}" data-wort="${a.wort ? 1 : ""}"><span class="sb-lab">${esc(z)}</span><canvas width="${a.wort ? BW : BZ}" height="${H}"></canvas><button type="button" class="sb-weg" aria-label="${esc(z)} löschen">×</button></div>`).join("")}</div>`).join("");
+        `<div class="sb-zelle${a.wort ? " sb-wort" : ""}${a.pflicht ? " pflicht" : ""}" data-z="${esc(z)}" data-wort="${a.wort ? 1 : ""}"><span class="sb-lab">${esc(z)}</span>${fassung === 1 && VORLAGE.has(z) ? `<canvas class="sb-vorlage" width="${BZ}" height="${H}"></canvas>` : ""}<canvas class="sb-tinte" width="${a.wort ? BW : BZ}" height="${H}"></canvas><button type="button" class="sb-weg" aria-label="${esc(z)} löschen">×</button></div>`).join("")}</div>`).join("");
     b.querySelectorAll(".sb-zelle").forEach(zelle => {
       const m = fach(!!zelle.dataset.wort)[zelle.dataset.z];
       zelle.classList.toggle("voll", !!m);
-      if (m) { const img = new Image(); img.onload = () => zelle.querySelector("canvas").getContext("2d").drawImage(img, m.links || 0, GRUND + m.top, m.w, m.h); img.src = m.url; }
+      if (m) { const img = new Image(); img.onload = () => zelle.querySelector(".sb-tinte").getContext("2d").drawImage(img, m.links || 0, GRUND + m.top, m.w, m.h); img.src = m.url; }
+    });
+    vorlagenMalen(b);
+  }
+  // Blasse Vorlage in Grundschrift, x-Höhe genau zwischen Mittel- und Grundlinie
+  async function vorlagenMalen(b) {
+    const f = "Playwrite DE Grund";
+    try { await document.fonts.load(`80px "${f}"`, "abgA"); } catch (e) {}
+    b.querySelectorAll(".sb-vorlage").forEach(c => {
+      const g = c.getContext("2d"), z = c.closest(".sb-zelle").dataset.z;
+      g.font = `100px "${f}"`; const asc = g.measureText("x").actualBoundingBoxAscent || 50;
+      g.clearRect(0, 0, c.width, c.height);
+      g.font = `${XH * 100 / asc}px "${f}"`; g.textAlign = "center"; g.textBaseline = "alphabetic"; g.fillStyle = "rgba(59,108,192,.2)";
+      g.fillText(z, c.width / 2, GRUND);
     });
   }
   const zelleVon = el => el && el.closest(".sb-zelle");
   function punkt(c, e) { const r = c.getBoundingClientRect(); return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height, d: e.pointerType === "pen" ? 0.55 + Math.min(1, e.pressure || 0.5) : 1 }; }
   function runter(e) {
-    const c = e.target.closest("canvas"); if (!c || !zelleVon(c)) return;
+    const c = e.target.closest(".sb-tinte"); if (!c || !zelleVon(c)) return;
     if (e.pointerType === "pen") nurStift = true;
     if (e.pointerType === "touch" && !document.body.classList.contains("finger-schreiben")) return;   // Finger scrollt, außer "Mit dem Finger schreiben" ist an
     e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (er) {}
@@ -3274,7 +3291,7 @@ const STIFT = (function () {
   function hoch(e) { if (!strich || e.pointerId !== strich.id) return; const c = strich.c; strich = null; sichern(zelleVon(c)); }
   // Kästchen ausschneiden und speichern (Lage zur Grundlinie, x-Höhe 56)
   function sichern(zelle) {
-    const c = zelle.querySelector("canvas"), W = c.width, d = c.getContext("2d").getImageData(0, 0, W, H).data, ziel = fach(!!zelle.dataset.wort), z = zelle.dataset.z;
+    const c = zelle.querySelector(".sb-tinte"), W = c.width, d = c.getContext("2d").getImageData(0, 0, W, H).data, ziel = fach(!!zelle.dataset.wort), z = zelle.dataset.z;
     let x0 = W, y0 = H, x1 = -1, y1 = -1;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
     if (x1 < 0) { delete ziel[z]; }
@@ -3289,7 +3306,7 @@ const STIFT = (function () {
   }
   function blattKlick(e) {
     const x = e.target.closest(".sb-weg"); if (!x) return;
-    const zelle = zelleVon(x), c = zelle.querySelector("canvas");
+    const zelle = zelleVon(x), c = zelle.querySelector(".sb-tinte");
     c.getContext("2d").clearRect(0, 0, c.width, c.height); sichern(zelle);
   }
   function steuerKlick(e) {
