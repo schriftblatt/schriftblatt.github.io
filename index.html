@@ -8,11 +8,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Schriftblatt">
+<meta name="apple-mobile-web-app-title" content="Schriftet">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Schriftblatt</title>
+<title>Schriftet</title>
 <link rel="stylesheet" href="schriften/schriften.css?v=2">
 <style>
 /* Farben als Variablen. Der Dunkelmodus überschreibt nur diese Werte. */
@@ -422,7 +422,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 <header class="kopf">
   <div class="kopf-in">
     <button class="marke" data-tab-btn="schrift" title="Zur eigenen Schrift">
-      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Schriftblatt
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Schriftet
     </button>
     <div class="spacer"></div>
     <button class="konto-knopf" id="kontoBtn" hidden>
@@ -620,7 +620,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 (function(){
 "use strict";
 // Wird beim Veröffentlichen gestempelt (veroeffentlichen.sh). "dev" = lokale Datei, dann keine Update-Meldung.
-const VERSION = "2026-10-07-144519";
+const VERSION = "2026-10-07-145317";
 
 /* ================= Helfer ================= */
 const $ = id => document.getElementById(id);
@@ -2357,7 +2357,7 @@ function einstHtml() {
       <p class="hint erkl">Auf Android: in Chrome oben rechts die drei Punkte, dann <b>App installieren</b>.</p></div>`}
 
     <div class="field"><span class="lbl">App aktualisieren</span>
-      <p class="hint erkl">Lädt die neueste Fassung von Schriftblatt. Deine Schrift und deine Chats bleiben.</p>
+      <p class="hint erkl">Lädt die neueste Fassung von Schriftet. Deine Schrift und deine Chats bleiben.</p>
       <button class="btn" id="updateBtn"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>Neueste Fassung laden</button></div>`;
 }
 function einstVerdrahten(b) {
@@ -2978,7 +2978,7 @@ function einladenFenster(c) {
     <p class="hint erkl" style="text-align:center">Code zum Abtippen: Chats, Code eingeben</p>
     <div class="reihe"><button class="btn primary" id="linkTeilen">${CI.senden}Link teilen</button><button class="btn" id="linkKopieren">Link kopieren</button></div>`);
   b.querySelector("#linkTeilen").onclick = async () => {
-    if (navigator.share) { try { await navigator.share({ title: "Schriftblatt", text: c.privat ? "Schreib mir auf Schriftblatt:" : `Komm in die Gruppe „${chatName(c)}“ auf Schriftblatt:`, url: link }); } catch (e) {} }
+    if (navigator.share) { try { await navigator.share({ title: "Schriftet", text: c.privat ? "Schreib mir auf Schriftet:" : `Komm in die Gruppe „${chatName(c)}“ auf Schriftet:`, url: link }); } catch (e) {} }
     else b.querySelector("#linkKopieren").click();
   };
   b.querySelector("#linkKopieren").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Link kopiert"); } catch (e) { toast(link); } };
@@ -3384,20 +3384,20 @@ const RECHT = {
     <p>${esc(BETREIBER.name)}${adresseDa() ? `<br>${esc(BETREIBER.strasse)}<br>${esc(BETREIBER.ort)}` : "<br>Lemgo"}</p>
     ${/^\[/.test(BETREIBER.email) ? "" : `<h4>Kontakt</h4><p>E-Mail: ${esc(BETREIBER.email)}</p>`}
     <h4>Inhalte der Nutzer</h4><p>Für Namen, Gruppennamen, Nachrichten und Blätter, die Nutzer einstellen, sind diese selbst verantwortlich. Hinweise auf Verstöße bitte über „Melden“ in der App oder an die E-Mail oben, sie werden zügig geprüft.</p>
-    <p>Schriftblatt ist ein kostenloses, privates Projekt ohne Werbung.</p>`],
+    <p>Schriftet ist ein kostenloses, privates Projekt ohne Werbung.</p>`],
   nutzung: ["Regeln", () => `
     <p class="hint">Stand: ${BEDINGUNGEN_STAND.split("-").reverse().join(".")}</p>
-    <p>Schriftblatt setzt Texte in deiner Handschrift aufs Blatt. Damit das in Ordnung bleibt:</p>
+    <p>Schriftet setzt Texte in deiner Handschrift aufs Blatt. Damit das in Ordnung bleibt:</p>
     <ul>
       <li><b>Keine Unterschriften</b>, weder deine noch fremde.</li>
       <li><b>Keine Dokumente, die rechtlich zählen</b>: Entschuldigungen, Atteste, Verträge, Formulare, Erklärungen im Namen anderer. Wer so etwas fälscht, macht sich strafbar (Urkundenfälschung, § 267 StGB).</li>
       <li><b>Nur die eigene Handschrift einlesen</b>, nicht die von anderen Personen.</li>
       <li><b>Keine beleidigenden oder anstößigen Namen</b>, weder für dich noch für Gruppen.</li>
       <li><b>In Chats fair bleiben:</b> kein Mobbing, keine Beleidigungen, nichts Sexuelles, keine Gewalt, keine Daten oder Fotos von anderen ohne deren Erlaubnis. Was dich stört, kannst du mit „Melden“ an den Admin geben.</li>
-      <li>Ob du Blätter aus Schriftblatt in der Schule abgeben darfst, entscheidet deine Lehrkraft. Dafür bist du selbst verantwortlich.</li>
+      <li>Ob du Blätter aus Schriftet in der Schule abgeben darfst, entscheidet deine Lehrkraft. Dafür bist du selbst verantwortlich.</li>
     </ul>
     <h4>Du bist für deine Inhalte selbst verantwortlich</h4>
-    <p>Alles, was du in Schriftblatt einträgst, verantwortest du selbst: deinen Namen und Benutzernamen, Namen von Gruppen, Nachrichten, Texte und Blätter. Der Betreiber stellt nur die Technik bereit, prüft Inhalte nicht vorab und macht sich fremde Inhalte nicht zu eigen.</p>
+    <p>Alles, was du in Schriftet einträgst, verantwortest du selbst: deinen Namen und Benutzernamen, Namen von Gruppen, Nachrichten, Texte und Blätter. Der Betreiber stellt nur die Technik bereit, prüft Inhalte nicht vorab und macht sich fremde Inhalte nicht zu eigen.</p>
     <p>Rassistische, beleidigende, sexuelle oder sonst anstößige Namen und Inhalte sind verboten. Wer so etwas einstellt, haftet selbst für die Folgen, auch gegenüber Betroffenen, und kann sich strafbar machen (zum Beispiel Beleidigung, § 185 StGB, oder Volksverhetzung, § 130 StGB). Werden gegen den Betreiber wegen deiner Inhalte Ansprüche erhoben, musst du ihn davon freistellen, soweit du den Verstoß zu vertreten hast.</p>
     <p>Gemeldete oder auffällige Inhalte werden geprüft und gelöscht, Konten können ohne Vorwarnung gesperrt oder gelöscht werden. Bei Straftaten können Daten an Behörden weitergegeben werden, wenn das Gesetz es verlangt.</p>
     <p>Die App ist eine Testversion und kann sich jederzeit ändern oder abgeschaltet werden.</p>`],
