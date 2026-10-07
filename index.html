@@ -620,7 +620,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 (function(){
 "use strict";
 // Wird beim Veröffentlichen gestempelt (veroeffentlichen.sh). "dev" = lokale Datei, dann keine Update-Meldung.
-const VERSION = "2026-10-07-144012";
+const VERSION = "2026-10-07-144519";
 
 /* ================= Helfer ================= */
 const $ = id => document.getElementById(id);
@@ -2474,15 +2474,8 @@ async function ausKontoLaden() {
     if (data && data.schrift && data.schrift.g) await HS.ownSetzen(data.schrift);
     fontsBauen(); statusZeigen(); neuZeichnen(0); return;
   }
-  if (!HSL.length) {
-    // Schrift aus der Zeit vor den Handschriften, oder vorher ohne Konto eingelesen: als erste Handschrift übernehmen
-    const alt = (data && data.schrift && data.schrift.g && Object.keys(data.schrift.g).length) ? data.schrift : (HS.hatOwn() ? HS.ownExport() : null);
-    if (alt) {
-      const ab = alsAbschriften(alt);
-      try { await hsNeu("Meine Schrift", ab, ab.map(a => Object.assign(metaVon(Object.keys(a.g || {}).length, Object.keys(a.w || {}).length), { datum: null }))); return; }
-      catch (e) { console.error(e); }
-    }
-  }
+  // Alt-Umzug entfernt (07.10.2026): er holte gelöschte Schriften aus der alten Spalte zurück. Die alte Kopie wird geleert.
+  if (data && data.schrift) sb.from("schriften").update({ schrift: null }).eq("user_id", ich.id).then(() => {});
   await aktiveLaden();
 }
 /* Admin: Liste aller Tester. Die Datenbank prüft selbst, ob du Admin bist (sql/02-admin.sql). */
@@ -2651,7 +2644,8 @@ async function abschriftLoeschen(id, idx) {
 async function handschriftLoeschen(id) {
   const r = await sb.from("handschriften").delete().eq("id", id);
   if (r.error) throw r.error;
-  await listeLaden(); if (id === S.schriftId) { S.schriftId = ""; await aktiveLaden(); }
+  await listeLaden();
+  if (id === S.schriftId || !HSL.length) { S.schriftId = ""; HS.ownLeeren(); LS.del(OWN_KEY); await aktiveLaden(); }
 }
 async function hsUmbenennen(id, name) {
   const r = await sb.from("handschriften").update({ name: name.slice(0, 40) }).eq("id", id);
