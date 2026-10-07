@@ -405,6 +405,10 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 @media (min-width:900px){ .mini{display:none!important} }
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom));z-index:70;background:var(--ink);color:var(--paper);padding:11px 16px;border-radius:9px;font-size:14px;box-shadow:var(--shadow);max-width:min(520px,92vw)}
 @media (min-width:900px){ .toast{bottom:24px} }
+.fassungsleiste{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:65;display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:560px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:10px 12px;box-shadow:var(--shadow)}
+.fassungsleiste .fl-text{flex:1 1 200px;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.fassungsleiste small{color:var(--ink-3);font-size:12.5px}
+@media (min-width:900px){ .fassungsleiste{bottom:20px} }
 </style>
 </head>
 <body data-tab="schrift" class="gesperrt">
@@ -608,6 +612,8 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 <script>
 (function(){
 "use strict";
+// Wird beim Veröffentlichen gestempelt (veroeffentlichen.sh). "dev" = lokale Datei, dann keine Update-Meldung.
+const VERSION = "2026-10-07-142109";
 
 /* ================= Helfer ================= */
 const $ = id => document.getElementById(id);
@@ -3347,6 +3353,26 @@ const STIFT = (function () {
   return { uebersicht, klick };
 })();
 
+/* ---------- Neue Fassung: Meldung mit "Jetzt laden" (wie Setterboard) ----------
+   Fragt version.json beim Start, beim Zurückkehren in die App und alle 5 Minuten ab. */
+let _neueFassung = "";
+function versionPruefen() {
+  if (VERSION === "dev") return;
+  fetch("version.json?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(d => {
+    if (!d || !d.stand || d.stand === VERSION || d.stand === _neueFassung) return;
+    _neueFassung = d.stand; fassungsleiste(d.punkte || []);
+  }).catch(() => {});
+}
+function fassungsleiste(punkte) {
+  const alt = $("fassungsleiste"); if (alt) alt.remove();
+  const b = document.createElement("div"); b.id = "fassungsleiste"; b.className = "fassungsleiste"; b.setAttribute("role", "status");
+  b.innerHTML = `<div class="fl-text"><b>Eine neue Fassung ist da.</b>${punkte.length ? `<small>${punkte.slice(0, 3).map(esc).join(" · ")}</small>` : ""}</div>
+    <button class="btn primary" id="fassungLaden">Jetzt laden</button><button class="btn ghost" id="fassungSpaeter">Später</button>`;
+  document.body.appendChild(b);
+  $("fassungLaden").onclick = () => { $("fassungLaden").disabled = true; $("fassungSpaeter").hidden = true; b.querySelector("b").textContent = "Lädt neu …"; location.replace(location.pathname + "?v=" + Date.now()); };
+  $("fassungSpaeter").onclick = () => b.remove();
+}
+
 /* Impressum, Datenschutz, Regeln. Angaben zum Betreiber nur hier ändern.
    BEDINGUNGEN_STAND hochsetzen, wenn sich Regeln oder Datenschutz wesentlich ändern: dann muss jeder beim nächsten Anmelden neu zustimmen. */
 const BEDINGUNGEN_STAND = "2026-10-06";
@@ -3621,7 +3647,8 @@ async function start() {
   $("chatInhalt").addEventListener("click", chatKlick);
   $("chatRechts").addEventListener("click", chatKlick);
   let _breit = handy(); window.addEventListener("resize", () => { if (handy() !== _breit) { _breit = handy(); if (S.tab === "chats") { $("sicht-chats").classList.remove("offen"); chatsZeigen(); } } });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) chatTakt(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { chatTakt(); versionPruefen(); } });
+  setTimeout(versionPruefen, 4000); setInterval(versionPruefen, 5 * 60 * 1000);
   $("einfuegenBtn").onclick = async () => {
     try { const x = await navigator.clipboard.readText(); if (!x) { toast("Die Zwischenablage ist leer"); return; } textSetzen(x); toast("Eingefügt"); }
     catch (e) { toast("Einfügen ging nicht. Lang ins Textfeld tippen und Einfügen wählen."); }
