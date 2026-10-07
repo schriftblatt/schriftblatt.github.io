@@ -77,8 +77,8 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .schreib-blatt .sec-label{color:#6b7a8f;margin-top:6px}
 .sb-kopf{display:flex;flex-direction:column;gap:2px}
 .sb-kopf b{font-size:16px}
-.sb-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:0;border-top:1px solid #1a1f2b;border-left:1px solid #1a1f2b}
-.sb-raster.sb-woerter{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.sb-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:0;border-top:1px solid #1a1f2b;border-left:1px solid #1a1f2b}
+.sb-raster.sb-woerter{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
 .sb-zelle{position:relative;aspect-ratio:4/5;border-right:1px solid #1a1f2b;border-bottom:1px solid #1a1f2b;overflow:hidden;
   background:
     linear-gradient(#e6ebf2,#e6ebf2) 0 18.3%/100% 1px no-repeat,
@@ -460,7 +460,6 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
       <div id="schriftStatus"></div>
       <div class="block gruppe" id="stiftBlock">
         <h3>Mit dem Stift schreiben</h3>
-        <p class="hint erkl">Am besten mit dem Apple Pencil: einfach in die Kästchen auf dem Schreibblatt schreiben, jedes Zeichen in sein Kästchen. Mit dem Finger scrollst du.</p>
         <div id="stiftUebersicht" class="gruppe"></div>
         <div id="schreibBlatt" class="schreib-blatt" aria-label="Schreibblatt"></div>
       </div>
@@ -621,7 +620,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 (function(){
 "use strict";
 // Wird beim Veröffentlichen gestempelt (veroeffentlichen.sh). "dev" = lokale Datei, dann keine Update-Meldung.
-const VERSION = "2026-10-07-143631";
+const VERSION = "2026-10-07-144012";
 
 /* ================= Helfer ================= */
 const $ = id => document.getElementById(id);
@@ -2545,7 +2544,7 @@ async function testerListe() {
         <span class="mono">${esc(anzeigeKonto(x.email))}</span>
         <small>Registriert ${deZeit(x.angelegt)}. Zuletzt angemeldet ${deZeit(x.zuletzt)}.</small>
         <span class="marken">${x.gesperrt ? '<span class="m-warn">gesperrt</span>' : ""}${x.hat_schrift ? '<span class="m-ok">Schrift eingelesen</span>' : '<span class="m-leer">noch keine Schrift</span>'}</span>
-        ${x.id && x.id !== ich.id ? `<span class="reihe" data-zone><button class="btn ghost klein" data-sperren="${x.id}|${x.gesperrt ? 0 : 1}">${x.gesperrt ? "Entsperren" : "Sperren"}</button><button class="btn ghost klein rot" data-loeschen="${x.id}">Konto löschen</button></span>` : ""}
+        ${x.id ? `<span class="reihe" data-zone><button class="btn ghost klein" data-admin-name="${x.id}" data-alt="${esc(x.name || "")}">Name ändern</button>${x.id !== ich.id ? `<button class="btn ghost klein" data-admin-pw="${x.id}">Neues Passwort</button><button class="btn ghost klein" data-sperren="${x.id}|${x.gesperrt ? 0 : 1}">${x.gesperrt ? "Entsperren" : "Sperren"}</button><button class="btn ghost klein rot" data-loeschen="${x.id}">Konto löschen</button>` : ""}</span>` : ""}
       </li>`).join("")}</ul>`;
   };
   await malen();
@@ -2554,6 +2553,22 @@ async function testerListe() {
 // Admin: Konto sperren oder löschen (sql/09-melden-sperren.sql), aus Tester-Liste und Meldungen
 function adminKlick(e, danach) {
   const t = e.target.closest("button"); if (!t) return;
+  // Name ändern oder neues Passwort: Eingabe direkt an der Stelle (sql/12-admin-name-passwort.sql)
+  if (t.dataset.adminName || t.dataset.adminPw) {
+    const name = !!t.dataset.adminName, id = t.dataset.adminName || t.dataset.adminPw, zone = t.closest("[data-zone]");
+    zone.innerHTML = `<input type="${name ? "text" : "text"}" maxlength="${name ? 40 : 72}" value="${name ? esc(t.dataset.alt) : ""}" placeholder="${name ? "Neuer Name" : "Neues Passwort, mindestens 6 Zeichen"}" autocomplete="off" style="flex:1;min-width:160px"><button class="btn primary klein" data-ok>Speichern</button><button class="btn ghost klein" data-nein>Abbrechen</button>`;
+    const inp = zone.querySelector("input"); inp.focus();
+    zone.querySelector("[data-nein]").onclick = ev => { ev.stopPropagation(); danach(); };
+    zone.querySelector("[data-ok]").onclick = async ev => {
+      ev.stopPropagation(); const v = inp.value.trim();
+      if (name ? v.length < 2 : v.length < 6) { toast(name ? "Der Name ist zu kurz." : "Mindestens 6 Zeichen."); return; }
+      const r = name ? await sb.rpc("admin_name_setzen", { p_user: id, p_name: v }) : await sb.rpc("admin_passwort_setzen", { p_user: id, p_pw: v });
+      if (r.error) { toast(/does not exist|schema cache|function/i.test(r.error.message) ? "Dafür fehlt noch SQL 12." : chatFehler(r.error)); return; }
+      if (name && id === ich.id) { const u = await sb.auth.refreshSession(); if (u.data && u.data.user) { ich = u.data.user; kontoKnopf(); } }
+      toast(name ? "Name geändert" : "Neues Passwort gesetzt. Sag es der Person, sie ist überall abgemeldet."); danach();
+    };
+    return;
+  }
   if (t.dataset.sperren) {
     const [id, an] = t.dataset.sperren.split("|");
     zoneFragen(t, an === "1" ? "Konto sperren? Die Person wird abgemeldet und kommt nicht mehr rein." : "Konto wieder freigeben?", an === "1" ? "Sperren" : "Freigeben", async () => {
@@ -2652,6 +2667,7 @@ function profilMalen(body) {
   body.innerHTML = `
     <div class="hinweis ok"><b>${esc(name || "Angemeldet")}</b>${esc(anzeigeKonto(ich.email))}</div>
     <div class="reihe" data-zone><button class="btn ghost klein" id="nameAendernBtn">Namen ändern</button></div>
+    <div class="reihe" data-zone><button class="btn ghost klein" id="pwAendernBtn">Passwort ändern</button></div>
     <button class="btn primary breit" id="feedbackBtn"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>Feedback und Ideen</button>
     <div class="sec-label">Deine Handschriften (${HSL.length} von ${MAX_HS})</div>
     ${HSL.length ? "" : '<p class="hint">Noch keine Handschrift. Lies eine im Reiter Schrift ein.</p>'}
@@ -2700,6 +2716,17 @@ function profilMalen(body) {
     else if (t.id === "testerBtn") testerListe();
     else if (t.id === "feedbackBtn") feedbackFenster();
     else if (t.id === "feedbackListeBtn") feedbackListe();
+    else if (t.id === "pwAendernBtn") {
+      const zone = t.closest("[data-zone]");
+      zone.innerHTML = `<input type="password" id="neuesPw" autocomplete="new-password" placeholder="Neues Passwort, mindestens 6 Zeichen" style="flex:1"><button class="btn primary" id="pwOk">Speichern</button>`;
+      const inp = zone.querySelector("#neuesPw"); inp.focus();
+      zone.querySelector("#pwOk").onclick = async () => {
+        if (inp.value.length < 6) { toast("Mindestens 6 Zeichen."); return; }
+        const u = await sb.auth.updateUser({ password: inp.value });
+        if (u.error) { toast(kontoFehler(u.error.message)); return; }
+        toast("Passwort geändert"); profilMalen(body);
+      };
+    }
     else if (t.id === "nameAendernBtn") {
       const zone = t.closest("[data-zone]");
       zone.innerHTML = `<input type="text" id="neuerName" maxlength="40" value="${esc(name)}" aria-label="Neuer Name" style="flex:1"><button class="btn primary" id="nameOk">Speichern</button>`;
@@ -3221,7 +3248,7 @@ const STIFT = (function () {
   // ---------- Das Schreibblatt ----------
   function blattBauen() {
     const b = $("schreibBlatt"); if (!b) return;
-    b.innerHTML = `<div class="sb-kopf"><b>${fassung === 2 ? "2. Fassung" : "Dein Schreibblatt"}</b><span class="hint erkl">Schreib jedes Zeichen in sein Kästchen, auf die blaue Linie.</span></div>`
+    b.innerHTML = `<div class="sb-kopf"><b>${fassung === 2 ? "2. Fassung" : "Dein Schreibblatt"}</b></div>`
       + ABSCHNITTE.filter(a => fassung === 1 || !a.wort).map(a => `<div class="sec-label">${a.titel}</div><div class="sb-raster${a.wort ? " sb-woerter" : ""}">${a.z.map(z =>
         `<div class="sb-zelle${a.wort ? " sb-wort" : ""}${a.pflicht ? " pflicht" : ""}" data-z="${esc(z)}" data-wort="${a.wort ? 1 : ""}"><span class="sb-lab">${esc(z)}</span><canvas width="${a.wort ? BW : BZ}" height="${H}"></canvas><button type="button" class="sb-weg" aria-label="${esc(z)} löschen">×</button></div>`).join("")}</div>`).join("");
     b.querySelectorAll(".sb-zelle").forEach(zelle => {
@@ -3429,7 +3456,7 @@ function torZeigen(modus, info) {
   if (modus === "vergessen") {
     // Ohne eigenen Mailversand kann Supabase keine Links verschicken. Der Admin setzt das Konto zurück.
     t.innerHTML = `<h2>Passwort vergessen</h2>
-      <div class="hinweis">Schreib der Person, die dir den Link zu dieser Seite geschickt hat. Sie setzt dein Konto zurück, danach registrierst du dich einfach neu.</div>
+      <div class="hinweis">Schreib der Person, die dir den Link zu dieser Seite geschickt hat. Sie gibt dir ein neues Passwort, mit dem meldest du dich an und änderst es danach im Profil.</div>
       <button class="btn ghost breit" id="tZurueck">Zurück zur Anmeldung</button>`;
     t.querySelector("#tZurueck").onclick = () => torZeigen("login");
     return;
