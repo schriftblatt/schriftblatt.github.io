@@ -77,21 +77,21 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-
 .schreib-blatt .sec-label{color:#6b7a8f;margin-top:6px}
 .sb-kopf{display:flex;flex-direction:column;gap:2px}
 .sb-kopf b{font-size:16px}
-.sb-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
-.sb-raster.woerter{grid-template-columns:repeat(auto-fill,minmax(164px,1fr))}
-.sb-zelle{position:relative;aspect-ratio:4/5;border:1px solid #cfd8e4;border-radius:6px;overflow:hidden;
+.sb-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:0;border-top:1px solid #1a1f2b;border-left:1px solid #1a1f2b}
+.sb-raster.sb-woerter{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.sb-zelle{position:relative;aspect-ratio:4/5;border-right:1px solid #1a1f2b;border-bottom:1px solid #1a1f2b;overflow:hidden;
   background:
-    linear-gradient(#e3e9f1,#e3e9f1) 0 18.3%/100% 1px no-repeat,
-    linear-gradient(#cdd8e6,#cdd8e6) 0 41.7%/100% 1px no-repeat,
+    linear-gradient(#e6ebf2,#e6ebf2) 0 18.3%/100% 1px no-repeat,
+    linear-gradient(#d3dbe7,#d3dbe7) 0 41.7%/100% 1px no-repeat,
     linear-gradient(#3b6cc0,#3b6cc0) 0 65%/100% 2px no-repeat,
-    linear-gradient(#e3e9f1,#e3e9f1) 0 83.3%/100% 1px no-repeat,#fff}
-.sb-zelle.wort{aspect-ratio:8/5}
-.sb-zelle.pflicht{border-color:#e7b48f}
-.sb-zelle.voll{border-color:#7fbfa7}
+    linear-gradient(#e6ebf2,#e6ebf2) 0 83.3%/100% 1px no-repeat,#fff}
+.sb-zelle.sb-wort{aspect-ratio:5/2}
+.sb-zelle.voll{background-color:#e3f2ea}
+.sb-zelle.voll .sb-lab{color:#0f7355;font-weight:700}
 .sb-zelle canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:pan-y}
 body.finger-schreiben .sb-zelle canvas{touch-action:none}
-.sb-lab{position:absolute;left:5px;top:2px;font-size:13px;color:#9aa7b8;font-family:var(--font-body);pointer-events:none}
-.sb-weg{position:absolute;right:2px;top:2px;width:26px;height:26px;border:0;border-radius:6px;background:rgba(20,26,42,.06);color:#6b7a8f;font-size:16px;line-height:1;cursor:pointer;display:none}
+.sb-lab{position:absolute;left:5px;top:2px;font-size:13px;color:#8a96a8;font-family:var(--font-body);pointer-events:none}
+.sb-weg{position:absolute;right:0;top:0;width:28px;height:28px;border:0;border-left:1px solid #1a1f2b;border-bottom:1px solid #1a1f2b;border-radius:0;background:#fff;color:#1a1f2b;font-size:16px;line-height:1;cursor:pointer;display:none}
 .sb-zelle.voll .sb-weg{display:block}
 /* Am Rechner und iPad quer: Schreibblatt rechts statt der Vorschau */
 @media (min-width:900px){
@@ -621,7 +621,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 (function(){
 "use strict";
 // Wird beim Veröffentlichen gestempelt (veroeffentlichen.sh). "dev" = lokale Datei, dann keine Update-Meldung.
-const VERSION = "2026-10-07-142753";
+const VERSION = "2026-10-07-143631";
 
 /* ================= Helfer ================= */
 const $ = id => document.getElementById(id);
@@ -3187,8 +3187,8 @@ const STIFT = (function () {
     { titel: "Großumlaute, Ziffern, Zeichen (freiwillig)", z: FREI },
     { titel: "Buchstabenpaare und Wörter (freiwillig)", z: WOERTER, wort: true }
   ];
-  // Kästchen innen 192 x 240 (Wörter 384 x 240). Linien: oben 44, Mitte 100, Grundlinie 156, unten 200. x-Höhe 56.
-  const H = 240, BZ = 192, BW = 384, GRUND = 156, XH = 56;
+  // Kästchen innen 192 x 240 (Wörter 600 x 240). Linien: oben 44, Mitte 100, Grundlinie 156, unten 200. x-Höhe 56.
+  const H = 240, BZ = 192, BW = 600, GRUND = 156, XH = 56;
   const KEY = "hs2-stift";
   let E = { g: {}, g2: {}, w: {} }, fassung = 1, nurStift = false, strich = null;
   try { const x = JSON.parse(LS.get(KEY) || "null"); if (x && x.g) E = Object.assign({ g: {}, g2: {}, w: {} }, x); } catch (e) {}
@@ -3222,8 +3222,8 @@ const STIFT = (function () {
   function blattBauen() {
     const b = $("schreibBlatt"); if (!b) return;
     b.innerHTML = `<div class="sb-kopf"><b>${fassung === 2 ? "2. Fassung" : "Dein Schreibblatt"}</b><span class="hint erkl">Schreib jedes Zeichen in sein Kästchen, auf die blaue Linie.</span></div>`
-      + ABSCHNITTE.filter(a => fassung === 1 || !a.wort).map(a => `<div class="sec-label">${a.titel}</div><div class="sb-raster${a.wort ? " woerter" : ""}">${a.z.map(z =>
-        `<div class="sb-zelle${a.wort ? " wort" : ""}${a.pflicht ? " pflicht" : ""}" data-z="${esc(z)}" data-wort="${a.wort ? 1 : ""}"><span class="sb-lab">${esc(z)}</span><canvas width="${a.wort ? BW : BZ}" height="${H}"></canvas><button type="button" class="sb-weg" aria-label="${esc(z)} löschen">×</button></div>`).join("")}</div>`).join("");
+      + ABSCHNITTE.filter(a => fassung === 1 || !a.wort).map(a => `<div class="sec-label">${a.titel}</div><div class="sb-raster${a.wort ? " sb-woerter" : ""}">${a.z.map(z =>
+        `<div class="sb-zelle${a.wort ? " sb-wort" : ""}${a.pflicht ? " pflicht" : ""}" data-z="${esc(z)}" data-wort="${a.wort ? 1 : ""}"><span class="sb-lab">${esc(z)}</span><canvas width="${a.wort ? BW : BZ}" height="${H}"></canvas><button type="button" class="sb-weg" aria-label="${esc(z)} löschen">×</button></div>`).join("")}</div>`).join("");
     b.querySelectorAll(".sb-zelle").forEach(zelle => {
       const m = fach(!!zelle.dataset.wort)[zelle.dataset.z];
       zelle.classList.toggle("voll", !!m);
