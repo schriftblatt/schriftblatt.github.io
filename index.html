@@ -324,10 +324,10 @@ ol.anl b{font-weight:600}
 .glyphe{position:relative;aspect-ratio:1/1.15;background:var(--blatt);border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center}
 .glyphe.leer{border-style:dashed;background:transparent}
 .glyphe i{position:absolute;top:1px;left:3px;font-style:normal;font-size:9px;color:#8a95a3;font-family:var(--font-mono)}
-.glyphe img{max-width:78%;max-height:70%;margin-top:6px}
+.glyphe img{position:absolute;left:50%;transform:translateX(-50%);width:auto;max-width:none}
 .woerter{display:flex;flex-wrap:wrap;gap:4px}
-.wort{height:40px;padding:4px 8px;background:var(--blatt);border:1px solid var(--line);border-radius:4px;display:flex;align-items:center}
-.wort img{max-height:100%;max-width:120px}
+.wort{position:relative;height:40px;background:var(--blatt);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.wort img{position:absolute;left:7px;width:auto}
 .reihen{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
 .reihen li{display:flex;gap:8px;align-items:flex-start}
 .reihen .ico{margin-top:2px}
@@ -366,7 +366,9 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 @media (min-width:900px){
   .layout{grid-template-columns:400px minmax(0,1fr);align-items:start;gap:28px}
   .links{position:sticky;top:calc(var(--kopfh) + 16px);max-height:calc(100vh - var(--kopfh) - 32px);overflow-y:auto;overscroll-behavior:contain;padding:2px 8px 24px 2px}
-  .tabs-oben{display:flex}
+  .tabs-oben{display:flex;position:sticky;top:0;z-index:6;box-shadow:0 6px 10px -6px rgba(14,27,42,.15)}
+  .links{overflow-x:hidden;touch-action:pan-y pinch-zoom}
+  .layout>.schreib-blatt{overflow-x:hidden}
   .untenleiste{display:none}
   main{padding-bottom:40px}
   .vorschau-leiste{position:sticky;top:var(--kopfh);z-index:4;background:var(--paper);padding:10px 0}
@@ -620,7 +622,7 @@ details.klapp>.klapp-in{padding:0 14px 14px;display:flex;flex-direction:column;g
 (function(){
 "use strict";
 // Wird beim Veröffentlichen gestempelt (veroeffentlichen.sh). "dev" = lokale Datei, dann keine Update-Meldung.
-const VERSION = "2026-10-07-145317";
+const VERSION = "2026-10-07-162952";
 
 /* ================= Helfer ================= */
 const $ = id => document.getElementById(id);
@@ -2187,8 +2189,10 @@ function statusZeigen() {
     return;
   }
   const alle = [...new Set(HS.ZEILEN.filter(Z => Z.art === "z").flatMap(Z => Z.teile).concat(Object.keys(info.g)))];
-  const zellen = alle.map(ch => { const m = info.g[ch]; return m ? `<div class="glyphe"><i>${esc(ch)}</i><img src="${m.url}" alt="${esc(ch)}"></div>` : `<div class="glyphe leer" title="fehlt"><i>${esc(ch)}</i></div>`; }).join("");
-  const woerter = Object.keys(info.w).map(w => `<div class="wort"><img src="${info.w[w].url}" alt="${esc(w)}"></div>`).join("");
+  // Alle Zeichen im gleichen Maßstab (x-Höhe 11 px) auf einer gemeinsamen Grundlinie, wie sie auch auf dem Blatt stehen
+  const U = 11, lage = m => { const k = U / (m.x || 32); return `height:${(m.h * k).toFixed(1)}px;top:calc(68% + ${(m.top * k).toFixed(1)}px)`; };
+  const zellen = alle.map(ch => { const m = info.g[ch]; return m ? `<div class="glyphe"><i>${esc(ch)}</i><img src="${m.url}" alt="${esc(ch)}" style="${lage(m)}"></div>` : `<div class="glyphe leer" title="fehlt"><i>${esc(ch)}</i></div>`; }).join("");
+  const woerter = Object.keys(info.w).map(w => { const m = info.w[w], k = U / (m.x || 32); return `<div class="wort" style="width:${Math.round(m.w * k + 14)}px"><img src="${m.url}" alt="${esc(w)}" style="${lage(m)}"></div>`; }).join("");
   box.innerHTML = ohne + `<div class="block">
     <div class="status-kopf">${ICO.ok}<span>${aktiveHs() ? `In Gebrauch: „${esc(aktiveHs().name)}“` : "Deine Schrift ist eingelesen"}</span></div>
     ${HSL.length > 1 ? '<p class="hint erkl">Andere Handschrift wählen: oben rechts auf deinen Namen.</p>' : ""}
@@ -3256,7 +3260,7 @@ const STIFT = (function () {
   function runter(e) {
     const c = e.target.closest("canvas"); if (!c || !zelleVon(c)) return;
     if (e.pointerType === "pen") nurStift = true;
-    if (e.pointerType === "touch" && (nurStift || !document.body.classList.contains("finger-schreiben"))) return;   // Finger scrollt
+    if (e.pointerType === "touch" && !document.body.classList.contains("finger-schreiben")) return;   // Finger scrollt, außer "Mit dem Finger schreiben" ist an
     e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (er) {}
     const g = c.getContext("2d"); g.strokeStyle = g.fillStyle = "#141a2a"; g.lineCap = g.lineJoin = "round";
     strich = { c, g, p: punkt(c, e), id: e.pointerId };
@@ -3311,7 +3315,8 @@ const STIFT = (function () {
     const stylus = e => { if ([...e.touches].some(t => t.touchType === "stylus")) e.preventDefault(); };
     b.addEventListener("touchstart", stylus, { passive: false }); b.addEventListener("touchmove", stylus, { passive: false });
     $("stiftUebersicht").addEventListener("click", steuerKlick);
-    $("stiftUebersicht").addEventListener("change", e => { if (e.target.id === "stiftFinger") document.body.classList.toggle("finger-schreiben", e.target.checked); });
+    if (LS.get("hs2-finger") === "1") { document.body.classList.add("finger-schreiben"); steuerung(); }
+    $("stiftUebersicht").addEventListener("change", e => { if (e.target.id === "stiftFinger") { document.body.classList.toggle("finger-schreiben", e.target.checked); LS.set("hs2-finger", e.target.checked ? "1" : "0"); } });
   }
 
   // ---------- Übernehmen: als neue Handschrift speichern ----------
